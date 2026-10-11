@@ -527,9 +527,13 @@ All ordinary Labs rows, including ranked keywords and domain rank overview, use 
 plus 0.012 per item. Historical rank overview uses base 12 plus 0.12 per item. Enabling
 `include_clickstream_data` doubles the entire Labs estimate where the endpoint documents it. Backlinks rows, summary and
 history use base 2.4 plus 0.0036 per row, without a clickstream multiplier. Summary extracts
-`itemCount: "1"`; history has no documented request count, so its extracted estimate remains
-unknown. Supply a defensible `itemCount` through the direct catalog/Meter API or a whole-call
-BYOK estimate. A missing count alone does not prohibit whole-call manual or sufficiently sampled measured overrides, or an explicit host estimate on the request path. Without one, money budgets fail closed with `missing_estimate_unit`.
+`itemCount: "1"`. With explicit `date_from` and `date_to`, history extraction bounds the
+number of rows by the inclusive calendar-month span, retaining both dates in the pricing
+identity. Both endpoints return monthly records: [backlink history](https://docs.dataforseo.com/v3/backlinks-history-live/)
+and [historical rank overview](https://docs.dataforseo.com/v3/dataforseo_labs-google-historical_rank_overview-live/).
+Partial boundary months each count as one row. Missing date bounds remain unknown; invalid
+calendar dates or reversed ranges make the request unpriceable. A host may instead supply a
+defensible `itemCount` through the direct catalog/Meter API or a whole-call BYOK estimate. A missing count alone does not prohibit whole-call manual or sufficiently sampled measured overrides, or an explicit host estimate on the request path. Without one, money budgets fail closed with `missing_estimate_unit`.
 
 Request extraction reads `keywords.length` for keyword overview and `limit` for the operations
 below. The defaults were checked in DataForSEO documentation on **2026-10-11** (maximum 1,000):
@@ -552,7 +556,7 @@ not the billed count. `include_seed_keyword` is only documented on suggestions a
 keywords; on those endpoints true remains unknown because an extra item is unconfirmed.
 On any other endpoint this field is unlisted, even when false. Keyword overview without `keywords`
 and [historical rank overview](https://docs.dataforseo.com/v3/dataforseo_labs/google/historical_rank_overview/live/)
-without a host-supplied count remain unknown. A default date range does not establish a count.
+without explicit date bounds or a host-supplied count remain unknown. A default date range does not establish a count.
 
 SERP [live](https://docs.dataforseo.com/v3/serp/google/organic/live/advanced/) and
 [task post](https://docs.dataforseo.com/v3/serp/google/organic/task_post/) retain the documented
@@ -626,7 +630,7 @@ charge above the requested page bound: the
 [stop-on-match guide](https://dataforseo.com/help-center/using-the-stop_crawl_on_match-parameter-in-serp-api)
 confirms unused pages are refunded. A rank check with depth 100, `search_param: "&nfpr=1"`
 and `stop_crawl_on_match` remains priced and dispatchable. `url` is documented but remains
-unknown because the provider derives other request fields from it. History date ranges
+unknown because the provider derives other request fields from it. Explicit history date ranges bound the monthly item count; incomplete ranges
 yield an unknown list estimate until a defensible count or whole-call override is available. Labs `offset_token` requests
 remain unknown: the [ideas](https://docs.dataforseo.com/v3/dataforseo_labs/google/keyword_ideas/live/)
 and [suggestions](https://docs.dataforseo.com/v3/dataforseo_labs/google/keyword_suggestions/live/)

@@ -1,21 +1,21 @@
 # Consuming usagekit
 
 Use Node 22.23.1 and pin packages from a release cohort to the same exact version.
-The seven-package 0.8.0 cohort is published and includes views, React and Postgres storage.
-It adds `ProviderRate.fallback` to `@usagekit/views`; the other six packages moved to 0.8.0
-without functional changes.
-The preceding 0.7.0 cohort, which added `useProviderEditor`, the 0.6.0 cohort and the
-four-package 0.5.0 runtime cohort remain available.
-The seven-package 0.9.0 source cohort adds pricing formulas, authorized `Meter.quote`, host-priced
-credits calls and React draft rebase signals for the host composition blocks; `store`, `views`
-and `store-postgres` move to 0.9.0 without functional changes.
-See [what 0.9.0 adds](#what-090-adds).
-Use the npm commands below for 0.8.0 and reviewed local tarballs for 0.9.0 until it is published.
+The seven-package 0.9.0 cohort is published. It adds pricing formulas, authorized
+`Meter.quote`, host-priced credits calls and React draft rebase signals for the host
+composition blocks. See [what 0.9.0 adds](#what-090-adds).
+The preceding 0.8.0, 0.7.0 and 0.6.0 cohorts and the four-package 0.5.0 runtime cohort
+remain available.
+The 0.9.1 source candidate adds conservative estimates for historical provider requests
+with explicit date bounds. Both boundary months count, including partial months; the
+actual response determines settlement. Requests without both bounds remain unknown.
+All seven packages move together. Use reviewed local tarballs for 0.9.1 until separately
+approved and published.
 
 Source: <https://github.com/usagekit/usagekit>. Documentation and registry: <https://usagekit.dev>.
 
 ```sh
-npm install --save-exact @usagekit/core@0.8.0 @usagekit/store@0.8.0 @usagekit/meter@0.8.0 @usagekit/providers@0.8.0
+npm install --save-exact @usagekit/core@0.9.0 @usagekit/store@0.9.0 @usagekit/meter@0.9.0 @usagekit/providers@0.9.0
 ```
 
 The registry is `https://registry.npmjs.org/`. No scope registry mapping is needed.
@@ -67,9 +67,8 @@ Skipped capabilities are not passed guarantees.
 
 ## Headless views and React components
 
-`@usagekit/views` and `@usagekit/react` belong to the seven-package 0.8.0 cohort,
-alongside `@usagekit/store-postgres`; the preceding 0.7.0 and 0.6.0 cohorts and the 0.9.0 source
-cohort have the same seven packages.
+`@usagekit/views`, `@usagekit/react` and `@usagekit/store-postgres` belong to the
+published seven-package 0.9.0 cohort. The 0.9.1 source candidate uses the same cohort.
 In 0.7.0, `@usagekit/react` adds `useProviderEditor(query, options?)`, which keeps a draft base
 separate from current evidence and rebases only after an explicit successful reload; see
 [provider UI](PROVIDER-UI.md). In 0.8.0, `@usagekit/views` adds `ProviderRate.fallback`, the price
@@ -83,21 +82,22 @@ Check availability without credentials:
 
 ```sh
 for package in core store meter providers views react store-postgres; do
-  npm view "@usagekit/$package@0.8.0" version --registry https://registry.npmjs.org/
+  npm view "@usagekit/$package@0.9.0" version --registry https://registry.npmjs.org/
 done
 ```
 
 After all seven versions are available, install the packages your application needs:
 
 ```sh
-npm install --save-exact @usagekit/core@0.8.0 @usagekit/store@0.8.0 @usagekit/meter@0.8.0 @usagekit/providers@0.8.0 @usagekit/views@0.8.0 @usagekit/react@0.8.0
+npm install --save-exact @usagekit/core@0.9.0 @usagekit/store@0.9.0 @usagekit/meter@0.9.0 @usagekit/providers@0.9.0 @usagekit/views@0.9.0 @usagekit/react@0.9.0
 # Optional server-side Postgres storage:
-npm install --save-exact @usagekit/store-postgres@0.8.0
+npm install --save-exact @usagekit/store-postgres@0.9.0
 ```
 
-Registry blocks request exact 0.9.0 `@usagekit/react`, `@usagekit/views` and `@usagekit/core`
-versions, which resolve anonymously only after 0.9.0 is published. Run the check above with
-0.9.0, then pin every `@usagekit` package in the application to 0.9.0 before copying blocks:
+The published registry blocks use exact 0.9.0 `@usagekit/react`, `@usagekit/views` and
+`@usagekit/core` versions. This checkout builds candidate blocks requesting 0.9.1. Use
+reviewed cohort tarballs for those blocks until 0.9.1 is published; do not mix cohorts.
+For the published 0.9.0 blocks:
 
 ```sh
 # Choose the primitive family configured in your shadcn application:
@@ -142,8 +142,7 @@ shared cache behavior and writer outcomes.
 
 ## What 0.9.0 adds
 
-The 0.9.0 source cohort awaits exact-source approval and publication. Pin all seven packages to
-0.9.0 together. `store`, `views` and `store-postgres` have no functional changes.
+The 0.9.0 cohort is published. Pin all seven packages to 0.9.0 together. `store`, `views` and `store-postgres` have no functional changes.
 
 - **Pricing formulas and BYOK-only manual prices** (`core`, `providers`, `meter`). A catalog price
   row can carry a `PriceCalculation`: additional pages by depth, a base charge plus a per-item

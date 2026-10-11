@@ -9,7 +9,7 @@ export const publishable = [
 ];
 export const registry = "https://registry.npmjs.org/";
 /** Version of the publishable packages on this branch; the workspace check enforces it. */
-export const releaseVersion = "0.9.0";
+export const releaseVersion = "0.9.1";
 
 /** Source-path exceptions never exempt a private term inside a public tarball. */
 export function privatePackageTerms(content) {

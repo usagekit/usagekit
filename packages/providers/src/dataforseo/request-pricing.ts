@@ -12,7 +12,7 @@ export const requestPricing: Readonly<
   "backlinks.backlinks.live": {
     source: "https://docs.dataforseo.com/v3/backlinks/backlinks/live/",
     formula:
-      "2.4 + 0.0036 * rowCount cents; summary one row, backlinks limit, history count unknown",
+      "2.4 + 0.0036 * rowCount cents; summary one row, backlinks limit, history inclusive month bound with explicit dates",
     priceFields: {
       limit: {
         formula: "(base + per-item * limit); documented default, 1..1000; zero unknown",
@@ -37,14 +37,13 @@ export const requestPricing: Readonly<
   // Request field inventory: https://docs.dataforseo.com/v3/backlinks/history/live/
   "backlinks.history.live": {
     source: "https://docs.dataforseo.com/v3/backlinks/history/live/",
-    formula:
-      "2.4 + 0.0036 * rowCount cents; summary one row, backlinks limit, history count unknown",
+    formula: "2.4 + 0.0036 * rowCount cents; history inclusive month bound with explicit dates",
     priceFields: {
       date_from: {
-        formula: "changes returned row count; count not derivable from the request",
+        formula: "inclusive first calendar month; both dates required to bound item count",
       },
       date_to: {
-        formula: "changes returned row count; count not derivable from the request",
+        formula: "inclusive last calendar month; both dates required to bound item count",
       },
     },
     neutralFields: ["target", "rank_scale", "tag"],
@@ -53,7 +52,7 @@ export const requestPricing: Readonly<
   "backlinks.summary.live": {
     source: "https://docs.dataforseo.com/v3/backlinks/summary/live/",
     formula:
-      "2.4 + 0.0036 * rowCount cents; summary one row, backlinks limit, history count unknown",
+      "2.4 + 0.0036 * rowCount cents; summary one row, backlinks limit, history inclusive month bound with explicit dates",
     priceFields: {},
     neutralFields: [
       "target",
@@ -71,7 +70,7 @@ export const requestPricing: Readonly<
   "dataforseo_labs.google.domain_rank_overview.live": {
     source: "https://docs.dataforseo.com/v3/dataforseo_labs/google/domain_rank_overview/live/",
     formula:
-      "(base + perItem * itemCount) * (clickstream ? 2 : 1); historical count unknown; ordinary base 1.2, perItem 0.012 cents; historical base 12, perItem 0.12 cents",
+      "(base + perItem * itemCount) * (clickstream ? 2 : 1); historical count requires explicit date bounds; ordinary base 1.2, perItem 0.012 cents; historical base 12, perItem 0.12 cents",
     priceFields: {
       limit: {
         formula: "(base + per-item * limit); documented default, 1..1000; zero unknown",
@@ -93,16 +92,16 @@ export const requestPricing: Readonly<
   "dataforseo_labs.google.historical_rank_overview.live": {
     source: "https://docs.dataforseo.com/v3/dataforseo_labs/google/historical_rank_overview/live/",
     formula:
-      "(base + perItem * itemCount) * (clickstream ? 2 : 1); historical count unknown; ordinary base 1.2, perItem 0.012 cents; historical base 12, perItem 0.12 cents",
+      "(base + perItem * itemCount) * (clickstream ? 2 : 1); historical count requires explicit date bounds; ordinary base 1.2, perItem 0.012 cents; historical base 12, perItem 0.12 cents",
     priceFields: {
       include_clickstream_data: {
         formula: "true doubles entire request charge",
       },
       date_from: {
-        formula: "changes returned row count; count not derivable from the request",
+        formula: "inclusive first calendar month; both dates required to bound item count",
       },
       date_to: {
-        formula: "changes returned row count; count not derivable from the request",
+        formula: "inclusive last calendar month; both dates required to bound item count",
       },
     },
     neutralFields: [
@@ -120,7 +119,7 @@ export const requestPricing: Readonly<
   "dataforseo_labs.google.keyword_ideas.live": {
     source: "https://docs.dataforseo.com/v3/dataforseo_labs/google/keyword_ideas/live/",
     formula:
-      "(base + perItem * itemCount) * (clickstream ? 2 : 1); historical count unknown; ordinary base 1.2, perItem 0.012 cents; historical base 12, perItem 0.12 cents",
+      "(base + perItem * itemCount) * (clickstream ? 2 : 1); historical count requires explicit date bounds; ordinary base 1.2, perItem 0.012 cents; historical base 12, perItem 0.12 cents",
     priceFields: {
       include_clickstream_data: {
         formula: "true doubles entire request charge",
@@ -153,7 +152,7 @@ export const requestPricing: Readonly<
   "dataforseo_labs.google.keyword_overview.live": {
     source: "https://docs.dataforseo.com/v3/dataforseo_labs/google/keyword_overview/live/",
     formula:
-      "(base + perItem * itemCount) * (clickstream ? 2 : 1); historical count unknown; ordinary base 1.2, perItem 0.012 cents; historical base 12, perItem 0.12 cents",
+      "(base + perItem * itemCount) * (clickstream ? 2 : 1); historical count requires explicit date bounds; ordinary base 1.2, perItem 0.012 cents; historical base 12, perItem 0.12 cents",
     priceFields: {
       keywords: {
         formula: "base + 0.012 cents * keywords.length; clickstream doubles total",
@@ -175,7 +174,7 @@ export const requestPricing: Readonly<
   "dataforseo_labs.google.keyword_suggestions.live": {
     source: "https://docs.dataforseo.com/v3/dataforseo_labs/google/keyword_suggestions/live/",
     formula:
-      "(base + perItem * itemCount) * (clickstream ? 2 : 1); historical count unknown; ordinary base 1.2, perItem 0.012 cents; historical base 12, perItem 0.12 cents",
+      "(base + perItem * itemCount) * (clickstream ? 2 : 1); historical count requires explicit date bounds; ordinary base 1.2, perItem 0.012 cents; historical base 12, perItem 0.12 cents",
     priceFields: {
       include_seed_keyword: {
         formula: "false neutral; true unknown because extra item count is unconfirmed",
@@ -212,7 +211,7 @@ export const requestPricing: Readonly<
   "dataforseo_labs.google.ranked_keywords.live": {
     source: "https://docs.dataforseo.com/v3/dataforseo_labs/google/ranked_keywords/live/",
     formula:
-      "(base + perItem * itemCount) * (clickstream ? 2 : 1); historical count unknown; ordinary base 1.2, perItem 0.012 cents; historical base 12, perItem 0.12 cents",
+      "(base + perItem * itemCount) * (clickstream ? 2 : 1); historical count requires explicit date bounds; ordinary base 1.2, perItem 0.012 cents; historical base 12, perItem 0.12 cents",
     priceFields: {
       include_clickstream_data: {
         formula: "true doubles entire request charge",
@@ -242,7 +241,7 @@ export const requestPricing: Readonly<
   "dataforseo_labs.google.related_keywords.live": {
     source: "https://docs.dataforseo.com/v3/dataforseo_labs/google/related_keywords/live/",
     formula:
-      "(base + perItem * itemCount) * (clickstream ? 2 : 1); historical count unknown; ordinary base 1.2, perItem 0.012 cents; historical base 12, perItem 0.12 cents",
+      "(base + perItem * itemCount) * (clickstream ? 2 : 1); historical count requires explicit date bounds; ordinary base 1.2, perItem 0.012 cents; historical base 12, perItem 0.12 cents",
     priceFields: {
       include_seed_keyword: {
         formula: "false neutral; true unknown because extra item count is unconfirmed",
@@ -276,7 +275,7 @@ export const requestPricing: Readonly<
   "dataforseo_labs.google.relevant_pages.live": {
     source: "https://docs.dataforseo.com/v3/dataforseo_labs/google/relevant_pages/live/",
     formula:
-      "(base + perItem * itemCount) * (clickstream ? 2 : 1); historical count unknown; ordinary base 1.2, perItem 0.012 cents; historical base 12, perItem 0.12 cents",
+      "(base + perItem * itemCount) * (clickstream ? 2 : 1); historical count requires explicit date bounds; ordinary base 1.2, perItem 0.012 cents; historical base 12, perItem 0.12 cents",
     priceFields: {
       include_clickstream_data: {
         formula: "true doubles entire request charge",

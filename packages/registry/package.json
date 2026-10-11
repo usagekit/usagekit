@@ -20,8 +20,8 @@
     "prepublishOnly": "node ../../scripts/deny-publish.mjs"
   },
   "dependencies": {
-    "@usagekit/core": "0.9.0",
-    "@usagekit/react": "0.9.0",
-    "@usagekit/views": "0.9.0"
+    "@usagekit/core": "0.9.1",
+    "@usagekit/react": "0.9.1",
+    "@usagekit/views": "0.9.1"
   }
 }

@@ -123,7 +123,7 @@ describe("provider A (dataforseo)", () => {
     expect(matched.options).toEqual(options);
     const keys = matched.operation.optionKeys ?? [];
     if (path === "backlinks/backlinks") expect(keys).toEqual(["itemCount"]);
-    if (path === "backlinks/history") expect(keys).toEqual(["itemCount"]);
+    if (path === "backlinks/history") expect(keys).toEqual(["itemCount", "dateFrom", "dateTo"]);
     if (path === "dataforseo_labs/google/keyword_ideas")
       expect(
         catalog.estimate(connection, matched.operation.id, matched.options).quantities[0],

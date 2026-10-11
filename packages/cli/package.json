@@ -19,8 +19,8 @@
     "prepublishOnly": "node ../../scripts/deny-publish.mjs"
   },
   "dependencies": {
-    "@usagekit/core": "0.9.0",
-    "@usagekit/client": "0.9.0",
+    "@usagekit/core": "0.9.1",
+    "@usagekit/client": "0.9.1",
     "@usagekit/server": "0.0.0"
   },
   "bin": {

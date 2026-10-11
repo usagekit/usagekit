@@ -175,11 +175,18 @@ export const descriptor: ProviderDescriptor = {
         `dataforseo_labs.google.${name}.live`,
         label,
         `/v3/dataforseo_labs/google/${name}/live`,
-        ["itemCount", "clickstream"],
+        [
+          "itemCount",
+          "clickstream",
+          ...(name === "historical_rank_overview" ? ["dateFrom", "dateTo"] : []),
+        ],
       ),
     ),
     ...backlinks.map(([name, label]) =>
-      live(`backlinks.${name}.live`, label, `/v3/backlinks/${name}/live`, ["itemCount"]),
+      live(`backlinks.${name}.live`, label, `/v3/backlinks/${name}/live`, [
+        "itemCount",
+        ...(name === "history" ? ["dateFrom", "dateTo"] : []),
+      ]),
     ),
     free(
       "appendix.user_data",

@@ -1,6 +1,7 @@
 import { addQuantity, formatQuantity } from "@usagekit/core";
 import type { BalanceSnapshot, BillingLine, Measurement, PriceRow } from "@usagekit/core";
 import { descriptor } from "./descriptor.js";
+import { historyWindowOptions } from "./history-window.js";
 import type { Extractors, ReceiptDraft } from "../types.js";
 import { listEstimate } from "../prices.js";
 import { pointer } from "../pointer.js";
@@ -286,6 +287,7 @@ export const extractors: Extractors = {
     const task = first as Record<string, unknown>,
       options: Record<string, string> = {};
     const keys = operation.optionKeys ?? [];
+    Object.assign(options, historyWindowOptions(operation.id, task));
     if (operation.billable) {
       const fields = operation.requestPricing;
       const unlisted =
@@ -341,9 +343,8 @@ export const extractors: Extractors = {
               task.limit === undefined
               ? operation.requestPricing?.priceFields.limit?.defaultCount
               : task.limit
-            : // Summary returns one row. History has no documented request count.
+            : // Summary returns one row; explicit history dates were bounded above.
               // https://docs.dataforseo.com/v3/backlinks/summary/live/
-              // https://docs.dataforseo.com/v3/backlinks/history/live/
               operation.id === "backlinks.summary.live"
               ? 1
               : undefined;
