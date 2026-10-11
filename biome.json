@@ -1,0 +1,21 @@
+{
+  "files": { "includes": ["packages/registry/registry/**"] },
+  "formatter": { "enabled": false },
+  "linter": {
+    "rules": {
+      "recommended": false,
+      "a11y": {
+        "recommended": true,
+        "noSvgWithoutTitle": "off",
+        "useAriaPropsSupportedByRole": "off"
+      },
+      "correctness": {
+        "useExhaustiveDependencies": "error"
+      },
+      "suspicious": {
+        "useIterableCallbackReturn": "error"
+      }
+    }
+  },
+  "assist": { "enabled": false }
+}

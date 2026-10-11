@@ -1,13 +1,7 @@
-import type {
-  DispatchGrant,
-  Meter,
-  MeterReserveInput,
-  Operation,
-  ReserveResult,
-  SettleResult,
-} from "@usagekit/core";
+import type { DispatchGrant, Meter, Operation, ReserveResult, SettleResult } from "@usagekit/core";
 import type { Catalog } from "./catalog.js";
-import type { ProviderRequest, ProviderResponse, ReceiptDraft } from "./types.js";
+import type { PricedRequest } from "./priced-request.js";
+import type { ProviderResponse, ReceiptDraft } from "./types.js";
 
 export type ProviderExecution =
   | {
@@ -23,35 +17,27 @@ export type ProviderExecution =
 export type ProviderExecutionInput = {
   meter: Meter;
   catalog: Catalog;
-  input: Omit<MeterReserveInput, "operation" | "options">;
-  request: ProviderRequest;
-  /** Reads the entire response before resolving. Inject credentials here, never in accounting. */
-  dispatch(request: ProviderRequest): Promise<{ response: ProviderResponse; body: unknown }>;
+  request: PricedRequest;
+  /** Sends the priced bytes and reads the entire response. Add credentials only at transport. */
+  dispatch(request: PricedRequest): Promise<{ response: ProviderResponse; body: unknown }>;
   now?: () => Date;
   holder?: string;
   leaseTtlMs?: number;
 };
 /** Execute one provider request. A replay, rejected reserve or lost grant never calls dispatch.
+ * Submits provider receipt evidence only. Hosts settle platform customer-charge measurements
+ * separately, using a unit distinct from the provider's units to retain the customer hold.
  * Long transports must finish within leaseTtlMs; streaming/recovery workers are host-owned. */
 export async function executeProviderRequest({
   meter,
   catalog,
-  input,
   request,
   dispatch,
   now = () => new Date(),
   holder = "provider-wrapper",
   leaseTtlMs = 60000,
 }: ProviderExecutionInput): Promise<ProviderExecution> {
-  const matched = catalog.match(input.provider, request);
-  const { estimate, ...base } = input;
-  const reserved = await meter.reserve({
-    ...base,
-    operation: matched.operation === "unknown" ? "unknown" : matched.operation.id,
-    ...(matched.operation === "unknown"
-      ? {}
-      : { ...(estimate === undefined ? {} : { estimate }), options: matched.options }),
-  });
+  const { matched, input, admission: reserved } = request;
   if (matched.operation === "unknown") return { outcome: "not_dispatched", result: reserved };
   const ref = {
     namespace: input.scope.namespace,
@@ -94,7 +80,7 @@ export async function executeProviderRequest({
     receipt = catalog.extract(
       input.provider,
       matched.operation.id,
-      request,
+      request.parsed,
       returned.response,
       returned.body,
     );

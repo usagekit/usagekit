@@ -21,6 +21,8 @@ export type MeasurementCardProps = {
   /** "plain" drops the card chrome so several measurements can share one surface. */
   variant?: "card" | "plain";
   className?: string;
+  formatFigure?: (value: Exclude<Figure, "unavailable">) => string;
+  formatUnit?: (unit: string) => string;
 };
 
 const certaintyTone: Record<"measured" | "estimated" | "unknown" | "unavailable", UsageTone> = {
@@ -35,10 +37,14 @@ export function MeasurementValue({
   value,
   labels: custom,
   size = "lg",
+  formatFigure,
+  formatUnit,
 }: {
   value: Figure;
   labels?: Partial<MeasurementCardLabels>;
   size?: "lg" | "md";
+  formatFigure?: MeasurementCardProps["formatFigure"];
+  formatUnit?: MeasurementCardProps["formatUnit"];
 }) {
   const labels = { ...measurementCardLabels, ...custom };
   const missing =
@@ -58,14 +64,15 @@ export function MeasurementValue({
   return (
     <p className="flex min-w-0 flex-wrap items-baseline gap-x-1.5 gap-y-0.5">
       <span
-        key={value.text}
+        key={formatFigure?.(value) ?? value.text}
         className={`min-w-0 break-all font-semibold tabular-nums ${size === "lg" ? "cn-usage-figure-lg" : "cn-usage-figure-xs"} ${usageMotion.enter}`}
       >
-        {value.text}
+        {formatFigure?.(value) ?? value.text}
       </span>
       {value.unit && (
         <span className="cn-usage-body text-muted-foreground">
-          {value.unit === "customer_cents" ? labels.cents : value.unit}
+          {formatUnit?.(value.unit) ??
+            (value.unit === "customer_cents" || value.unit === "cents" ? labels.cents : value.unit)}
         </span>
       )}
     </p>
@@ -96,6 +103,8 @@ export function MeasurementCard({
   labels,
   variant = "card",
   className = "",
+  formatFigure,
+  formatUnit,
 }: MeasurementCardProps) {
   const certainty = value === "unavailable" ? "unavailable" : value.certainty;
   if (variant === "plain")
@@ -106,7 +115,12 @@ export function MeasurementCard({
           <MeasurementCertainty value={value} labels={labels} />
         </div>
         {description && <p className="cn-usage-meta text-muted-foreground">{description}</p>}
-        <MeasurementValue value={value} labels={labels} />
+        <MeasurementValue
+          value={value}
+          labels={labels}
+          formatFigure={formatFigure}
+          formatUnit={formatUnit}
+        />
       </div>
     );
   return (
@@ -119,7 +133,12 @@ export function MeasurementCard({
         {description && <CardDescription>{description}</CardDescription>}
       </CardHeader>
       <CardContent>
-        <MeasurementValue value={value} labels={labels} />
+        <MeasurementValue
+          value={value}
+          labels={labels}
+          formatFigure={formatFigure}
+          formatUnit={formatUnit}
+        />
       </CardContent>
     </Card>
   );

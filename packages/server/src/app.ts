@@ -3,7 +3,7 @@ import { createUsageHandlers, parseBudget, encodeWire } from "@usagekit/http";
 import { normalizeTags } from "@usagekit/core";
 import type { Catalog } from "@usagekit/providers";
 import type { createRecorder } from "./recorder.js";
-import { connectionMetadata } from "./connections.js";
+import { connectionMetadata, connectionPolicyFailure } from "./connections.js";
 import type { Meter } from "@usagekit/core";
 import type { SqliteStore } from "@usagekit/store-sqlite";
 import type { createAuth } from "./auth.js";
@@ -92,6 +92,7 @@ export function createApp({
             "tags",
             "plan",
             "tracking",
+            "fundingSource",
             "manualPrices",
             "overage",
           ].includes(k),
@@ -103,6 +104,8 @@ export function createApp({
       return c.json({ error: "invalid_request" }, 400);
     const tags = b.tags === undefined ? undefined : normalizeTags(b.tags as readonly string[]);
     if (tags === null) return c.json({ error: "invalid_request" }, 400);
+    const policyFailure = connectionPolicyFailure(b, catalog);
+    if (policyFailure) return c.json({ error: "invalid_connection_policy", ...policyFailure }, 400);
     const metadata = connectionMetadata(b, catalog);
     if (!metadata) return c.json({ error: "invalid_connection_policy" }, 400);
     if (providerManagement?.mutationBlocked())

@@ -51,7 +51,7 @@ export const Budget = obj({
   id: text,
   version: integer,
   scope: BudgetScope,
-  surface: v.picklist(["app", "programmatic", "any", ...source.options]),
+  surface: v.picklist(["programmatic", "any", ...source.options]),
   unit: text,
   limit: v.nullable(Quantity),
   window,
@@ -254,7 +254,19 @@ const BillingImportRecord = obj({
   reconciliations: v.array(ReconciliationEntry),
   alerts: v.array(AlertCrossed),
 });
+const {
+  operationId: _id,
+  reservationTtlMs: _ttl,
+  correlationId: _correlation,
+  parentOperationId: _parent,
+  ...quoteFields
+} = reserveFields;
 export const schemas = {
+  quote: obj({
+    ...quoteFields,
+    estimate: v.optional(v.array(Quantity)),
+    options: v.optional(v.record(v.string(), v.string())),
+  }),
   importBilling: obj({
     scope: Scope,
     provider: text,
@@ -357,6 +369,18 @@ const settleResult = v.union([
   invalid,
 ]);
 export const responses = {
+  quote: read(
+    obj({
+      quantities: v.array(Quantity),
+      estimateSource: v.optional(v.picklist(["manual", "measured", "list", "unknown"])),
+      providerPriceVersion: v.optional(text),
+      checkedAt: v.optional(text),
+      sampleSize: v.optional(integer),
+      tracking: v.picklist(["metered", "passthrough", "unpriced"]),
+      budgets: v.array(Status),
+      asOf: timestamp,
+    }),
+  ),
   importBilling: v.union([
     obj({ outcome: v.literal("imported"), replayed: v.boolean(), record: BillingImportRecord }),
     obj({
@@ -463,6 +487,7 @@ export const responses = {
 };
 /** Method and path of every route; reads take their query as base64url JSON in q. */
 export const routes: Record<RouteName, { read: boolean; path: string }> = {
+  quote: { read: true, path: "/v1/quotes" },
   importBilling: { read: false, path: "/v1/billing/import" },
   billingImports: { read: true, path: "/v1/billing/imports" },
   expire: { read: false, path: "/v1/operations/expire" },

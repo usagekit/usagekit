@@ -36,9 +36,15 @@ may have been created earlier, since occurrence and operation creation are diffe
 
 `access.canImportBilling` must be explicitly true, billing detail must be readable, and the
 host must resolve connection ownership. A configured connection resolver also checks provider
-identity; a configured catalog denies disabled or unknown providers. The permission belongs
-to a trusted host importer. Scope, pool and funding fields in the input are historical host
-projections, not proof of end-user authorization. An authenticated request body cannot grant
+identity within the supplied namespace. Historical `attribution.fundingSource` is a trusted
+host projection and may legitimately differ from the connection's current funding. Imports
+do not validate or compare current connection funding; quote and new reservation funding
+checks are unchanged. Authorization, ownership, unresolved connections and provider mismatches
+return `forbidden`; a configured catalog also denies disabled or unknown providers. These
+outcomes write nothing to the Store. The host must derive import attribution from trusted
+historical records.
+The permission belongs to a trusted host importer. Scope, pool and funding fields in the input
+are historical host projections, not proof of end-user authorization. An authenticated request body cannot grant
 this permission. Missing ownership fails closed.
 
 ## Matching and certainty
@@ -96,6 +102,8 @@ native Durable Objects. In-memory fixtures explicitly skip the durable recreatio
 imports for a principal and connection, or retained history. Exact integers travel as decimal
 strings, including signed differences and unknown counts. Reads require authorized billing
 detail and connection ownership. A read-only mount does not expose the import command.
+Funding validation failures use the existing HTTP 200 `{ outcome: "invalid", field, reason }`
+response; forbidden imports return HTTP 403.
 
 The remote client retries accounting only when the caller explicitly requests a retry. It
 retains the exact original body. The loopback server grants import permission to its verified

@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { useState } from "react";
 import type { Certainty, Meter, UsageQuery } from "@usagekit/core";
 import { serialize, useMeterBinding, useUsageView } from "@usagekit/react";
@@ -18,6 +19,9 @@ import type { UsageTone } from "@/components/usagekit/usage-motion";
 
 export const usageTableLabels = {
   title: "Usage detail",
+  funding: "Funding source",
+  byok: "Own key",
+  platform: "Platform funded",
   cost: "Cost",
   customerCharges: "Customer charges",
   cents: "cents",
@@ -45,10 +49,14 @@ const frame = "rounded-xl border min-w-0 overflow-hidden border-border";
 const head = "h-10 px-4 text-xs font-medium text-muted-foreground";
 const cell = "px-4 py-3";
 
-function figure(value: Figure | Amount, labels: UsageTableLabels): string {
+function figure(
+  value: Figure | Amount,
+  labels: UsageTableLabels,
+  props: Pick<UsageTableProps, "formatFigure" | "formatUnit">,
+): string {
   if (value === "unavailable") return labels.unavailable;
   if (value.certainty === "unknown") return labels.unknown;
-  return `${value.text} ${value.unit === "customer_cents" ? labels.cents : value.unit}`;
+  return `${props.formatFigure?.(value) ?? value.text} ${props.formatUnit?.(value.unit) ?? (value.unit === "customer_cents" || value.unit === "cents" ? labels.cents : value.unit)}`;
 }
 
 export type UsageTableProps = {
@@ -60,6 +68,13 @@ export type UsageTableProps = {
   onFirstPage?: () => void;
   /** A newer page is loading; the current rows stay visible but dimmed. */
   busy?: boolean;
+  formatFigure?: (value: Exclude<Figure, "unavailable">) => string;
+  formatUnit?: (unit: string) => string;
+  formatDimension?: (dimension: string, value: string, row: UsageView["rows"][number]) => ReactNode;
+  showFunding?: boolean;
+  formatFunding?: (source: UsageView["rows"][number]["fundingSource"]) => ReactNode;
+  metadata?: ReactNode;
+  details?: ReactNode;
 };
 
 /** Renders one UsageView page. Amounts are the view model's exact text, never recomputed. */
@@ -70,6 +85,13 @@ export function UsageTable({
   onNextPage,
   onFirstPage,
   busy = false,
+  formatFigure,
+  formatUnit,
+  formatDimension,
+  showFunding = false,
+  formatFunding,
+  metadata,
+  details,
 }: UsageTableProps) {
   const labels = { ...usageTableLabels, ...custom };
   if (!view)
@@ -98,6 +120,7 @@ export function UsageTable({
     );
   return (
     <div className="flex min-w-0 flex-col gap-3">
+      {metadata}
       <div className={frame}>
         <Table
           tabIndex={0}
@@ -112,9 +135,11 @@ export function UsageTable({
                   {dimensionLabels[d] ?? d}
                 </TableHead>
               ))}
+              {showFunding && <TableHead className={head}>{labels.funding}</TableHead>}
               {view.units.map((unit) => (
                 <TableHead key={unit} className={`${head} text-right`}>
-                  {unit === "customer_cents" ? labels.customerCharges : unit}
+                  {formatUnit?.(unit) ??
+                    (unit === "customer_cents" ? labels.customerCharges : unit)}
                 </TableHead>
               ))}
               <TableHead className={`${head} text-right`}>{labels.cost}</TableHead>
@@ -126,7 +151,7 @@ export function UsageTable({
             {view.state === "empty" ? (
               <TableRow className="hover:bg-transparent">
                 <TableCell
-                  colSpan={view.groupBy.length + view.units.length + 3}
+                  colSpan={view.groupBy.length + view.units.length + 3 + (showFunding ? 1 : 0)}
                   className="text-sm px-4 py-8 text-center text-muted-foreground"
                 >
                   {labels.empty}
@@ -140,16 +165,26 @@ export function UsageTable({
                 >
                   {view.groupBy.map((d) => (
                     <TableCell key={d} className={`${cell} font-medium`}>
-                      {row.dimensions[d] ?? ""}
+                      {formatDimension?.(d, row.dimensions[d] ?? "", row) ??
+                        row.dimensions[d] ??
+                        ""}
                     </TableCell>
                   ))}
+                  {showFunding && (
+                    <TableCell className={cell}>
+                      {formatFunding?.(row.fundingSource) ?? labels[row.fundingSource]}
+                    </TableCell>
+                  )}
                   {view.units.map((unit) => (
                     <TableCell key={unit} className={`${cell} text-right tabular-nums`}>
-                      {figure(row.units[unit] ?? "unavailable", labels)}
+                      {figure(row.units[unit] ?? "unavailable", labels, {
+                        formatFigure,
+                        formatUnit,
+                      })}
                     </TableCell>
                   ))}
                   <TableCell className={`${cell} text-right tabular-nums`}>
-                    {figure(row.cost, labels)}
+                    {figure(row.cost, labels, { formatFigure, formatUnit })}
                   </TableCell>
                   <TableCell className={cell}>
                     <UsageStatus tone={certaintyTone[row.certainty]}>
@@ -167,6 +202,7 @@ export function UsageTable({
           </TableBody>
         </Table>
       </div>
+      {details}
       {(onFirstPage || (onNextPage && view.nextCursor)) && (
         <div className="flex justify-end gap-2">
           {onFirstPage && (
@@ -195,8 +231,16 @@ export function UsageTable({
 export function UsageTablePanel({
   labels,
   dimensionLabels,
+  formatFigure,
+  formatUnit,
+  formatDimension,
+  showFunding,
+  formatFunding,
+  metadata,
+  details,
   ...query
-}: Omit<UsageQuery, "cursor"> & Pick<UsageTableProps, "labels" | "dimensionLabels">) {
+}: Omit<UsageQuery, "cursor"> &
+  Omit<UsageTableProps, "view" | "onNextPage" | "onFirstPage" | "busy">) {
   const binding = useMeterBinding();
   const key = serialize([query, binding?.access]);
   const [page, setPage] = useState<{
@@ -246,6 +290,13 @@ export function UsageTablePanel({
       busy={retained !== null}
       labels={labels}
       dimensionLabels={dimensionLabels}
+      formatFigure={formatFigure}
+      formatUnit={formatUnit}
+      formatDimension={formatDimension}
+      showFunding={showFunding}
+      formatFunding={formatFunding}
+      metadata={metadata}
+      details={details}
       onNextPage={setCursor}
       onFirstPage={cursor ? () => setPage(null) : undefined}
     />

@@ -69,7 +69,7 @@ describe("registry build", () => {
       }
     }
   });
-  test("items are blocks with host primitives, pinned usagekit dependencies and docs", () => {
+  test("registry blocks use host primitives, pinned usagekit dependencies and docs", () => {
     const pins = ["react", "views", "core"].map((n) => `@usagekit/${n}@${version(n)}`);
     for (const variant of variants)
       for (const name of blockNames) {
@@ -144,6 +144,40 @@ describe("registry sources", () => {
       path: join(root, "registry", variant, name, `${name}.tsx`),
     })),
   );
+  const allFiles = (dir: string): string[] =>
+    readdirSync(dir, { withFileTypes: true }).flatMap((entry) =>
+      entry.isDirectory() ? allFiles(join(dir, entry.name)) : [join(dir, entry.name)],
+    );
+  test("registry copies fit the Vega formatted 300-line budget", async () => {
+    const { format } = await import("prettier");
+    const oversized: string[] = [];
+    for (const path of allFiles(join(root, "registry"))) {
+      if (!path.endsWith(".tsx") || path.endsWith("/budget-editor.tsx")) continue;
+      const content = await format(styled(path, "vega"), {
+        printWidth: 100,
+        trailingComma: "all",
+        filepath: path,
+      });
+      const lines = content
+        .replace(/\/\*[\s\S]*?\*\//g, (comment) => "\n".repeat(comment.split("\n").length - 1))
+        .split("\n")
+        .filter((line) => line.trim() && !line.trim().startsWith("//")).length;
+      if (lines > 300) oversized.push(`${path}: ${lines}`);
+    }
+    expect(oversized).toEqual([]);
+  });
+  test("registry blocks never use useEffect", () => {
+    const offenders = allFiles(join(root, "registry")).filter((path) =>
+      /\buseEffect\b/.test(readFileSync(path, "utf8")),
+    );
+    expect(offenders).toEqual([]);
+  });
+  test("registry uses imported views types", () => {
+    const offenders = allFiles(join(root, "registry")).filter((path) =>
+      /import\("@usagekit\/views"\)/.test(readFileSync(path, "utf8")),
+    );
+    expect(offenders).toEqual([]);
+  });
   test("identical files are shared; only primitive API differences are variant files", () => {
     for (const name of blockNames) {
       const base = join(root, "registry", "base", name, `${name}.tsx`);
@@ -218,7 +252,38 @@ describe("registry sources", () => {
     }
   });
   test("copy is host text with English defaults", () => {
-    for (const { path } of sources)
-      expect(readFileSync(path, "utf8")).toMatch(/labels\?: Partial</);
+    for (const { name, variant, path } of sources) {
+      const entry = readFileSync(path, "utf8");
+      // Only the public block's props contract counts. A bundled helper's labels
+      // must not conceal a block that stopped accepting host copy.
+      const delegated: Record<string, { block: string; props: string }> = {
+        "provider-connect-form": { block: "provider-credential-controls", props: "ConnectProps" },
+        "provider-allocation-editor": {
+          block: "provider-allocation-policy",
+          props: "AllocationProps",
+        },
+      };
+      const contract = delegated[name];
+      if (!contract) {
+        expect(entry, `${variant}/${name}`).toMatch(/labels\?: Partial</);
+        continue;
+      }
+      expect(entry, `${variant}/${name} public props`).toMatch(
+        new RegExp(
+          `export type \\{[^}]*\\b${contract.props}\\b[^}]*\\} from "@/components/usagekit/${contract.block}"`,
+        ),
+      );
+      const definition = readFileSync(
+        join(root, "registry", variant, contract.block, `${contract.block}.tsx`),
+        "utf8",
+      );
+      expect(definition, `${variant}/${name} delegated props`).toMatch(
+        new RegExp(`export type ${contract.props} = \\{[^]*?\\n\\}`),
+      );
+      const props = definition.match(
+        new RegExp(`export type ${contract.props} = \\{([^]*?)\\n\\}`),
+      )![1]!;
+      expect(props, `${variant}/${name} host labels`).toMatch(/labels\?: Partial</);
+    }
   });
 });

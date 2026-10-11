@@ -102,7 +102,7 @@
       "type": "registry:block",
       "title": "Exceptions list",
       "description": "Expired reservations, expired dispatch leases and pending operations with state and age.",
-      "registryDependencies": ["table"],
+      "registryDependencies": ["table", "button"],
       "dependencies": ["@usagekit/react", "@usagekit/views", "@usagekit/core"],
       "files": [
         {
@@ -116,7 +116,7 @@
           "target": "@components/usagekit/usage-motion.tsx"
         }
       ],
-      "docs": "Rebind for hosts without shadcn: @/components/ui/table (Table, TableHeader, TableBody, TableRow, TableHead, TableCell); @/components/ui/badge (Badge). Data comes from @usagekit/views; the Panel export reads it with @usagekit/react inside a MeterProvider."
+      "docs": "Rebind for hosts without shadcn: @/components/ui/table (Table, TableHeader, TableBody, TableRow, TableHead, TableCell); @/components/ui/badge (Badge); @/components/ui/button (Button). Data comes from @usagekit/views; the Panel export reads it with @usagekit/react inside a MeterProvider."
     },
     {
       "name": "usage-filters",
@@ -318,6 +318,16 @@
           "path": "registry/radix/usage-motion/usage-motion.tsx",
           "type": "registry:component",
           "target": "@components/usagekit/usage-motion.tsx"
+        },
+        {
+          "path": "registry/radix/provider-credential-controls/provider-credential-controls.tsx",
+          "type": "registry:component",
+          "target": "@components/usagekit/provider-credential-controls.tsx"
+        },
+        {
+          "path": "registry/radix/provider-credential-state/provider-credential-state.tsx",
+          "type": "registry:component",
+          "target": "@components/usagekit/provider-credential-state.tsx"
         }
       ],
       "docs": "Host primitives: @/components/ui/button, @/components/ui/card, @/components/ui/input, @/components/ui/label. Bundled components copy to @components/usagekit/. Wrap panels in ProviderManagementProvider with a verified host binding. Read-only by default; credentials travel only in the explicit action argument. The host must authorize every read and action."
@@ -344,6 +354,11 @@
           "path": "registry/radix/usage-motion/usage-motion.tsx",
           "type": "registry:component",
           "target": "@components/usagekit/usage-motion.tsx"
+        },
+        {
+          "path": "registry/radix/provider-source-control/provider-source-control.tsx",
+          "type": "registry:component",
+          "target": "@components/usagekit/provider-source-control.tsx"
         }
       ],
       "docs": "Host primitives: @/components/ui/button, @/components/ui/card. Bundled components copy to @components/usagekit/. Wrap panels in ProviderManagementProvider with a verified host binding. Read-only by default; credentials travel only in the explicit action argument. The host must authorize every read and action."
@@ -401,6 +416,16 @@
           "path": "registry/radix/usage-motion/usage-motion.tsx",
           "type": "registry:component",
           "target": "@components/usagekit/usage-motion.tsx"
+        },
+        {
+          "path": "registry/radix/provider-project-chain/provider-project-chain.tsx",
+          "type": "registry:component",
+          "target": "@components/usagekit/provider-project-chain.tsx"
+        },
+        {
+          "path": "registry/radix/provider-project-controller/provider-project-controller.tsx",
+          "type": "registry:component",
+          "target": "@components/usagekit/provider-project-controller.tsx"
         }
       ],
       "docs": "Host primitives: @/components/ui/badge, @/components/ui/button, @/components/ui/card. Bundled components copy to @components/usagekit/. Wrap panels in ProviderManagementProvider with a verified host binding. Read-only by default; credentials travel only in the explicit action argument. The host must authorize every read and action."
@@ -458,6 +483,26 @@
           "path": "registry/radix/usage-motion/usage-motion.tsx",
           "type": "registry:component",
           "target": "@components/usagekit/usage-motion.tsx"
+        },
+        {
+          "path": "registry/radix/provider-allocation-policy/provider-allocation-policy.tsx",
+          "type": "registry:component",
+          "target": "@components/usagekit/provider-allocation-policy.tsx"
+        },
+        {
+          "path": "registry/radix/provider-allocation-panel/provider-allocation-panel.tsx",
+          "type": "registry:component",
+          "target": "@components/usagekit/provider-allocation-panel.tsx"
+        },
+        {
+          "path": "registry/radix/provider-allocation-form/provider-allocation-form.tsx",
+          "type": "registry:component",
+          "target": "@components/usagekit/provider-allocation-form.tsx"
+        },
+        {
+          "path": "registry/radix/provider-allocation-observation/provider-allocation-observation.tsx",
+          "type": "registry:component",
+          "target": "@components/usagekit/provider-allocation-observation.tsx"
         }
       ],
       "docs": "Host primitives: @/components/ui/button, @/components/ui/card, @/components/ui/input, @/components/ui/label. Bundled components copy to @components/usagekit/. Wrap panels in ProviderManagementProvider with a verified host binding. Read-only by default; credentials travel only in the explicit action argument. The host must authorize every read and action."
@@ -529,6 +574,56 @@
           "path": "registry/radix/usage-motion/usage-motion.tsx",
           "type": "registry:component",
           "target": "@components/usagekit/usage-motion.tsx"
+        },
+        {
+          "path": "registry/radix/provider-allocation-policy/provider-allocation-policy.tsx",
+          "type": "registry:component",
+          "target": "@components/usagekit/provider-allocation-policy.tsx"
+        },
+        {
+          "path": "registry/radix/provider-project-chain/provider-project-chain.tsx",
+          "type": "registry:component",
+          "target": "@components/usagekit/provider-project-chain.tsx"
+        },
+        {
+          "path": "registry/radix/provider-source-control/provider-source-control.tsx",
+          "type": "registry:component",
+          "target": "@components/usagekit/provider-source-control.tsx"
+        },
+        {
+          "path": "registry/radix/provider-credential-controls/provider-credential-controls.tsx",
+          "type": "registry:component",
+          "target": "@components/usagekit/provider-credential-controls.tsx"
+        },
+        {
+          "path": "registry/radix/provider-manager-types/provider-manager-types.tsx",
+          "type": "registry:component",
+          "target": "@components/usagekit/provider-manager-types.tsx"
+        },
+        {
+          "path": "registry/radix/provider-allocation-panel/provider-allocation-panel.tsx",
+          "type": "registry:component",
+          "target": "@components/usagekit/provider-allocation-panel.tsx"
+        },
+        {
+          "path": "registry/radix/provider-allocation-form/provider-allocation-form.tsx",
+          "type": "registry:component",
+          "target": "@components/usagekit/provider-allocation-form.tsx"
+        },
+        {
+          "path": "registry/radix/provider-project-controller/provider-project-controller.tsx",
+          "type": "registry:component",
+          "target": "@components/usagekit/provider-project-controller.tsx"
+        },
+        {
+          "path": "registry/radix/provider-credential-state/provider-credential-state.tsx",
+          "type": "registry:component",
+          "target": "@components/usagekit/provider-credential-state.tsx"
+        },
+        {
+          "path": "registry/radix/provider-allocation-observation/provider-allocation-observation.tsx",
+          "type": "registry:component",
+          "target": "@components/usagekit/provider-allocation-observation.tsx"
         }
       ],
       "docs": "Host primitives: @/components/ui/badge, @/components/ui/button, @/components/ui/card, @/components/ui/input, @/components/ui/label. Bundled components copy to @components/usagekit/. Wrap panels in ProviderManagementProvider with a verified host binding. Read-only by default; credentials travel only in the explicit action argument. The host must authorize every read and action."

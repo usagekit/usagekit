@@ -3,8 +3,9 @@
 All seven packages, including `@usagekit/react`, `@usagekit/views` and
 `@usagekit/store-postgres`, are published at 0.8.0, which adds
 `ProviderRate.fallback` to the views package for the dollar rate editor. `useProviderEditor`
-arrived in the 0.7.0 React package. The registry remains private build tooling whose
-blocks are distributed as public copyable JSON.
+arrived in the 0.7.0 React package. The 0.9.0 source cohort adds its draft rebase and
+read-refresh signals for the host composition APIs below and awaits publication. The registry
+remains private build tooling whose blocks are distributed as public copyable JSON.
 Verify exact npm versions before installing a cohort; use reviewed tarballs for unreleased
 candidates. See [consuming packages](CONSUMING.md) for both workflows.
 
@@ -191,7 +192,8 @@ The manager bundles its editor; summary cards bundle their measurement card. Fil
 `@/components/usagekit/` and import `@/components/ui/*`. Root `r/<name>.json` defaults to
 Radix. The header status tooltip trigger and the filter selects have variant-specific files;
 other block source is shared.
-The shadcn CLI requests exact 0.8.0 UI package versions, which resolve anonymously from npm. The
+The shadcn CLI requests exact 0.9.0 UI package versions, which resolve anonymously from npm once
+0.9.0 is published. The
 [public examples](https://usagekit.dev/examples/) show every block in every shadcn style and
 provide each block's install command. See [consuming packages](CONSUMING.md) for local tarball
 validation of unreleased candidates.
@@ -323,6 +325,64 @@ Both artifacts bundle `usage-progress.tsx`, a pure `usageProgress(percent, parti
 projection with no React, DOM or styling imports. It can be used without the styled blocks.
 It preserves complete zero, partial positive usage, unknown zero and over-limit status.
 The existing headless Meter and provider hooks remain available from `@usagekit/react`.
-Like every registry item, these blocks request exact 0.8.0 package versions. The provider
+Like every registry item, these blocks request exact 0.9.0 package versions. The provider
 rate, allocation and manager blocks also need `useProviderEditor`, new in the 0.7.0 React
 package, and the rate editor reads `ProviderRate.fallback`, new in the 0.8.0 views package.
+The allocation editor and manager panel use its rebase and read-refresh signals, new in the
+0.9.0 React package.
+
+## Formatting and host composition
+
+Registry values remain exact decimal strings in their accounting denominations. `formatFigure`
+receives a known Figure (including text, unit and certainty), and `formatUnit` receives the
+accounting unit. Unknown and unavailable figures keep their distinct localized labels and never pass
+through a numeric formatter. `MeasurementCard` propagates these callbacks to `MeasurementValue`.
+`UsageSummaryCards`, `CostSummaryCard` and their panels propagate them to every measurement child;
+allocation rows and `UsageTable` expose the same callbacks. Dates use `formatTime` in header bounds,
+provider cards and allocation forecasts. Summary blocks also accept it for an optional localized
+as-of caption, including incomplete summaries.
+
+Summary blocks accept `variant="plain"`, `metadata` and `details` for host period, as-of and
+retained-exposure disclosures. `UsageSummaryCards.fundingSource` selects complete measurements from
+one funding source; `selectMeasurements` allows a further explicit host selection. Funding selection
+sums exact quantities and preserves the weakest certainty. With `fundingSource`, unknown-operation
+counts are the exact sum of the selected funding rows. Complete views with no rows for the selected
+source show each summary block's localized `labels.empty`. Incomplete summaries never infer totals
+from a visible page. `CostSummaryCard` supports `showCost`, `showFunding`, `showCostOwner`,
+`formatCostOwner` and `fundingSource`. Returning null or undefined from the owner formatter omits
+the whole cost-owner line, including its caption. A customer host selects BYOK provider cost
+separately from platform `customer_cents` measurements. Hiding a column does not sanitize serialized
+identities: the host must redact private cost-owner IDs and upstream platform costs before
+serialization.
+
+`UsageTable` supports `formatDimension(dimension, value, row)`, unit and figure formatters, explicit
+`showFunding`/`formatFunding`, and metadata/details slots. `ExceptionsList` supports `formatState`,
+`formatProvider`, `formatOperation`, `formatOperationId`, `formatAge`, metadata/details, `busy`,
+`onNextPage(cursor)` and `onFirstPage`. `showPrincipal={false}` on `ExceptionsList` or
+`ExceptionsListPanel` drops the Principal header and cells together, and the empty-state row then
+spans the five remaining columns; the default `true` keeps the column. Hiding it does not sanitize
+serialized identities: a host that withholds principals must remove them before data reaches the
+browser. The panel preserves cursor continuity even when a page has no classified rows, retains
+readable rows during pagination, and drops financial rows after a failed read or a changed
+query/access binding.
+
+`HeaderStatusBar` and its panel accept `formatBound`, `formatFigure`, `formatUnit`, `formatTime`,
+`boundHref` and `renderLink`. Keyboard-operable links preserve the bound tooltip, the bound's
+`data-level`, reduced-motion behavior and wrapping for long localized labels. `renderLink` receives
+`href`, `aria-label`, `data-level`, `className` and `children`; forward all of them to the host
+link. The same status and motion attributes apply to non-link pills. `usageCapFromBound` maps a
+visible HeaderBound to UsageCapPill props using exact integer arithmetic, flooring its display
+percentage to hundredths. Remaining already includes reserved consumption; do not add reservations
+again. Unknown/unavailable figures keep a null percentage. `usageCapFromBudget` accepts a full
+BudgetRow to preserve the soft/hard policy, actual alert level and separate used/reserved
+quantities; its geometry uses the hard limit when present. Percentages above 100 are preserved so
+`UsageCapPill` can show the overflow notch while clamping the fill to 100%. Header bounds cannot
+infer overflow from remaining headroom alone. Its `labels` localize unknown,
+unavailable and unlimited values. Reserved exposure does not imply incomplete coverage.
+`renderTooltip` composes a host tooltip around the keyboard-operable pill. The host distinguishes no
+configured budgets, unlimited-only budgets, redacted/unavailable bounds and no eligible provider; an
+empty bound array cannot distinguish those states.
+
+See [registry composition APIs](PROVIDER-UI.md#registry-composition-apis) for controlled provider
+editors and credential policies. New bundled helpers ship with both Radix and Base variants;
+regenerate local server copies with `node scripts/sync-server-ui.mjs` after source changes.

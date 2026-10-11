@@ -1,5 +1,7 @@
 "use client";
 
+import type { ReactNode } from "react";
+import type { Figure } from "@usagekit/views";
 import type { BudgetAlertCrossed } from "@usagekit/core";
 import { useHeaderStatus } from "@usagekit/react";
 import type { BudgetsInput, HeaderBound, HeaderStatus, Limit } from "@usagekit/views";
@@ -32,49 +34,66 @@ const levelClass = {
 } as const;
 const dotClass = { ok: "bg-chart-2", warning: "bg-chart-4", exceeded: "bg-destructive" } as const;
 
-function amount(value: Limit, labels: HeaderStatusLabels): string {
+function amount(
+  value: Limit,
+  labels: HeaderStatusLabels,
+  formatFigure?: HeaderStatusBarProps["formatFigure"],
+): string {
   if (value === "unavailable") return labels.unavailable;
   if (value === "unlimited") return labels.unlimited;
   if (value.certainty === "unknown") return labels.unknown;
-  return value.text;
+  return formatFigure?.(value) ?? value.text;
 }
 function Pill({
   bound,
   labels,
   formatTime,
+  formatFigure,
+  formatUnit,
+  formatBound,
+  boundHref,
+  renderLink,
 }: {
   bound: HeaderBound;
   labels: HeaderStatusLabels;
   formatTime: (iso: string) => string;
-}) {
+} & Omit<HeaderStatusBarProps, "status" | "labels">) {
   const warning = bound.warningAt
     ? "percent" in bound.warningAt
       ? `${bound.warningAt.percent}%`
-      : `${bound.warningAt.text} ${bound.warningAt.unit}`
+      : `${formatFigure?.({ ...bound.warningAt, certainty: "measured" }) ?? bound.warningAt.text} ${formatUnit?.(bound.warningAt.unit) ?? bound.warningAt.unit}`
     : null;
-  const text = `${amount(bound.remaining, labels)} ${labels.of} ${amount(bound.of, labels)} ${bound.unit} ${labels.left}`;
+  const text = `${amount(bound.remaining, labels, formatFigure)} ${labels.of} ${amount(bound.of, labels, formatFigure)} ${formatUnit?.(bound.unit) ?? bound.unit} ${labels.left}`;
+  const name = formatBound?.(bound) ?? `${bound.kind} ${bound.target}`;
+  const content = (
+    <>
+      <span
+        aria-hidden
+        className={`size-1.5 rounded-full shrink-0 transition-colors duration-300 motion-reduce:transition-none ${dotClass[bound.level]}`}
+      />
+      <span key={text} className={`min-w-0 break-words ${usageMotion.enter}`}>
+        {text}
+      </span>
+    </>
+  );
+  const href = boundHref?.(bound);
+  const triggerProps = {
+    "aria-label": `${name}: ${text}`,
+    "data-level": bound.level,
+    className: `${pill} ${levelClass[bound.level]} hover:bg-muted [&:hover_[data-usage-track]>span:first-child]:bg-foreground/10 outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 ${usageMotion.respond}`,
+    children: content,
+  };
+  const trigger = href ? (
+    (renderLink?.({ ...triggerProps, href }) ?? <a {...triggerProps} href={href} />)
+  ) : (
+    <button {...triggerProps} type="button" style={{ textAlign: "inherit" }} />
+  );
   return (
     <Tooltip>
-      <TooltipTrigger
-        render={
-          <span
-            tabIndex={0}
-            data-level={bound.level}
-            className={`${pill} ${levelClass[bound.level]} hover:bg-muted [&:hover_[data-usage-track]>span:first-child]:bg-foreground/10 outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 ${usageMotion.respond}`}
-          />
-        }
-      >
-        <span
-          aria-hidden
-          className={`size-1.5 rounded-full shrink-0 transition-colors duration-300 motion-reduce:transition-none ${dotClass[bound.level]}`}
-        />
-        <span key={text} className={`min-w-0 break-words ${usageMotion.enter}`}>
-          {text}
-        </span>
-      </TooltipTrigger>
+      <TooltipTrigger render={trigger as import("react").ReactElement} />
       <TooltipContent>
         <span className="flex flex-col gap-0.5">
-          <span className="font-medium">{`${bound.kind} ${bound.target}`}</span>
+          <span className="font-medium">{name}</span>
           <span>
             {bound.resetsAt ? `${labels.resets} ${formatTime(bound.resetsAt)}` : labels.noReset}
           </span>
@@ -89,6 +108,17 @@ export type HeaderStatusBarProps = {
   status: HeaderStatus | null;
   labels?: Partial<HeaderStatusLabels>;
   formatTime?: (iso: string) => string;
+  formatFigure?: (value: Exclude<Figure, "unavailable">) => string;
+  formatUnit?: (unit: string) => string;
+  formatBound?: (bound: HeaderBound) => string;
+  boundHref?: (bound: HeaderBound) => string | undefined;
+  renderLink?: (props: {
+    href: string;
+    "aria-label": string;
+    "data-level": HeaderBound["level"];
+    className: string;
+    children: ReactNode;
+  }) => ReactNode;
 };
 
 /** Compact inline status: one pill per visible bound, with its level in words and color. */
@@ -96,6 +126,11 @@ export function HeaderStatusBar({
   status,
   labels: custom,
   formatTime = (t) => t,
+  formatFigure,
+  formatUnit,
+  formatBound,
+  boundHref,
+  renderLink,
 }: HeaderStatusBarProps) {
   const labels = { ...headerStatusLabels, ...custom };
   if (!status)
@@ -128,7 +163,17 @@ export function HeaderStatusBar({
         data-level={status.level}
       >
         {status.bounds.map((bound) => (
-          <Pill key={bound.budgetId} bound={bound} labels={labels} formatTime={formatTime} />
+          <Pill
+            key={bound.budgetId}
+            bound={bound}
+            labels={labels}
+            formatTime={formatTime}
+            formatFigure={formatFigure}
+            formatUnit={formatUnit}
+            formatBound={formatBound}
+            boundHref={boundHref}
+            renderLink={renderLink}
+          />
         ))}
         {status.hidden > 0 && (
           <span className={`${pill} border-dashed border-border text-muted-foreground`}>
@@ -144,11 +189,16 @@ export function HeaderStatusBar({
 export function HeaderStatusPanel({
   labels,
   formatTime,
+  formatFigure,
+  formatUnit,
+  formatBound,
+  boundHref,
+  renderLink,
   crossings,
   ...input
 }: Omit<BudgetsInput, "crossings"> & {
   crossings?: readonly BudgetAlertCrossed[];
-} & Pick<HeaderStatusBarProps, "labels" | "formatTime">) {
+} & Omit<HeaderStatusBarProps, "status">) {
   const result = useHeaderStatus(crossings ? { ...input, crossings } : input);
   if (result.state === "unavailable" || result.state === "forbidden")
     return (
@@ -161,5 +211,16 @@ export function HeaderStatusPanel({
           : (labels?.failed ?? headerStatusLabels.failed)}
       </p>
     );
-  return <HeaderStatusBar status={result.data} labels={labels} formatTime={formatTime} />;
+  return (
+    <HeaderStatusBar
+      status={result.data}
+      labels={labels}
+      formatTime={formatTime}
+      formatFigure={formatFigure}
+      formatUnit={formatUnit}
+      formatBound={formatBound}
+      boundHref={boundHref}
+      renderLink={renderLink}
+    />
+  );
 }

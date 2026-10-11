@@ -20,6 +20,7 @@ export const encode = (v: unknown) =>
 export const decode = decodeMeterJson;
 /** Route paths, mirrored from the handler's route table (the client imports only types from it). */
 const paths: Record<Exclude<RouteName, "operation">, string> = {
+  quote: "/v1/quotes",
   importBilling: "/v1/billing/import",
   billingImports: "/v1/billing/imports",
   expire: "/v1/operations/expire",
@@ -37,7 +38,53 @@ const paths: Record<Exclude<RouteName, "operation">, string> = {
   applicable: "/v1/budgets/applicable",
   counts: "/v1/requests/counts",
 };
+/** The client validates decoded quote responses and reports malformed quotes as RemoteUnavailable. */
 export type RemoteOptions = { baseUrl: string; token: string; fetch?: typeof globalThis.fetch };
+
+const isObject = (value: unknown): value is Record<string, unknown> =>
+  value !== null && typeof value === "object" && !Array.isArray(value);
+
+/** Hand-written decoded counterpart of @usagekit/http's responses.quote schema. */
+function validQuote(result: unknown): boolean {
+  if (!isObject(result)) return false;
+  if (result.outcome === "forbidden") return true;
+  if (result.outcome === "invalid")
+    return typeof result.field === "string" && typeof result.reason === "string";
+  if (result.outcome !== "ok" || !isObject(result.value)) return false;
+  const value = result.value;
+  return (
+    Array.isArray(value.quantities) &&
+    value.quantities.every(
+      (quantity: unknown) =>
+        isObject(quantity) &&
+        typeof quantity.value === "bigint" &&
+        typeof quantity.scale === "number" &&
+        Number.isInteger(quantity.scale) &&
+        quantity.scale >= 0 &&
+        quantity.scale <= 18 &&
+        typeof quantity.unit === "string" &&
+        quantity.unit.length > 0,
+    ) &&
+    (value.tracking === "metered" ||
+      value.tracking === "passthrough" ||
+      value.tracking === "unpriced") &&
+    (value.estimateSource === undefined ||
+      value.estimateSource === "manual" ||
+      value.estimateSource === "measured" ||
+      value.estimateSource === "list" ||
+      value.estimateSource === "unknown") &&
+    (value.providerPriceVersion === undefined || typeof value.providerPriceVersion === "string") &&
+    (value.checkedAt === undefined || typeof value.checkedAt === "string") &&
+    (value.sampleSize === undefined ||
+      (typeof value.sampleSize === "number" &&
+        Number.isSafeInteger(value.sampleSize) &&
+        value.sampleSize >= 0)) &&
+    Array.isArray(value.budgets) &&
+    value.budgets.every(isObject) &&
+    typeof value.asOf === "string"
+  );
+}
+
 export function transport({ baseUrl, token, fetch: fetcher = globalThis.fetch }: RemoteOptions) {
   return async <T>(name: RouteName, input: unknown, read = false): Promise<T> => {
     const raw = input as Record<string, unknown>,
@@ -88,6 +135,7 @@ export function transport({ baseUrl, token, fetch: fetcher = globalThis.fetch }:
         return { outcome: "invalid", field: "body", reason: "Invalid request schema" } as T;
       if (!response.ok || result === null || typeof result !== "object")
         throw new Error("Invalid response");
+      if (name === "quote" && !validQuote(result)) throw new Error("Invalid quote response");
       return result as T;
     } catch {
       throw new RemoteUnavailable(id);

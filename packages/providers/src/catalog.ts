@@ -1,8 +1,9 @@
-import { validateDescriptor } from "@usagekit/core";
+import { compareQuantity, validateDescriptor } from "@usagekit/core";
 import type {
   BalanceSnapshot,
   Budget,
   EstimateSource,
+  ConnectionPolicy,
   OperationId,
   PriceRow,
   ProviderDescriptor,
@@ -19,7 +20,7 @@ import type {
   ReceiptDraft,
 } from "./types.js";
 import { matchOperation } from "./match.js";
-import { selectPriceRow } from "./prices.js";
+import { calculatePrice, selectPriceRow } from "./prices.js";
 import { pointer } from "./pointer.js";
 import { decimalQuantity, requestsMeasured } from "./receipts.js";
 import { proposePlanBudget } from "./budget.js";
@@ -28,16 +29,8 @@ import type { BudgetTarget } from "./budget.js";
 export type { EstimateSource };
 
 /** Connection data the catalog needs; the catalog itself stays storage-free. */
-export type CatalogConnection = {
+export type CatalogConnection = Omit<ConnectionPolicy, "tracking"> & {
   id: string;
-  provider: ProviderId;
-  plan?: string;
-  /** Per-call manual price for (connection, operation). */
-  manualPrices?: Readonly<Record<OperationId, Quantity>>;
-  /** Median of this connection's settled receipts for the operation, with its sample size. */
-  measured?: (operation: OperationId) => { quantity: Quantity; samples: number } | undefined;
-  /** The plan allowance is exhausted: only overage rows apply. */
-  overage?: boolean;
 };
 export type CatalogEstimate = {
   /** Always includes one request for a billable operation; empty for a free operation. */
@@ -45,6 +38,8 @@ export type CatalogEstimate = {
   source: EstimateSource;
   /** "<provider>:<validFrom>" of the list row, when the source is list. */
   priceVersion?: string;
+  checkedAt?: string;
+  sampleSize?: number;
 };
 export type CatalogMatch =
   | { operation: ProviderOperation; options: Record<string, string> }
@@ -55,6 +50,16 @@ export type Catalog = ReturnType<typeof createCatalog>;
 const oneRequest = (): Quantity => ({ value: 1n, scale: 0, unit: "requests" });
 const withRequest = (q: Quantity[]) =>
   q.some((x) => x.unit === "requests") ? q : [...q, oneRequest()];
+/** Compare exact quantities at their own scales; never round a reservation down. */
+function withFloor(quantities: readonly Quantity[], floor: readonly Quantity[]): Quantity[] {
+  const result = [...quantities];
+  for (const bound of floor) {
+    const index = result.findIndex((q) => q.unit === bound.unit);
+    if (index < 0) result.push(bound);
+    else if (compareQuantity(result[index]!, bound) < 0) result[index] = bound;
+  }
+  return result;
+}
 function isoTimestamp(value: unknown): string | undefined {
   if (typeof value !== "string" || !value) return undefined;
   const t = Date.parse(/^\d{4}-\d{2}-\d{2}$/.test(value) ? `${value}T00:00:00Z` : value);
@@ -128,13 +133,48 @@ export function createCatalog({
     providers: (): ProviderDescriptor[] => [...enabled].map((id) => modules.get(id)!.descriptor),
     match(providerId: ProviderId, request: ProviderRequest): CatalogMatch {
       const module = active(providerId);
-      const operation = module && matchOperation(module.descriptor, request);
-      if (!module || !operation) return { operation: "unknown" };
-      // Extractors always see an absolute URL, even for proxy paths.
-      const url = new URL(request.url, module.descriptor.upstream).href;
-      return { operation, options: module.extractors.options(operation, { ...request, url }) };
+      if (!module) return { operation: "unknown" };
+      const url = new URL(request.url, module.descriptor.upstream);
+      if (module.descriptor.pricingInputs.includes("query")) {
+        const keys = new Set<string>();
+        for (const key of url.searchParams.keys()) {
+          if (keys.has(key)) throw new Error("InvalidInput: duplicate query key");
+          keys.add(key);
+        }
+      } else url.search = "";
+      // Pricing sees only declared inputs. Receipts and transport retain the full request.
+      const { body, ...rest } = request;
+      const pricingRequest: ProviderRequest = {
+        ...rest,
+        url: url.href,
+        ...(module.descriptor.pricingInputs.includes("body") && body !== undefined ? { body } : {}),
+      };
+      const operation = matchOperation(module.descriptor, pricingRequest);
+      if (!operation) return { operation: "unknown" };
+      return { operation, options: module.extractors.options(operation, pricingRequest) };
     },
-    /** Resolution order: manual, measured with enough samples, list row, unknown. */
+    canEstimate(providerId: ProviderId, options: Readonly<Record<string, string>>): boolean {
+      return require(providerId).extractors.canEstimate?.(options) ?? true;
+    },
+    /** BYOK caller estimates also retain any documented surcharge floor. */
+    boundEstimate(
+      providerId: ProviderId,
+      operationId: OperationId,
+      options: Readonly<Record<string, string>>,
+      quantities: readonly Quantity[],
+    ): Quantity[] {
+      const module = require(providerId);
+      const operation = module.descriptor.operations.find((o) => o.id === operationId);
+      if (!operation || !module.extractors.requiresListPriceFloor?.(options))
+        return [...quantities];
+      const listed = module.extractors.estimate({
+        operation,
+        options,
+        prices: validPrices(module.descriptor),
+      });
+      return withFloor(quantities, listed);
+    },
+    /** Resolution order: request safety, manual, measured with enough samples, list row, unknown. */
     estimate(
       connection: CatalogConnection,
       operationId: OperationId,
@@ -144,11 +184,12 @@ export function createCatalog({
         operation = module?.descriptor.operations.find((o) => o.id === operationId);
       if (!module || !operation) return { quantities: [oneRequest()], source: "unknown" };
       if (!operation.billable) return { quantities: [], source: "list" };
-      const manual = connection.manualPrices?.[operationId];
-      if (manual) return { quantities: withRequest([manual]), source: "manual" };
-      const measured = connection.measured?.(operationId);
-      if (measured && measured.samples >= measuredMinSamples)
-        return { quantities: withRequest([measured.quantity]), source: "measured" };
+      // Provider prices estimate BYOK upstream cost only. A host must supply customer prices
+      // explicitly for platform funding; neither manual nor list prices price credits.
+      if (connection.fundingSource !== "byok")
+        return { quantities: [oneRequest()], source: "unknown" };
+      if (module.extractors.canEstimate?.(options) === false)
+        return { quantities: [oneRequest()], source: "unknown" };
       const input = {
         operation,
         options,
@@ -156,13 +197,59 @@ export function createCatalog({
         ...(connection.plan !== undefined ? { plan: connection.plan } : {}),
         ...(connection.overage ? { overage: true } : {}),
       };
-      const listed = module.extractors.estimate(input);
+      const listed = module.extractors.estimate(input),
+        row = selectPriceRow(input);
+      const manual = connection.manualPrices?.[operationId];
+      const measured = manual ? undefined : connection.measured?.(operationId);
+      const override =
+        manual ??
+        (measured &&
+        Number.isSafeInteger(measured.samples) &&
+        measured.samples >= measuredMinSamples
+          ? measured.quantity
+          : undefined);
+      if (override) {
+        const basis = manual ? connection.manualPriceBasis?.[operationId] : measured?.basis;
+        if (basis === "item" && (!row || row.calculation?.kind !== "base_plus_items"))
+          return {
+            quantities: withRequest(listed.filter((q) => q.unit !== override.unit)),
+            source: "unknown",
+          };
+        const quantity = basis === "item" ? calculatePrice(row!, options, override) : override;
+        if (!quantity)
+          return {
+            quantities: withRequest(listed.filter((q) => q.unit !== override.unit)),
+            source: "unknown",
+          };
+        return {
+          quantities: withRequest(
+            withFloor(
+              [
+                quantity,
+                ...listed.filter((q) => q.unit !== quantity.unit && q.unit !== "requests"),
+              ],
+              module.extractors.requiresListPriceFloor?.(options) ? listed : [],
+            ),
+          ),
+          source: manual ? "manual" : "measured",
+          ...(basis === "item" && row
+            ? { priceVersion: `${module.descriptor.id}:${row.validFrom}`, checkedAt: row.checkedAt }
+            : {}),
+          ...(!manual && measured
+            ? {
+                sampleSize: measured.samples,
+                ...(measured.checkedAt ? { checkedAt: measured.checkedAt } : {}),
+              }
+            : {}),
+        };
+      }
       if (!listed.length) return { quantities: [oneRequest()], source: "unknown" };
-      const row = selectPriceRow(input);
       return {
         quantities: withRequest(listed),
         source: "list",
-        ...(row ? { priceVersion: `${module.descriptor.id}:${row.validFrom}` } : {}),
+        ...(row
+          ? { priceVersion: `${module.descriptor.id}:${row.validFrom}`, checkedAt: row.checkedAt }
+          : {}),
       };
     },
     extract(

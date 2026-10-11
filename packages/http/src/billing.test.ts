@@ -1,7 +1,8 @@
 import { expect, test, vi } from "vitest";
-import type { AccessContext, BillingImportInput } from "@usagekit/core";
+import type { AccessContext, BillingImportInput, ConnectionPolicy } from "@usagekit/core";
 import { createManualClock, createMemoryStore } from "@usagekit/store";
 import { createMeter } from "@usagekit/meter";
+import type { ConnectionResolver } from "@usagekit/meter";
 import { createUsageHandlers, encodeWire } from "./index.js";
 import { parseWire, validResponse } from "./schemas/index.js";
 
@@ -30,12 +31,17 @@ const input: BillingImportInput = {
     },
   ],
 };
-function fixture(auth: AccessContext | null = access, commands = true) {
+function fixture(
+  auth: AccessContext | null = access,
+  commands = true,
+  resolveConnection?: ConnectionResolver,
+) {
   const clock = createManualClock(),
     store = createMemoryStore({ clock, budgets: [] });
   const meter = createMeter({
     store,
     clock,
+    ...(resolveConnection ? { resolveConnection } : {}),
     resolveOwnership: async (scope) =>
       scope.namespace === "test" && "connection" in scope && scope.connection === "c"
         ? { kind: "principal", namespace: "test", principal: "u" }
@@ -52,6 +58,61 @@ function fixture(auth: AccessContext | null = access, commands = true) {
     );
   return { handler, post, importSpy, store, meter };
 }
+
+test.each([
+  ["byok", "platform"],
+  ["platform", "byok"],
+  ["byok", undefined],
+  ["byok", null],
+  ["byok", ""],
+  ["byok", "legacy"],
+] as const)(
+  "billing HTTP imports historical %s funding independently of current %s funding",
+  async (fundingSource, resolved) => {
+    const f = fixture(
+      access,
+      true,
+      () => ({ provider: input.provider, fundingSource: resolved }) as ConnectionPolicy,
+    );
+    const response = await f.post({
+      ...input,
+      attribution: { ...input.attribution, fundingSource },
+    });
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ outcome: "imported", replayed: false });
+    expect(
+      (
+        await f.store.billingImports({
+          scope: { namespace: "test", principal: "u" },
+          connection: "c",
+          ...input.window,
+        })
+      ).records,
+    ).toHaveLength(1);
+  },
+);
+
+test.each(["byok", "platform"] as const)(
+  "billing HTTP imports matching %s funding",
+  async (fundingSource) => {
+    const f = fixture(access, true, () => ({ provider: input.provider, fundingSource }));
+    const response = await f.post({
+      ...input,
+      attribution: { ...input.attribution, fundingSource },
+    });
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ outcome: "imported", replayed: false });
+    expect(
+      (
+        await f.store.billingImports({
+          scope: { namespace: "test", principal: "u" },
+          connection: "c",
+          ...input.window,
+        })
+      ).records,
+    ).toHaveLength(1);
+  },
+);
 
 test("billing imports require explicit verified write permission and read-only mounts deny before parsing", async () => {
   const { canImportBilling: _omitted, ...withoutImport } = access;

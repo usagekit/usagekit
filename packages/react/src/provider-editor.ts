@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import type {
   ProviderActionResult,
   ProviderCommand,
@@ -21,6 +21,14 @@ import { defaultProviderQueryClient, providerBindingKey } from "./provider-read-
 // The journal owns the immutable command. Only its editor origin is retained here, never credentials.
 const commandOrigins = new WeakMap<ProviderActionEntry, { key: string; commandId: string }>();
 
+export type ProviderEditorRefreshKind = "reload" | "revalidate" | null;
+export type ProviderEditorOptions<K extends ProviderQuery["kind"]> = ProviderHookBinding & {
+  /** Called once after a successful explicit Reload has rebased this editor. */
+  onRebase?: (snapshot: ProviderSnapshotOf<K>) => void;
+  /** Reports null on refresh completion, editor identity replacement or unmount. */
+  onReadRefreshChange?: (kind: ProviderEditorRefreshKind) => void;
+};
+
 export type ProviderEditor<K extends ProviderQuery["kind"]> = Omit<
   ProviderViewResult<K>,
   "data" | "refresh"
@@ -33,6 +41,8 @@ export type ProviderEditor<K extends ProviderQuery["kind"]> = Omit<
   editorEpoch: string;
   canEdit: boolean;
   action: ProviderAction;
+  /** Background reads do not require a host to block dismissal. */
+  refreshKind: ProviderEditorRefreshKind;
   /** Rebase only after this explicit read succeeds. Pending/ambiguous commands prevent reload. */
   reload(): void;
 };
@@ -40,8 +50,12 @@ export type ProviderEditor<K extends ProviderQuery["kind"]> = Omit<
 /** Separates a draft's base from live evidence without owning form state, fetching or host authorization. */
 export function useProviderEditor<K extends ProviderQuery["kind"]>(
   query: Extract<ProviderQuery, { kind: K }>,
-  options: ProviderHookBinding = {},
+  options: ProviderEditorOptions<K> = {},
 ): ProviderEditor<K> {
+  const onReadRefreshChange = useRef(options.onReadRefreshChange);
+  useLayoutEffect(() => {
+    onReadRefreshChange.current = options.onReadRefreshChange;
+  }, [options.onReadRefreshChange]);
   const inherited = useProviderManagementBinding();
   const port = options.port ?? inherited?.port,
     binding = options.binding ?? inherited?.binding;
@@ -63,6 +77,8 @@ export function useProviderEditor<K extends ProviderQuery["kind"]>(
     () => ({
       base: null as ProviderSnapshotOf<K> | null,
       epoch: 0,
+      notifiedEpoch: 0,
+      notifiedRefreshKind: undefined as ProviderEditorRefreshKind | undefined,
       reload: null as number | null,
       fence: null as "forbidden" | "conflict" | null,
       acknowledged: null as ProviderActionResult | null,
@@ -107,6 +123,30 @@ export function useProviderEditor<K extends ProviderQuery["kind"]>(
     }
   }
   if (!editor.base && read.data) editor.base = read.data;
+  const rebaseEpoch = editor.epoch;
+  useEffect(() => {
+    if (!isCurrent() || editor.notifiedEpoch === rebaseEpoch || !editor.base) return;
+    editor.notifiedEpoch = rebaseEpoch;
+    options.onRebase?.(editor.base);
+  }, [editor, rebaseEpoch, options.onRebase, isCurrent]);
+  const refreshKind: ProviderEditorRefreshKind =
+    editor.reload !== null
+      ? "reload"
+      : entry?.snapshot.fetching && editor.base
+        ? "revalidate"
+        : null;
+  useEffect(() => {
+    if (!isCurrent() || editor.notifiedRefreshKind === refreshKind) return;
+    editor.notifiedRefreshKind = refreshKind;
+    options.onReadRefreshChange?.(refreshKind);
+  }, [editor, options.onReadRefreshChange, refreshKind, isCurrent]);
+  useEffect(
+    () => () => {
+      if (editor.notifiedRefreshKind != null) onReadRefreshChange.current?.(null);
+      editor.notifiedRefreshKind = undefined;
+    },
+    [editor],
+  );
   const eligible = () => {
     updateFence();
     const current = entry?.snapshot;
@@ -170,6 +210,7 @@ export function useProviderEditor<K extends ProviderQuery["kind"]>(
     state: editor.fence === "forbidden" ? "forbidden" : read.state,
     error: editor.fence === "forbidden" ? null : read.error,
     refreshing: read.refreshing,
+    refreshKind,
     evidence: editor.fence === "forbidden" ? null : read.data,
     editorData: editor.base,
     editorEpoch: `${identity(editor)}:${editor.epoch}`,

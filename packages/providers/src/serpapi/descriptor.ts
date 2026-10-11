@@ -2,15 +2,15 @@ import type { PriceRow, ProviderDescriptor, ProviderPlan } from "@usagekit/core"
 
 export const pricing = "https://serpapi.com/pricing";
 const checked = "2026-09-25";
-const monthly: readonly [id: string, label: string, searches: bigint][] = [
-  ["free", "Free (250 searches per month)", 250n],
-  ["starter", "Starter (25 USD, 1,000 searches per month)", 1000n],
-  ["developer", "Developer (75 USD, 5,000 searches per month)", 5000n],
-  ["production", "Production (150 USD, 15,000 searches per month)", 15000n],
-  ["bigdata", "Big Data (275 USD, 30,000 searches per month)", 30000n],
-  ["searcher", "Searcher (725 USD, 100,000 searches per month)", 100000n],
-  ["volume", "Volume (1,475 USD, 250,000 searches per month)", 250000n],
-  ["infrastructure", "Infrastructure (2,750 USD, 500,000 searches per month)", 500000n],
+const monthly: readonly [id: string, label: string, searches: bigint, feeCents: bigint][] = [
+  ["free", "Free (250 searches per month)", 250n, 0n],
+  ["starter", "Starter (25 USD, 1,000 searches per month)", 1000n, 2500n],
+  ["developer", "Developer (75 USD, 5,000 searches per month)", 5000n, 7500n],
+  ["production", "Production (150 USD, 15,000 searches per month)", 15000n, 15000n],
+  ["bigdata", "Big Data (275 USD, 30,000 searches per month)", 30000n, 27500n],
+  ["searcher", "Searcher (725 USD, 100,000 searches per month)", 100000n, 72500n],
+  ["volume", "Volume (1,475 USD, 250,000 searches per month)", 250000n, 147500n],
+  ["infrastructure", "Infrastructure (2,750 USD, 500,000 searches per month)", 500000n, 275000n],
 ];
 const row = (extra: Partial<PriceRow>): PriceRow => ({
   validFrom: checked,
@@ -31,16 +31,23 @@ export const descriptor: ProviderDescriptor = {
   id: "serpapi",
   label: "SerpApi",
   upstream: "https://serpapi.com",
+  pricingInputs: [],
   auth: { kind: "query", param: "api_key" },
   billing: { unit: "units", cycle: "monthly_plan" },
   plans: [
     ...monthly.map(
-      ([id, label, searches]): ProviderPlan => ({
+      ([id, label, searches, feeCents]): ProviderPlan => ({
         id,
         label,
         cycle: "monthly_plan",
         allowance: { unit: "units", value: searches },
         allowanceMode: "hard",
+        subscription: {
+          period: "month",
+          fee: { currency: "USD", units: feeCents * 10000n },
+          source: pricing,
+          checkedAt: checked,
+        },
       }),
     ),
     { id: "extra_credits", label: "Extra credits", cycle: "prepaid", allowanceMode: "hard" },

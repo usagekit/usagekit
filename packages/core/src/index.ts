@@ -48,6 +48,8 @@ export type {
   AllowanceExceeded,
   Meter,
   MeterReserveInput,
+  MeterQuoteInput,
+  MeterQuote,
   EstimateSource,
   RequestState,
   CountRequestInput,
@@ -94,6 +96,8 @@ export type {
   BillingUnit,
   ProviderPlan,
   PriceRow,
+  PriceBasis,
+  PriceCalculation,
   RequestMatch,
   ProviderOperation,
   BalanceProbe,
@@ -108,7 +112,7 @@ export type {
   TrackingPolicy,
   MeasuredPrice,
 } from "./providers.js";
-export { validateDescriptor } from "./providers.js";
+export { validateDescriptor, validateConnectionPolicy } from "./providers.js";
 
 export type {
   ImportAttribution,

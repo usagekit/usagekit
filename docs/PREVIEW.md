@@ -2,8 +2,9 @@
 
 The preview combines the project home, component and agent pages, prerendered docs, the interactive
 registry showcase and the shadcn JSON artifacts. It does not deploy a backend or publish
-npm packages. React and views belong to the published 0.8.0 cohort; check registry availability
-separately from hosting. The server and registry tooling remain private.
+npm packages. The blocks request the 0.9.0 React and views packages, which await publication;
+check registry availability separately from hosting. The server and registry tooling remain
+private.
 
 From the repository root, with the pinned Node/npm runtime:
 
@@ -44,8 +45,8 @@ for demo values only. The registry's host primitive dependencies remain shadcn n
 there is no invented production origin. Copy commands use the current preview's origin.
 
 A configured consumer installs `@usagekit/react`, `@usagekit/views` and their dependencies
-from the published 0.8.0 cohort that the blocks request, or reviewed tarballs for an unpublished
-candidate, as described in [consuming packages](CONSUMING.md). Hosting the JSON does not publish
+from the 0.9.0 cohort that the blocks request once it is published, or reviewed tarballs before
+then, as described in [consuming packages](CONSUMING.md). Hosting the JSON does not publish
 those dependencies. The public source is <https://github.com/usagekit/usagekit>;
 the project website is <https://usagekit.dev>.
 

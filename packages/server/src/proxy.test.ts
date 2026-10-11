@@ -290,8 +290,9 @@ test("caller credentials, cookies, destinations and redirect headers never cross
 });
 test("body and idempotency validation happen before admission", async () => {
   const h = await harness();
+  h.s.vault.put("dataforseo", "dfs", "test:password");
   for (const body of ["{broken", '"' + "x".repeat(2 * 1024 * 1024) + '"']) {
-    const response = await fetch(h.s.url + "/proxy/c/search.json", {
+    const response = await fetch(h.s.url + "/proxy/dfs/v3/serp/google/organic/task_post", {
       method: "POST",
       headers: { ...auth(h.token), "Content-Type": "application/json" },
       body,
@@ -425,7 +426,7 @@ test("unknown operation appears once as unpriced coverage and as an exception", 
 test("DataForSEO JSON and Basic credentials survive forwarding; billed HTTP errors still settle", async () => {
   const h = await harness();
   h.s.vault.put("dataforseo", "dfs", "login:password", undefined, { plan: "prepaid" });
-  const body = JSON.stringify([{ keyword: "example", priority: 2 }]);
+  const body = JSON.stringify([{ keyword: "example", tag: "forwarding" }]);
   h.transport.mockResolvedValueOnce(
     Response.json(
       {
@@ -452,6 +453,296 @@ test("DataForSEO JSON and Basic credentials survive forwarding; billed HTTP erro
     receipts: [{ failed: true, cost: { certainty: "measured" } }],
   });
 });
+
+test.each([
+  ["keyword overview missing keywords", "dataforseo_labs/google/keyword_overview/live", [{}], 422],
+  [
+    "historical rank overview missing item count",
+    "dataforseo_labs/google/historical_rank_overview/live",
+    [{ target: "example.com" }],
+    422,
+  ],
+  [
+    "keyword ideas default page exceeds budget",
+    "dataforseo_labs/google/keyword_ideas/live",
+    [{ keywords: ["example"] }],
+    429,
+  ],
+  [
+    "numeric clickstream",
+    "dataforseo_labs/google/keyword_ideas/live",
+    [{ limit: 100, include_clickstream_data: 1 }],
+    400,
+  ],
+  ["multiple tasks", "serp/google/organic/task_post", [{ depth: 100 }, { depth: 100 }], 400],
+])("DataForSEO proxy rejects %s before dispatch", async (_case, path, body, status) => {
+  const h = await harness();
+  h.s.vault.put("dataforseo", "dfs", "test:password", undefined, { plan: "prepaid" });
+  h.s.store.putBudget({
+    id: "money",
+    version: 1,
+    scope: { kind: "principal", namespace: "local", principal: "local" },
+    unit: "cents",
+    limit: { unit: "cents", value: 3n, scale: 0 },
+    surface: "any",
+    window: { kind: "calendar_month", timezone: "UTC" },
+    onExceed: "block",
+  });
+  const response = await h.s.app.request(`/proxy/dfs/v3/${path}`, {
+    method: "POST",
+    headers: {
+      ...auth(h.token),
+      "Content-Type": "application/json",
+      "Idempotency-Key": "dfs-denied",
+    },
+    body: JSON.stringify(body),
+  });
+  expect(response.status).toBe(status);
+  await response.text();
+  expect(h.transport).not.toHaveBeenCalled();
+  expect(await h.s.store.getOperation(ref("dfs-denied"))).toBeNull();
+});
+
+test.each([
+  [
+    "mixed-case JSON multi-task",
+    "Application/JSON",
+    "serp/google/organic/task_post",
+    '[{"depth":100},{"depth":100}]',
+  ],
+  ["non-JSON media type", "text/plain", "serp/google/organic/task_post", '[{"depth":100}]'],
+  ["string priority", "application/json", "serp/google/organic/task_post", '[{"priority":"2"}]'],
+  [
+    "string limit",
+    "application/json",
+    "dataforseo_labs/google/keyword_ideas/live",
+    '[{"limit":"1000"}]',
+  ],
+  ["string depth", "application/json", "serp/google/organic/task_post", '[{"depth":"700"}]'],
+])(
+  "parser differential: rejects %s before reservation or upstream",
+  async (_case, contentType, path, body) => {
+    const h = await harness();
+    h.s.vault.put("dataforseo", "dfs", "test:password", undefined, { plan: "prepaid" });
+    const response = await h.s.app.request(`/proxy/dfs/v3/${path}`, {
+      method: "POST",
+      headers: {
+        ...auth(h.token),
+        "Content-Type": contentType,
+        "Idempotency-Key": "parser-denied",
+      },
+      body,
+    });
+    await response.text();
+    expect(h.transport).not.toHaveBeenCalled();
+    expect(await h.s.store.getOperation(ref("parser-denied"))).toBeNull();
+    expect(response.status).toBe(400);
+  },
+);
+
+test("parser differential: upstream receives canonical JSON of the priced duplicate-key value", async () => {
+  const h = await harness();
+  h.s.vault.put("dataforseo", "dfs", "test:password", undefined, { plan: "prepaid" });
+  const body = '[ { "limit": 1000, "limit": 10 } ]';
+  const response = await h.s.app.request(
+    "/proxy/dfs/v3/dataforseo_labs/google/keyword_ideas/live",
+    {
+      method: "POST",
+      headers: {
+        ...auth(h.token),
+        Accept: "application/json",
+        "Content-Type": "application/json; charset=utf-8",
+        "Content-Encoding": "gzip",
+        "Content-Length": String(Buffer.byteLength(body)),
+        Cookie: "session=caller-cookie",
+        "X-Api-Key": "caller-key",
+        "Idempotency-Key": "canonical",
+      },
+      body,
+    },
+  );
+  expect(response.status).toBe(200);
+  await response.text();
+  expect(h.transport).toHaveBeenCalledTimes(1);
+  const [, init] = h.transport.mock.calls[0]!;
+  expect(new TextDecoder().decode(init?.body as Uint8Array)).toBe(JSON.stringify(JSON.parse(body)));
+  expect([...new Headers(init?.headers)]).toEqual([
+    ["accept", "application/json"],
+    ["authorization", `Basic ${Buffer.from("test:password").toString("base64")}`],
+    ["content-type", "application/json"],
+  ]);
+  expect(await h.s.store.getOperation(ref("canonical"))).toMatchObject({
+    estimate: expect.arrayContaining([{ unit: "cents", value: 132n, scale: 2 }]),
+  });
+});
+
+test.each([
+  "Application/JSON; charset=UTF-8",
+  "application/vnd.api+json",
+  "Application/Problem+JSON; charset=utf-8",
+  "text/example+json",
+])("proxy parses and canonicalizes JSON media type %s", async (contentType) => {
+  const h = await harness();
+  h.s.vault.put("dataforseo", "dfs", "test:password", undefined, { plan: "prepaid" });
+  const response = await h.s.app.request("/proxy/dfs/v3/serp/google/organic/task_post", {
+    method: "POST",
+    headers: { ...auth(h.token), "Content-Type": contentType },
+    body: ' [ { "priority": 2, "depth": 100 } ] ',
+  });
+  expect(response.status).toBe(200);
+  await response.text();
+  const [, init] = h.transport.mock.calls[0]!;
+  expect(new TextDecoder().decode(init?.body as Uint8Array)).toBe('[{"priority":2,"depth":100}]');
+  expect(new Headers(init?.headers).get("Content-Type")).toBe("application/json");
+});
+
+test.each([
+  ["invalid JSON", "application/json", "{"],
+  ["invalid suffix JSON", "application/vnd.api+json", "{"],
+  ["missing JSON media type", undefined, "[{}]"],
+  ["empty body", "application/json", ""],
+  ["JSON string payload", "text/plain", "[{},{}]"],
+])("billable DataForSEO rejects %s even in passthrough mode", async (_case, contentType, body) => {
+  const h = await harness();
+  h.s.vault.put("dataforseo", "dfs", "test:password", undefined, {
+    tracking: { "serp.google.organic.task_post": "passthrough" },
+  });
+  const response = await h.s.app.request("/proxy/dfs/v3/serp/google/organic/task_post", {
+    method: "POST",
+    headers: {
+      ...auth(h.token),
+      ...(contentType ? { "Content-Type": contentType } : {}),
+      "Idempotency-Key": "invalid-json",
+    },
+    ...(body === undefined ? {} : { body }),
+  });
+  expect(response.status).toBe(400);
+  await response.text();
+  expect(h.transport).not.toHaveBeenCalled();
+  expect(await h.s.store.getOperation(ref("invalid-json"))).toBeNull();
+});
+
+test.each([
+  ["dataforseo", "serp/google/organic/tasks_ready", "GET", "passthrough"],
+  ["serpapi", "search.json", "POST", "unpriced"],
+])(
+  "%s preserves non-JSON forwarding for compatible operations",
+  async (provider, path, method, accounting) => {
+    const h = await harness();
+    h.s.vault.put(provider, "raw", "test:password");
+    const response = await h.s.app.request(
+      `/proxy/raw/${provider === "dataforseo" ? "v3/" : ""}${path}`,
+      {
+        method,
+        headers: { ...auth(h.token), "Content-Type": "text/plain" },
+        ...(method === "GET" ? {} : { body: "raw request bytes" }),
+      },
+    );
+    expect(response.status).toBe(200);
+    expect(response.headers.get("X-Usagekit-Accounting")).toBe(accounting);
+    await response.text();
+    const [, init] = h.transport.mock.calls[0]!;
+    if (method === "GET") expect(init?.body).toBeUndefined();
+    else expect(new TextDecoder().decode(init?.body as Uint8Array)).toBe("raw request bytes");
+    expect(new Headers(init?.headers).get("Content-Type")).toBe("text/plain");
+  },
+);
+
+test.each([
+  ["serpapi", "/search.json", "application/json"],
+  ["serpapi", "/search.json", "Application/Merge-Patch+JSON; charset=UTF-8"],
+  ["dataforseo", "/v3/unrecognized", "application/vnd.api+json"],
+])("%s preserves unpriced body bytes and media type %s %s", async (provider, path, contentType) => {
+  const h = await harness();
+  h.s.vault.put(provider, "raw-json", "test:password");
+  // Precision, overflow, whitespace and duplicate keys must survive outside priced bodies.
+  const body = ' { "id": 9007199254740993, "huge": 1e400, "x": 1, "x": 2 } ';
+  const response = await h.s.app.request(`/proxy/raw-json${path}`, {
+    method: "POST",
+    headers: { ...auth(h.token), "Content-Type": contentType },
+    body,
+  });
+  expect(response.status).toBe(200);
+  await response.text();
+  const [, init] = h.transport.mock.calls[0]!;
+  expect.soft(new TextDecoder().decode(init?.body as Uint8Array)).toBe(body);
+  expect(new Headers(init?.headers).get("Content-Type")).toBe(contentType);
+});
+
+test("proxy forwards malformed JSON outside priced bodies without parsing it", async () => {
+  const h = await harness();
+  const body = Uint8Array.from([0x7b, 0xff, 0x00]);
+  const response = await h.s.app.request("/proxy/c/search.json", {
+    method: "POST",
+    headers: { ...auth(h.token), "Content-Type": "application/json" },
+    body,
+  });
+  expect(response.status).toBe(200);
+  await response.text();
+  const [, init] = h.transport.mock.calls[0]!;
+  expect(init?.body).toEqual(body);
+  expect(new Headers(init?.headers).get("Content-Type")).toBe("application/json");
+});
+
+test.each([
+  ["numeric-key object", '{"0":{"depth":700},"1":{"depth":700}}'],
+  ["bare task object", '{"keyword":"example","depth":700}'],
+  ["empty task array", "[]"],
+  ["nested task array", '[[{"depth":700}]]'],
+  ["JSON string payload", '"[{\\"depth\\":700}]"'],
+  ["null task", "[null]"],
+])(
+  "parser differential: rejects a billable %s before reservation or upstream",
+  async (_case, body) => {
+    const h = await harness();
+    h.s.vault.put("dataforseo", "dfs", "test:password", undefined, { plan: "prepaid" });
+    const response = await h.s.app.request("/proxy/dfs/v3/serp/google/organic/live/advanced", {
+      method: "POST",
+      headers: {
+        ...auth(h.token),
+        "Content-Type": "application/json",
+        "Idempotency-Key": "shape-denied",
+      },
+      body,
+    });
+    await response.text();
+    expect(h.transport).not.toHaveBeenCalled();
+    expect(await h.s.store.getOperation(ref("shape-denied"))).toBeNull();
+    expect(response.status).toBe(400);
+  },
+);
+
+test.each([
+  ["serp/google/organic/live/advanced", '[{"Depth":700}]'],
+  ["serp/google/organic/task_post", '[{"PRIORITY":2}]'],
+  ["dataforseo_labs/google/keyword_ideas/live", '[{"LIMIT":1000}]'],
+  ["dataforseo_labs/google/keyword_ideas/live", '[{"l\u0131m\u0131t":1000}]'],
+  ["dataforseo_labs/google/keyword_ideas/live", '[{"Include_Clickstream_Data":true}]'],
+  ["dataforseo_labs/google/keyword_overview/live", '[{"\u212Aeywords":["a","b"]}]'],
+])(
+  "parser differential: %s meters unknown cost for case-variant pricing key body %s",
+  async (path, body) => {
+    const h = await harness();
+    h.s.vault.put("dataforseo", "dfs", "test:password", undefined, { plan: "prepaid" });
+    const response = await h.s.app.request(`/proxy/dfs/v3/${path}`, {
+      method: "POST",
+      headers: {
+        ...auth(h.token),
+        "Content-Type": "application/json",
+        "Idempotency-Key": "key-denied",
+      },
+      body,
+    });
+    await response.text();
+    expect(h.transport).toHaveBeenCalledOnce();
+    expect(await h.s.store.getOperation(ref("key-denied"))).toMatchObject({
+      estimate: [{ unit: "requests", value: 1n, scale: 0 }],
+      estimateSource: "unknown",
+    });
+    expect(response.status).toBe(200);
+  },
+);
+
 test("SIGKILL during a real proxy call preserves uncertain exposure across server restart", async () => {
   const dir = mkdtempSync(join(tmpdir(), "usagekit-proxy-crash-"));
   dirs.push(dir);
@@ -584,3 +875,54 @@ test("lost settlement lease leaves intent for maintenance recovery without redis
   expect(await h.s.store.getOperation(ref("lease-lost"))).toMatchObject({ state: "pending" });
   expect(h.transport).toHaveBeenCalledTimes(1);
 });
+
+test.each(["money", "passthrough", "unbounded"] as const)(
+  "uncertain DataForSEO proxy delegates %s to Meter",
+  async (mode) => {
+    const h = await harness();
+    const operation = "serp.google.organic.live.advanced";
+    h.s.vault.put("dataforseo", "dfs", "test:password", undefined, {
+      ...(mode === "passthrough" ? { tracking: { [operation]: "passthrough" } } : {}),
+    });
+    if (mode === "money")
+      h.s.store.putBudget({
+        id: "money",
+        version: 1,
+        scope: { kind: "principal", namespace: "local", principal: "local" },
+        unit: "cents",
+        limit: { unit: "cents", value: 3n, scale: 0 },
+        surface: "any",
+        window: { kind: "calendar_month", timezone: "UTC" },
+        onExceed: "block",
+      });
+    const body = JSON.stringify([{ keyword: "example", future_paid_parameter: true }]);
+    const response = await h.s.app.request("/proxy/dfs/v3/serp/google/organic/live/advanced", {
+      method: "POST",
+      headers: {
+        ...auth(h.token),
+        "Content-Type": "application/json",
+        "Idempotency-Key": "uncertain",
+      },
+      body,
+    });
+    expect(response.status).toBe(mode === "money" ? 422 : 200);
+    if (mode === "money") {
+      expect(await response.json()).toMatchObject({ error: "cannot_estimate_bounded_usage" });
+      expect(h.transport).not.toHaveBeenCalled();
+    } else {
+      await response.text();
+      expect(h.transport).toHaveBeenCalledOnce();
+      expect(new TextDecoder().decode(h.transport.mock.calls[0]![1]?.body as Uint8Array)).toBe(
+        body,
+      );
+      if (mode === "passthrough")
+        expect(response.headers.get("X-Usagekit-Accounting")).toBe("passthrough");
+      else
+        expect(await h.s.store.getOperation(ref("uncertain"))).toMatchObject({
+          estimate: [{ unit: "requests", value: 1n, scale: 0 }],
+          estimateSource: "unknown",
+          receipts: [{ cost: { certainty: "unknown", money: null } }],
+        });
+    }
+  },
+);

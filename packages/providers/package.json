@@ -1,6 +1,6 @@
 {
   "name": "@usagekit/providers",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "type": "module",
   "license": "Apache-2.0",
   "description": "Provider descriptors, catalog, price tables, extractors, fixtures and probes.",
@@ -31,7 +31,7 @@
     "prepack": "node ../../scripts/package-license.mjs"
   },
   "dependencies": {
-    "@usagekit/core": "0.8.0"
+    "@usagekit/core": "0.9.0"
   },
   "peerDependencies": {
     "vitest": ">=5.0.1 <6",

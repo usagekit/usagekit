@@ -22,6 +22,9 @@ test("SIGKILL after reserve before intent: startup expiry restores headroom", as
   const script = `import {createRemoteMeter} from ${JSON.stringify(clientModule)};const meter=createRemoteMeter({baseUrl:process.env.URL,token:process.env.TOKEN});const result=await meter.reserve({operationId:'orphan',reservationTtlMs:1000,scope:{namespace:'local',principal:'local',connection:'c'},fundingSource:'byok',costOwner:'local',surface:'programmatic',source:'cli',provider:'example',operation:'search',estimate:[{unit:'requests',value:1n,scale:0}]});process.on('message',()=>{});process.send({outcome:result.outcome});`;
   let child: ReturnType<typeof fork> | undefined;
   try {
+    s.vault.unlock("test-passphrase");
+    s.vault.put("example", "c", "test-secret");
+    s.vault.lock();
     s.store.putBudget({
       id: "b",
       version: 1,

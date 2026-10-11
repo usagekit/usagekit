@@ -1,14 +1,25 @@
 import { afterEach, expect, test, vi } from "vitest";
+import type { ProviderAuth } from "@usagekit/core";
 import { mkdtempSync, readFileSync, rmSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createRemoteMeter } from "@usagekit/client";
 import { createManualClock } from "@usagekit/store";
-import { createCatalog, dataforseo, serpapi, loadFixtures } from "@usagekit/providers";
+import {
+  createCatalog,
+  dataforseo,
+  serpapi,
+  loadFixtures,
+  PricedRequest,
+} from "@usagekit/providers";
 import { startServer } from "./index.js";
+import { createRecorder } from "./recorder.js";
+import { createMeter } from "@usagekit/meter";
+import { createMemoryStore } from "@usagekit/store";
 import { redactFixture } from "./redaction.js";
 const dirs: string[] = [];
 afterEach(() => {
+  vi.restoreAllMocks();
   for (const dir of dirs.splice(0)) rmSync(dir, { recursive: true, force: true });
 });
 const access = {
@@ -306,7 +317,7 @@ test("basic-auth recording preserves JSON text and strips caller credentials fro
     });
     expect(result.status).toBe(200);
     const [, init] = h.transport.mock.calls[0]!;
-    expect(init?.body).toBe(body);
+    expect(new TextDecoder().decode(init?.body as Uint8Array)).toBe(body);
     const headers = new Headers(init?.headers);
     expect(headers.get("authorization")).toBe(
       "Basic " + Buffer.from("login@example.com:basic-secret").toString("base64"),
@@ -316,6 +327,62 @@ test("basic-auth recording preserves JSON text and strips caller credentials fro
       text = readFileSync(resultBody.path, "utf8");
     for (const secret of ["login@example.com", "basic-secret", "caller-secret", "other-secret"])
       expect(text).not.toContain(secret);
+  } finally {
+    await h.s.stop();
+  }
+});
+
+test("recording prices and forwards the same canonical JSON value", async () => {
+  const h = await harness(async () =>
+    Response.json({ status_code: 20000, cost: 0.002, tasks: [] }),
+  );
+  try {
+    await h.add({ provider: "dataforseo", plan: "prepaid", secret: "login:password" });
+    const body = '[ { "keyword": "example", "depth": 700, "depth": 10 } ]';
+    const result = await h.record({
+      operation: "serp.google.organic.live.advanced",
+      request: {
+        method: "POST",
+        url: "/v3/serp/google/organic/live/advanced",
+        body,
+        headers: { "Content-Type": "Application/JSON; charset=utf-8" },
+      },
+    });
+    expect(result.status).toBe(200);
+    const [, init] = h.transport.mock.calls[0]!;
+    expect(new TextDecoder().decode(init?.body as Uint8Array)).toBe(
+      '[{"keyword":"example","depth":10}]',
+    );
+    expect(new Headers(init?.headers).get("Content-Type")).toBe("application/json");
+    const { path } = (await result.json()) as { path: string };
+    expect(JSON.parse(readFileSync(path, "utf8")).request.body).toEqual([
+      { keyword: "example", depth: 10 },
+    ]);
+  } finally {
+    await h.s.stop();
+  }
+});
+
+test.each([
+  ["JSON text with two tasks", "application/json", '[{"depth":700},{"depth":700}]'],
+  ["JSON text without a media type", undefined, '[{"depth":700},{"depth":700}]'],
+  ["non-JSON media type", "text/plain", '[{"depth":700}]'],
+  ["invalid JSON text", "application/json", '[{"depth":700}'],
+])("billable recording rejects %s before reservation or upstream", async (_case, type, body) => {
+  const h = await harness();
+  try {
+    await h.add({ provider: "dataforseo", plan: "prepaid", secret: "login:password" });
+    const result = await h.record({
+      operation: "serp.google.organic.live.advanced",
+      request: {
+        method: "POST",
+        url: "/v3/serp/google/organic/live/advanced",
+        body,
+        ...(type ? { headers: { "Content-Type": type } } : {}),
+      },
+    });
+    expect(h.transport).not.toHaveBeenCalled();
+    expect(result.status).toBe(400);
   } finally {
     await h.s.stop();
   }
@@ -459,3 +526,232 @@ test("five settled receipts enable measured pricing; manual override still wins"
     await h.s.stop();
   }
 });
+
+test.each(["passthrough", "unpriced"])(
+  "connection HTTP API rejects platform billable %s tracking with a clear invalid result",
+  async (tracking) => {
+    const h = await harness();
+    try {
+      const response = await h.add({ fundingSource: "platform", tracking: { search: tracking } });
+      expect(response.status).toBe(400);
+      expect(await response.json()).toMatchObject({
+        outcome: "invalid",
+        field: "tracking.search",
+        reason: expect.stringContaining("credits"),
+      });
+      expect(h.s.vault.list()).toEqual([]);
+      expect(h.transport).not.toHaveBeenCalled();
+    } finally {
+      await h.s.stop();
+    }
+  },
+);
+
+test.each(["application/vnd.api+json", undefined])(
+  "non-body-priced recording preserves a large integer and media type %s",
+  async (contentType) => {
+    const h = await harness();
+    try {
+      await h.add();
+      const body = ' { "id": 1152921504606846976 } ';
+      const provider = {
+        ...serpapi,
+        descriptor: {
+          ...serpapi.descriptor,
+          operations: serpapi.descriptor.operations.map((op) => ({
+            ...op,
+            match: op.match.map((m) => ({ ...m, method: "POST" as const })),
+          })),
+        },
+      };
+      const catalog = createCatalog({ providers: [provider], enabled: ["serpapi"] });
+      const meter = createMeter({
+        store: createMemoryStore({ budgets: [], clock: h.clock }),
+        clock: h.clock,
+        catalog,
+        resolveConnection: () => ({ provider: "serpapi", fundingSource: "byok", plan: "starter" }),
+      });
+      const record = createRecorder({
+        meter,
+        catalog,
+        vault: h.s.vault,
+        dir: h.dir,
+        clock: h.clock,
+        transport: h.transport,
+      });
+      const result = await record("c", {
+        operation: "search",
+        request: {
+          method: "POST",
+          url: "/search.json?q=example",
+          ...(contentType ? { headers: { "Content-Type": contentType } } : {}),
+          body,
+        },
+      });
+      expect(result.status).toBe(200);
+      const [, init] = h.transport.mock.calls[0]!;
+      const sent =
+        typeof init?.body === "string"
+          ? init.body
+          : new TextDecoder().decode(init?.body as Uint8Array);
+      expect(sent).toBe(body);
+      expect(new Headers(init?.headers).get("Content-Type")).toBe(contentType ?? null);
+    } finally {
+      await h.s.stop();
+    }
+  },
+);
+
+test("recorder propagates a Meter reserve failure unchanged", async () => {
+  const h = await harness();
+  try {
+    await h.add();
+    const catalog = createCatalog({ providers: [serpapi], enabled: ["serpapi"] });
+    const meter = createMeter({
+      store: createMemoryStore({ budgets: [], clock: h.clock }),
+      clock: h.clock,
+      catalog,
+      resolveConnection: () => ({ provider: "serpapi", fundingSource: "byok", plan: "starter" }),
+    });
+    const failure = new Error("reserve failed");
+    vi.spyOn(meter, "reserve").mockRejectedValueOnce(failure);
+    const record = createRecorder({
+      meter,
+      catalog,
+      vault: h.s.vault,
+      dir: h.dir,
+      clock: h.clock,
+      transport: h.transport,
+    });
+    await expect(
+      record("c", { operation: "search", request: { method: "GET", url: "/search.json" } }),
+    ).rejects.toBe(failure);
+    expect(h.transport).not.toHaveBeenCalled();
+  } finally {
+    await h.s.stop();
+  }
+});
+
+test.each(["bearer", "basic", "header", "query"] as const)(
+  "recorder keeps %s credentials outside pricing and accounting",
+  async (kind) => {
+    const h = await harness();
+    const trusted = "vault-user:vault-password",
+      caller = "caller-secret";
+    try {
+      await h.add({ secret: trusted });
+      const auth: ProviderAuth =
+        kind === "query"
+          ? { kind, param: "provider_key" }
+          : kind === "header"
+            ? { kind, name: "X-Provider-Key", prefix: "Key " }
+            : { kind };
+      const catalog = createCatalog({
+        providers: [{ ...serpapi, descriptor: { ...serpapi.descriptor, auth } }],
+        enabled: ["serpapi"],
+      });
+      const meter = createMeter({
+        store: createMemoryStore({ budgets: [], clock: h.clock }),
+        clock: h.clock,
+        catalog,
+        resolveConnection: () => ({ provider: "serpapi", fundingSource: "byok", plan: "starter" }),
+      });
+      const match = vi.spyOn(catalog, "match"),
+        extract = vi.spyOn(catalog, "extract");
+      const reserve = vi.spyOn(meter, "reserve"),
+        settle = vi.spyOn(meter, "settle");
+      const price = vi.spyOn(PricedRequest, "price");
+      const record = createRecorder({
+        meter,
+        catalog,
+        vault: h.s.vault,
+        dir: h.dir,
+        clock: h.clock,
+        transport: h.transport,
+      });
+      const result = await record("c", {
+        operation: "search",
+        request: {
+          method: "GET",
+          url: `/search.json?q=example&api_key=${caller}&custom_credential=${caller}${auth.kind === "query" ? `&${auth.param}=${caller}` : ""}`,
+          headers: { Authorization: caller, Cookie: caller, "X-Custom-Credential": caller },
+        },
+      });
+      expect(result.status).toBe(200);
+      const priced = await price.mock.results.at(-1)!.value;
+      for (const observed of [
+        priced,
+        match.mock.calls,
+        extract.mock.calls,
+        reserve.mock.calls,
+        settle.mock.calls,
+      ]) {
+        const text = JSON.stringify(observed, (_, value: unknown) =>
+          typeof value === "bigint" ? value.toString() : value,
+        );
+        for (const secret of [trusted, caller, btoa(trusted)]) expect(text).not.toContain(secret);
+      }
+      expect(match).toHaveBeenCalledOnce();
+      const [url, init] = h.transport.mock.calls[0]!;
+      const headers = new Headers(init?.headers);
+      if (auth.kind === "query")
+        expect(new URL(String(url)).searchParams.get(auth.param)).toBe(trusted);
+      else if (auth.kind === "basic")
+        expect(headers.get("Authorization")).toBe(`Basic ${btoa(trusted)}`);
+      else if (auth.kind === "bearer")
+        expect(headers.get("Authorization")).toBe(`Bearer ${trusted}`);
+      else expect(headers.get(auth.name)).toBe(`Key ${trusted}`);
+      const text = readFileSync((result.body as { path: string }).path, "utf8");
+      for (const secret of [trusted, caller, btoa(trusted)]) expect(text).not.toContain(secret);
+      price.mockRestore();
+    } finally {
+      await h.s.stop();
+    }
+  },
+);
+
+test.each(["bearer", "header"] as const)(
+  "recorder rejects malformed trusted %s credentials before admission",
+  async (kind) => {
+    const h = await harness();
+    try {
+      const auth: ProviderAuth = kind === "header" ? { kind, name: "X-Provider-Key" } : { kind };
+      const catalog = createCatalog({
+        providers: [{ ...serpapi, descriptor: { ...serpapi.descriptor, auth } }],
+        enabled: ["serpapi"],
+      });
+      const meter = createMeter({
+        store: createMemoryStore({ budgets: [], clock: h.clock }),
+        clock: h.clock,
+        catalog,
+        resolveConnection: () => ({ provider: "serpapi", fundingSource: "byok", plan: "starter" }),
+      });
+      const match = vi.spyOn(catalog, "match"),
+        reserve = vi.spyOn(meter, "reserve"),
+        intent = vi.spyOn(meter, "markDispatchIntent");
+      const record = createRecorder({
+        meter,
+        catalog,
+        vault: h.s.vault,
+        dir: h.dir,
+        clock: h.clock,
+        transport: h.transport,
+      });
+      for (const secret of ["private-marker\nsecond-line", "private-marker-\u2011-unicode"]) {
+        await h.add({ secret });
+        expect(
+          await record("c", {
+            operation: "search",
+            request: { method: "GET", url: "/search.json" },
+          }),
+        ).toEqual({ status: 400, body: { error: "invalid_request" } });
+      }
+      expect(match).not.toHaveBeenCalled();
+      expect(reserve).not.toHaveBeenCalled();
+      expect(intent).not.toHaveBeenCalled();
+      expect(h.transport).not.toHaveBeenCalled();
+    } finally {
+      await h.s.stop();
+    }
+  },
+);

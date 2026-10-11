@@ -1,5 +1,6 @@
-import { act, cleanup, renderHook, waitFor } from "@testing-library/react";
+import { act, cleanup, render, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, expect, test, vi } from "vitest";
+import { createElement, startTransition, Suspense, useState } from "react";
 import type {
   ProviderActionResult,
   ProviderBinding,
@@ -119,6 +120,172 @@ function fixture() {
   return { input, read, execute, reconcile };
 }
 const useEditor = (input: Input) => useProviderEditor(input.query, input);
+
+test("read refresh notifications ignore inline callback identity", async () => {
+  const f = fixture();
+  const notify = vi.fn();
+  const { result, rerender } = renderHook(() =>
+    useProviderEditor(f.input.query, {
+      ...f.input,
+      onReadRefreshChange: (kind) => notify(kind),
+    }),
+  );
+  await waitFor(() => expect(result.current.canEdit).toBe(true));
+  expect(notify).toHaveBeenCalledWith(null);
+  notify.mockClear();
+  rerender();
+  expect(notify).not.toHaveBeenCalled();
+
+  const background = deferred<ProviderReadResult>();
+  f.read.mockReturnValueOnce(background.promise);
+  act(() => f.input.client.invalidate(f.input.port, f.input.binding));
+  expect(notify.mock.calls).toEqual([["revalidate"]]);
+  rerender();
+  expect(notify.mock.calls).toEqual([["revalidate"]]);
+  await act(async () => background.resolve(details("2")));
+  expect(notify.mock.calls).toEqual([["revalidate"], [null]]);
+
+  const explicit = deferred<ProviderReadResult>();
+  f.read.mockReturnValueOnce(explicit.promise);
+  act(() => result.current.reload());
+  expect(notify.mock.calls).toEqual([["revalidate"], [null], ["reload"]]);
+  rerender();
+  expect(notify.mock.calls).toEqual([["revalidate"], [null], ["reload"]]);
+  await act(async () => explicit.resolve(details("3")));
+  expect(notify.mock.calls).toEqual([["revalidate"], [null], ["reload"], [null]]);
+});
+
+test.each(["reload", "revalidate"] as const)(
+  "unmount clears %s through the latest read refresh callback",
+  async (kind) => {
+    const f = fixture();
+    const first = vi.fn();
+    const latest = vi.fn();
+    const { result, rerender, unmount } = renderHook(
+      ({ notify }) => useProviderEditor(f.input.query, { ...f.input, onReadRefreshChange: notify }),
+      { initialProps: { notify: first } },
+    );
+    await waitFor(() => expect(result.current.canEdit).toBe(true));
+    const pending = deferred<ProviderReadResult>();
+    f.read.mockReturnValueOnce(pending.promise);
+    act(() => {
+      if (kind === "reload") result.current.reload();
+      else f.input.client.invalidate(f.input.port, f.input.binding);
+    });
+    expect(first).toHaveBeenLastCalledWith(kind);
+    rerender({ notify: latest });
+    expect(latest).not.toHaveBeenCalled();
+    unmount();
+    expect(latest.mock.calls).toEqual([[null]]);
+    expect(first).toHaveBeenLastCalledWith(kind);
+    await act(async () => pending.resolve(details("2")));
+    expect(latest.mock.calls).toEqual([[null]]);
+  },
+);
+
+test("unmount releases the committed refresh fence after a discarded concurrent render", async () => {
+  const f = fixture();
+  const committed = vi.fn();
+  const abandoned = vi.fn();
+  const attempted = vi.fn();
+  const suspended = deferred<void>();
+  let change!: () => void;
+  function Editor({ discard }: { discard: boolean }) {
+    useProviderEditor(f.input.query, {
+      ...f.input,
+      onReadRefreshChange: discard ? abandoned : committed,
+    });
+    if (discard) {
+      attempted();
+      throw suspended.promise;
+    }
+    return null;
+  }
+  function Host() {
+    const [discard, setDiscard] = useState(false);
+    change = () => setDiscard(true);
+    return createElement(Suspense, { fallback: null }, createElement(Editor, { discard }));
+  }
+  const view = render(createElement(Host));
+  await waitFor(() => expect(committed).toHaveBeenCalledWith(null));
+  const pending = deferred<ProviderReadResult>();
+  f.read.mockReturnValueOnce(pending.promise);
+  act(() => f.input.client.invalidate(f.input.port, f.input.binding));
+  expect(committed).toHaveBeenLastCalledWith("revalidate");
+  act(() => startTransition(change));
+  await waitFor(() => expect(attempted).toHaveBeenCalled());
+  expect(abandoned).not.toHaveBeenCalled();
+  view.unmount();
+  expect(committed).toHaveBeenLastCalledWith(null);
+  expect(abandoned).not.toHaveBeenCalled();
+  await act(async () => {
+    suspended.resolve();
+    pending.resolve(details("2"));
+  });
+});
+
+test.each(["binding", "query"] as const)(
+  "read refresh notifications report the new %s identity even when the kind is unchanged",
+  async (change) => {
+    const f = fixture();
+    const notify = vi.fn();
+    const { result, rerender } = renderHook(
+      (input: Input) => useProviderEditor(input.query, { ...input, onReadRefreshChange: notify }),
+      { initialProps: f.input },
+    );
+    await waitFor(() => expect(result.current.canEdit).toBe(true));
+    expect(notify.mock.calls).toEqual([[null]]);
+    const next: Input = {
+      ...f.input,
+      ...(change === "binding"
+        ? { binding: { ...f.input.binding, authRevision: "2" } }
+        : { query: { kind: "details", connectionId: "connection-b" } }),
+    };
+    rerender(next);
+    await waitFor(() => expect(result.current.canEdit).toBe(true));
+    expect(notify.mock.calls).toEqual([[null], [null]]);
+    rerender(next);
+    expect(notify.mock.calls).toEqual([[null], [null]]);
+  },
+);
+
+test("public reload signal distinguishes revalidation and reports only confirmed rebases", async () => {
+  const f = fixture();
+  const onRebase = vi.fn();
+  const { result } = renderHook(() => useProviderEditor(f.input.query, { ...f.input, onRebase }));
+  await waitFor(() => expect(result.current.canEdit).toBe(true));
+  expect(onRebase).not.toHaveBeenCalled();
+  const background = deferred<ProviderReadResult>();
+  f.read.mockReturnValueOnce(background.promise);
+  act(() => f.input.client.invalidate(f.input.port, f.input.binding));
+  expect(result.current.refreshKind).toBe("revalidate");
+  await act(async () => background.resolve(details("2")));
+  expect(result.current.refreshKind).toBeNull();
+  expect(onRebase).not.toHaveBeenCalled();
+  const explicit = deferred<ProviderReadResult>();
+  f.read.mockReturnValueOnce(explicit.promise);
+  act(() => result.current.reload());
+  expect(result.current.refreshKind).toBe("reload");
+  await act(async () => explicit.resolve(details("3")));
+  expect(result.current.refreshKind).toBeNull();
+  expect(onRebase).toHaveBeenCalledExactlyOnceWith(result.current.editorData);
+  f.read.mockResolvedValueOnce({ outcome: "unavailable", message: "offline" });
+  act(() => result.current.reload());
+  await waitFor(() => expect(result.current.state).toBe("unavailable"));
+  expect(result.current.refreshKind).toBeNull();
+  const recovery = deferred<ProviderReadResult>();
+  f.read.mockReturnValueOnce(recovery.promise);
+  act(() => f.input.client.invalidate(f.input.port, f.input.binding));
+  expect(result.current.refreshKind).toBe("revalidate");
+  await act(async () => recovery.resolve(details("4")));
+  await waitFor(() => expect(result.current.evidence?.revision).toBe("4"));
+  expect(onRebase).toHaveBeenCalledTimes(1);
+  expect(result.current.editorData?.revision).toBe("3");
+  // An unchanged revision still confirms a new explicit rebase.
+  f.read.mockResolvedValueOnce(details("3"));
+  act(() => result.current.reload());
+  await waitFor(() => expect(onRebase).toHaveBeenCalledTimes(2));
+});
 
 test("a captured writer is fenced immediately when the live cache starts refreshing", async () => {
   const f = fixture(),

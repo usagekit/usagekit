@@ -62,7 +62,12 @@ export function generateOpenApi() {
     const operation = {
       security: [{ bearerAuth: [] }],
       ...(read
-        ? {}
+        ? name === "quote"
+          ? {
+              description:
+                "Authorized advisory estimate using the same pricing resolution as reserve. Available with commands: false. Never mutates accounting or dispatches a provider call; budget availability is not admission.",
+            }
+          : {}
         : {
             description:
               name === "importBilling"

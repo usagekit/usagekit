@@ -1,13 +1,22 @@
 "use client";
 
+import type { ReactNode } from "react";
+import type { FundingSource } from "@usagekit/core";
 import { useUsageSummary } from "@usagekit/react";
 import type { UsageSummaryInput, UsageSummaryView } from "@usagekit/views";
+import { addQuantity, formatQuantity } from "@usagekit/core";
+import { parseProviderDecimal } from "@usagekit/views";
+import type { Figure } from "@usagekit/views";
 import { Card } from "@/components/ui/card";
 import { MeasurementCard } from "@/components/usagekit/measurement-card";
-import type { MeasurementCardLabels } from "@/components/usagekit/measurement-card";
+import type {
+  MeasurementCardProps,
+  MeasurementCardLabels,
+} from "@/components/usagekit/measurement-card";
 import { usageMotion } from "@/components/usagekit/usage-motion";
 
 export const usageSummaryCardsLabels = {
+  asOf: "As of",
   title: "Usage",
   customerCharges: "Customer charges",
   loading: "Loading usage summary.",
@@ -23,6 +32,15 @@ export type UsageSummaryCardsProps = {
   labels?: Partial<UsageSummaryCardsLabels>;
   measurementLabels?: Partial<MeasurementCardLabels>;
   unitLabels?: Partial<Record<string, string>>;
+  formatFigure?: MeasurementCardProps["formatFigure"];
+  formatUnit?: MeasurementCardProps["formatUnit"];
+  fundingSource?: FundingSource;
+  /** Select from complete funding evidence; never reconstruct incomplete totals. */
+  selectMeasurements?: (view: UsageSummaryView) => UsageSummaryView["measurements"];
+  variant?: "card" | "plain";
+  metadata?: ReactNode;
+  formatTime?: (iso: string) => string;
+  details?: ReactNode;
 };
 
 // Cells draw their own right and bottom rules; the inset grid hides the outer ones.
@@ -34,8 +52,26 @@ export function UsageSummaryCards({
   labels: custom,
   measurementLabels,
   unitLabels = {},
+  formatFigure,
+  formatUnit,
+  fundingSource,
+  selectMeasurements,
+  variant = "card",
+  metadata,
+  formatTime,
+  details,
 }: UsageSummaryCardsProps) {
   const labels = { ...usageSummaryCardsLabels, ...custom };
+  const caption = (
+    <>
+      {metadata}
+      {view?.asOf && formatTime && (
+        <p>
+          {labels.asOf}: <time dateTime={view.asOf}>{formatTime(view.asOf)}</time>
+        </p>
+      )}
+    </>
+  );
   if (!view)
     return (
       <div role="status" className="cn-usage-frame grid gap-px overflow-hidden border-border">
@@ -46,46 +82,74 @@ export function UsageSummaryCards({
         />
       </div>
     );
+  const funding = fundingSource
+    ? view.funding.filter((row) => row.fundingSource === fundingSource)
+    : view.funding;
+  const unknownOperations = fundingSource
+    ? funding.reduce((total, row) => total + BigInt(row.unknownOperations), 0n).toString()
+    : view.unknownOperations;
   const message =
     view.state === "forbidden"
       ? labels.forbidden
       : view.state === "unavailable"
         ? labels.failed
-        : view.state === "empty"
+        : view.state === "empty" || (view.complete && fundingSource && !funding.length)
           ? labels.empty
           : !view.complete
             ? labels.incomplete
             : null;
   if (message)
     return (
-      <p
-        role="status"
-        className={`cn-usage-empty cn-usage-body border-border text-muted-foreground ${usageMotion.enter}`}
-      >
-        {message}
-      </p>
+      <>
+        {caption}
+        <p
+          role="status"
+          className={`cn-usage-empty cn-usage-body border-border text-muted-foreground ${usageMotion.enter}`}
+        >
+          {message}
+        </p>
+        {details}
+      </>
     );
+  const measurements =
+    selectMeasurements?.(view) ??
+    (fundingSource
+      ? funding.reduce<Record<string, Figure>>((result, row) => {
+          for (const [unit, value] of Object.entries(row.measurements)) {
+            if (!(unit in result)) result[unit] = value;
+            else result[unit] = addSummaryFigure(result[unit]!, value, unit);
+          }
+          return result;
+        }, {})
+      : view.measurements);
+  const Surface = variant === "plain" ? "div" : Card;
   return (
     <section aria-label={labels.title} className="min-w-0 space-y-3">
-      <Card className="gap-0 overflow-hidden py-0">
+      {caption}
+      <Surface className="gap-0 overflow-hidden py-0">
         <div className="-mr-px -mb-px grid min-w-0 sm:grid-cols-2 xl:grid-cols-3">
-          {Object.entries(view.measurements).map(([unit, value]) => (
+          {Object.entries(measurements).map(([unit, value]) => (
             <div key={unit} className={cell}>
               <MeasurementCard
                 variant="plain"
                 title={
-                  unitLabels[unit] ?? (unit === "customer_cents" ? labels.customerCharges : unit)
+                  unitLabels[unit] ??
+                  formatUnit?.(unit) ??
+                  (unit === "customer_cents" ? labels.customerCharges : unit)
                 }
                 value={value}
                 labels={measurementLabels}
+                formatFigure={formatFigure}
+                formatUnit={formatUnit}
               />
             </div>
           ))}
         </div>
-      </Card>
-      {view.unknownOperations !== null && view.unknownOperations !== "0" && (
+      </Surface>
+      {details}
+      {unknownOperations !== null && unknownOperations !== "0" && (
         <p className="cn-usage-body text-muted-foreground tabular-nums">
-          {labels.unknownOperations}: {view.unknownOperations}
+          {labels.unknownOperations}: {unknownOperations}
         </p>
       )}
     </section>
@@ -95,9 +159,16 @@ export function UsageSummaryCardsPanel({
   labels,
   measurementLabels,
   unitLabels,
+  formatFigure,
+  formatUnit,
+  fundingSource,
+  selectMeasurements,
+  variant,
+  metadata,
+  formatTime,
+  details,
   ...input
-}: UsageSummaryInput &
-  Pick<UsageSummaryCardsProps, "labels" | "measurementLabels" | "unitLabels">) {
+}: UsageSummaryInput & Omit<UsageSummaryCardsProps, "view">) {
   const result = useUsageSummary(input);
   if (result.state === "unavailable" || result.state === "forbidden")
     return (
@@ -116,6 +187,30 @@ export function UsageSummaryCardsPanel({
       labels={labels}
       measurementLabels={measurementLabels}
       unitLabels={unitLabels}
+      formatFigure={formatFigure}
+      formatUnit={formatUnit}
+      fundingSource={fundingSource}
+      selectMeasurements={selectMeasurements}
+      variant={variant}
+      metadata={metadata}
+      formatTime={formatTime}
+      details={details}
     />
   );
+}
+
+/** Preserve exact quantities and weakest certainty when selecting more than one funding row. */
+export function addSummaryFigure(a: Figure, b: Figure, unit: string): Figure {
+  if (a === "unavailable" || b === "unavailable") return "unavailable";
+  if (a.certainty === "unknown" || b.certainty === "unknown")
+    return { text: "", unit, certainty: "unknown" };
+  const x = parseProviderDecimal(a.text, unit),
+    y = parseProviderDecimal(b.text, unit);
+  if (x.outcome !== "valid" || y.outcome !== "valid") return "unavailable";
+  return {
+    text: formatQuantity(addQuantity(x.quantity, y.quantity)),
+    unit,
+    certainty:
+      a.certainty === "estimated" || b.certainty === "estimated" ? "estimated" : "measured",
+  };
 }

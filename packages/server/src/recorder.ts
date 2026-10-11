@@ -1,8 +1,14 @@
 import { join } from "node:path";
 import type { Clock } from "@usagekit/store";
-import type { Meter, ProviderDescriptor } from "@usagekit/core";
+import type { Meter } from "@usagekit/core";
 import type { Catalog, ProviderRequest } from "@usagekit/providers";
-import { executeProviderRequest } from "@usagekit/providers";
+import {
+  executeProviderRequest,
+  PricedRequest,
+  RequestPricingError,
+  dispatchPricedRequest,
+  applyProviderCredentials,
+} from "@usagekit/providers";
 import { encodeWire } from "@usagekit/http";
 import type { Vault } from "./vault.js";
 import { writePrivate } from "./config.js";
@@ -34,22 +40,6 @@ async function readBody(response: Response): Promise<unknown> {
   } catch {
     return text;
   }
-}
-function authenticate(request: ProviderRequest, descriptor: ProviderDescriptor, secret: string) {
-  const url = new URL(request.url, descriptor.upstream),
-    headers = new Headers();
-  // Credentials come only from the vault; arbitrary caller headers never reach the provider.
-  for (const [key, value] of Object.entries(request.headers ?? {}))
-    if (["accept", "content-type"].includes(key.toLowerCase())) headers.set(key, value);
-  const auth = descriptor.auth;
-  if (auth.kind === "query") url.searchParams.set(auth.param, secret);
-  else if (auth.kind === "basic")
-    headers.set("Authorization", `Basic ${Buffer.from(secret).toString("base64")}`);
-  else if (auth.kind === "bearer") headers.set("Authorization", `Bearer ${secret}`);
-  else headers.set(auth.name, `${auth.prefix ?? ""}${secret}`);
-  if (request.body !== undefined && !headers.has("Content-Type"))
-    headers.set("Content-Type", "application/json");
-  return { url, headers };
 }
 /** One explicit recording request makes at most one upstream dispatch; never retry transport. */
 export function createRecorder({
@@ -91,7 +81,7 @@ export function createRecorder({
         (!object(raw.headers) || !Object.values(raw.headers).every((v) => typeof v === "string")))
     )
       return fail(400, "invalid_request");
-    const request = raw as ProviderRequest;
+    let request = raw as ProviderRequest;
     if (
       !["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD"].includes(request.method) ||
       (["GET", "HEAD"].includes(request.method) && request.body !== undefined) ||
@@ -109,57 +99,81 @@ export function createRecorder({
       input.operation === ".."
     )
       return fail(400, "unknown_operation");
-    let match: ReturnType<Catalog["match"]>;
-    try {
-      const url = new URL(request.url, descriptor.upstream);
-      if (url.username || url.password || url.protocol !== "https:")
-        return fail(400, "invalid_upstream");
-      match = catalog.match(connection.provider, request);
-    } catch {
-      return fail(400, "invalid_request");
-    }
-    if (match.operation === "unknown" || match.operation.id !== input.operation)
-      return fail(400, "operation_mismatch");
+    let upstream: URL;
     const secret = vault.get(connection.provider, connectionId);
-    let upstream: ReturnType<typeof authenticate>;
     try {
-      upstream = authenticate(request, descriptor, secret);
+      applyProviderCredentials(descriptor.auth, new URL(descriptor.upstream), new Headers(), {
+        secret,
+      });
+      const url = new URL(request.url, descriptor.upstream);
+      const base = new URL(descriptor.upstream);
+      const prefix = base.pathname.replace(/\/$/, "");
+      if (
+        url.username ||
+        url.password ||
+        url.protocol !== "https:" ||
+        url.origin !== base.origin ||
+        (prefix && url.pathname !== prefix && !url.pathname.startsWith(prefix + "/"))
+      )
+        return fail(400, "invalid_upstream");
+      upstream = url;
     } catch {
       return fail(400, "invalid_request");
     }
     const operationId = crypto.randomUUID();
+    let priced: PricedRequest;
+    try {
+      // Text is wire data. Body-pricing descriptors default untyped recorder text to JSON.
+      const headers = new Headers();
+      // Only content negotiation belongs to the request; credentials stay at dispatch.
+      for (const [name, value] of Object.entries(request.headers ?? {}))
+        if (["accept", "content-type"].includes(name.toLowerCase())) headers.set(name, value);
+      if (
+        descriptor.pricingInputs.includes("body") &&
+        request.body !== undefined &&
+        !headers.has("Content-Type")
+      )
+        headers.set("Content-Type", "application/json");
+      priced = await PricedRequest.price({
+        meter,
+        catalog,
+        expectedOperation: input.operation,
+        request: { ...request, url: upstream.href, headers: Object.fromEntries(headers) },
+        input: {
+          operationId,
+          scope: {
+            namespace: "local",
+            principal: "local",
+            connection: connectionId,
+            ...(connection.tags ? { tags: connection.tags } : {}),
+          },
+          fundingSource: "byok",
+          costOwner: "local",
+          surface: "programmatic",
+          source: "cli",
+          provider: connection.provider,
+        },
+      });
+    } catch (failure) {
+      if (!(failure instanceof RequestPricingError)) throw failure;
+      return fail(
+        400,
+        failure.code === "operation_mismatch" ? "operation_mismatch" : "invalid_request",
+      );
+    }
+    request = priced.parsed;
     const execution = await executeProviderRequest({
       meter,
       catalog,
       now: () => clock.now(),
-      request,
-      input: {
-        operationId,
-        scope: {
-          namespace: "local",
-          principal: "local",
-          connection: connectionId,
-          ...(connection.tags ? { tags: connection.tags } : {}),
-        },
-        fundingSource: "byok",
-        costOwner: "local",
-        surface: "programmatic",
-        source: "cli",
-        provider: connection.provider,
-      },
-      dispatch: async () => {
-        const response = await transport(upstream.url, {
-          method: request.method,
-          headers: upstream.headers,
-          redirect: "error",
-          signal: AbortSignal.timeout(30000),
-          ...(request.body === undefined
-            ? {}
-            : {
-                body:
-                  typeof request.body === "string" ? request.body : JSON.stringify(request.body),
-              }),
-        });
+      request: priced,
+      dispatch: async (request) => {
+        const response = await dispatchPricedRequest(
+          request,
+          transport,
+          AbortSignal.timeout(30000),
+          { secret },
+        );
         return { response: { status: response.status }, body: await readBody(response) };
       },
     });

@@ -14,7 +14,6 @@ import {
   usdText,
 } from "@/components/usagekit/provider-feedback";
 import type { ProviderFeedbackLabels } from "@/components/usagekit/provider-feedback";
-import type { ProviderRateLabels } from "@/components/usagekit/provider-rate-editor";
 import {
   UsageChevron,
   UsageNotice,
@@ -35,7 +34,7 @@ const sourceTone: Record<RateSource, UsageTone> = {
 const known = (price: Figure): price is Exclude<Figure, "unavailable"> =>
   price !== "unavailable" && price.certainty !== "unknown";
 /** Usagekit money is USD cents, so it reads and edits as dollars; other units stay native. */
-const isMoney = (unit: string) => unit === "cents";
+const isMoney = (unit: string) => unit === "cents" || unit === "customer_cents";
 function priceText(price: Figure) {
   if (!known(price)) return null;
   return isMoney(price.unit) ? (usdText(price.text) ?? price.text) : `${price.text} ${price.unit}`;
@@ -62,7 +61,8 @@ export function ProviderRateRow({
   const money = isMoney(rate.priceUnit);
   // Drafts and pending prices read in the unit the form edits.
   const editText = (native: string) => (money ? (usdInput(native) ?? native) : native);
-  const [draft, setDraft] = useState(known(rate.price) ? editText(rate.price.text) : "");
+  const [draft, setDraft] = useState("");
+  const [dirty, setDirty] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
   const editable =
@@ -84,7 +84,11 @@ export function ProviderRateRow({
     ? pendingRate.price === null
       ? ""
       : editText(pendingRate.price)
-    : draft;
+    : dirty
+      ? draft
+      : evidence && known(evidence.price)
+        ? editText(evidence.price.text)
+        : "";
   const save = (text: string | null) => {
     if (!editable) return;
     let price: string | null = null;
@@ -118,6 +122,17 @@ export function ProviderRateRow({
       : fallback?.provenance.source === "list"
         ? labels.useList
         : labels.reset;
+  if (rate.fundingSource === "platform")
+    return (
+      <li className="rounded-md py-3.5 hover:bg-muted/60 min-w-0 space-y-1">
+        <p className="text-sm font-semibold">{rate.label}</p>
+        {evidence && evidence.price !== "unavailable" && (
+          <p className="text-sm tabular-nums">
+            {priceText(evidence.price) ?? labels.unknown} {labels.per} {rate.unit}
+          </p>
+        )}
+      </li>
+    );
   return (
     <li className="min-w-0" data-open={open}>
       <div className="-mx-2">
@@ -206,7 +221,7 @@ export function ProviderRateRow({
               className="gap-3 flex min-w-0 flex-col"
               onSubmit={(event) => {
                 event.preventDefault();
-                save(draft);
+                save(shown);
               }}
             >
               <Label htmlFor={id}>
@@ -223,8 +238,12 @@ export function ProviderRateRow({
                   value={shown}
                   readOnly={!editable}
                   className="min-w-0 flex-1 basis-40 tabular-nums"
-                  onChange={(event) => setDraft(event.target.value)}
+                  onChange={(event) => {
+                    setDraft(event.target.value);
+                    setDirty(true);
+                  }}
                   aria-invalid={!!error}
+                  aria-describedby={error ? `${id}-error` : undefined}
                 />
                 <Button type="submit" disabled={!editable}>
                   {pendingRate && action.pending && <UsageSpinner />}
@@ -242,7 +261,7 @@ export function ProviderRateRow({
                 )}
               </div>
               {error && (
-                <UsageNotice key={error} tone="error" role="alert">
+                <UsageNotice key={error} id={`${id}-error`} tone="error" role="alert">
                   {error}
                 </UsageNotice>
               )}
@@ -253,3 +272,34 @@ export function ProviderRateRow({
     </li>
   );
 }
+
+export const providerRateLabels = {
+  title: "Provider rates",
+  platformTitle: "Credits prices",
+  platformNote: "Prices are set by the host.",
+  description: "Rates retain their source and version. Changing a rate does not change a balance.",
+  save: "Save rate",
+  /** Clears a manual rate when the host does not say what applies instead. */
+  reset: "Clear your rate",
+  useMeasured: "Use measured rate",
+  useList: "Use list price",
+  price: "Price",
+  currency: "USD",
+  version: "Version",
+  checked: "Checked",
+  samples: "Samples",
+  operation: "Operation",
+  funding: "Funding",
+  fallback: "Without your rate",
+  unknown: "Unknown",
+  notSet: "Not set",
+  empty: "No rates are available.",
+  manual: "Your rate",
+  measured: "Measured",
+  list: "List price",
+  noRate: "No rate yet",
+  invalid: "Enter an exact nonnegative price.",
+  per: "per",
+  reload: "Reload rates",
+};
+export type ProviderRateLabels = typeof providerRateLabels;

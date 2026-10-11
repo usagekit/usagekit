@@ -68,8 +68,10 @@ Money is displayed as exact decimal text (`$19.3074`), never rounded; digits pas
 the cent are set lighter. `seed-views.test.ts` proves that the prerendered seed
 views equal the live views of the seeded Meter and replays the sample story.
 
-There are no analytics, network data dependencies, fabricated testimonials or
-unpublished-package installation claims. Mona Sans and Geist Mono are bundled from
+The site uses self-hosted Plausible analytics: `index.html` loads one deferred script
+for the `usagekit.dev` domain, and that is the only external script. There are no
+network data dependencies, fabricated testimonials or unpublished-package installation
+claims. Mona Sans and Geist Mono are bundled from
 their `@fontsource-variable` packages (OFL-1.1); there are no external font
 requests. Runtime packages link to their npm pages. Source links point to
 <https://github.com/usagekit/usagekit>; the website is <https://usagekit.dev>.

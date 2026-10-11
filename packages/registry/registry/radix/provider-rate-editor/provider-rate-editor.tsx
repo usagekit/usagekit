@@ -12,34 +12,10 @@ import {
 import type { ProviderFeedbackLabels } from "@/components/usagekit/provider-feedback";
 import { ProviderRateRow } from "@/components/usagekit/provider-rate-row";
 import { UsageSpinner } from "@/components/usagekit/usage-motion";
-export const providerRateLabels = {
-  title: "Provider rates",
-  description: "Rates retain their source and version. Changing a rate does not change a balance.",
-  save: "Save rate",
-  /** Clears a manual rate when the host does not say what applies instead. */
-  reset: "Clear your rate",
-  useMeasured: "Use measured rate",
-  useList: "Use list price",
-  price: "Price",
-  currency: "USD",
-  version: "Version",
-  checked: "Checked",
-  samples: "Samples",
-  operation: "Operation",
-  funding: "Funding",
-  fallback: "Without your rate",
-  unknown: "Unknown",
-  notSet: "Not set",
-  empty: "No rates are available.",
-  manual: "Your rate",
-  measured: "Measured",
-  list: "List price",
-  noRate: "No rate yet",
-  invalid: "Enter an exact nonnegative price.",
-  per: "per",
-  reload: "Reload rates",
-};
-export type ProviderRateLabels = typeof providerRateLabels;
+import { providerRateLabels } from "@/components/usagekit/provider-rate-row";
+import type { ProviderRateLabels } from "@/components/usagekit/provider-rate-row";
+export { providerRateLabels } from "@/components/usagekit/provider-rate-row";
+export type { ProviderRateLabels } from "@/components/usagekit/provider-rate-row";
 export function ProviderRateEditor({
   connection,
   evidence = connection,
@@ -63,39 +39,56 @@ export function ProviderRateEditor({
     ...suppliedAction,
     canWrite: suppliedAction.canWrite && evidence?.capabilities.includes("rates") === true,
   };
+  const platform = connection.rates.filter((rate) => rate.fundingSource === "platform");
+  const byok = connection.rates.filter((rate) => rate.fundingSource !== "platform");
+  const allPlatform = platform.length > 0 && byok.length === 0;
+  const rows = (rates: ProviderConnection["rates"]) => (
+    <ul className="m-0 min-w-0 list-none divide-y divide-border border-t border-border p-0">
+      {rates.map((rate) => (
+        <ProviderRateRow
+          key={`${rate.id}:${connection.revision}`}
+          connection={connection}
+          rate={rate}
+          evidence={
+            evidence?.id === connection.id && evidence.provider === connection.provider
+              ? (evidence.rates.find(
+                  (value) =>
+                    value.id === rate.id &&
+                    value.operation === rate.operation &&
+                    value.priceUnit === rate.priceUnit &&
+                    value.unit === rate.unit &&
+                    value.fundingSource === rate.fundingSource,
+                ) ?? null)
+              : null
+          }
+          action={action}
+          labels={labels}
+          feedback={feedback}
+        />
+      ))}
+    </ul>
+  );
   return (
     <Card className="w-full min-w-0">
       <CardHeader>
-        <CardTitle className="leading-snug">{labels.title}</CardTitle>
-        <CardDescription>{labels.description}</CardDescription>
+        <CardTitle className="leading-snug">
+          {allPlatform ? labels.platformTitle : labels.title}
+        </CardTitle>
+        <CardDescription>{allPlatform ? labels.platformNote : labels.description}</CardDescription>
       </CardHeader>
       <CardContent className="cn-usage-gap-md flex flex-col">
-        {connection.rates.length ? (
-          <ul className="m-0 min-w-0 list-none divide-y divide-border border-t border-border p-0">
-            {connection.rates.map((rate) => (
-              <ProviderRateRow
-                key={`${rate.id}:${connection.revision}`}
-                connection={connection}
-                rate={rate}
-                evidence={
-                  evidence?.id === connection.id && evidence.provider === connection.provider
-                    ? (evidence.rates.find(
-                        (value) =>
-                          value.id === rate.id &&
-                          value.operation === rate.operation &&
-                          value.priceUnit === rate.priceUnit &&
-                          value.unit === rate.unit &&
-                          value.fundingSource === rate.fundingSource,
-                      ) ?? null)
-                    : null
-                }
-                action={action}
-                labels={labels}
-                feedback={feedback}
-              />
-            ))}
-          </ul>
-        ) : (
+        {byok.length > 0 && rows(byok)}
+        {platform.length > 0 &&
+          (allPlatform ? (
+            rows(platform)
+          ) : (
+            <section aria-label={labels.platformTitle} className="space-y-2">
+              <h3 className="cn-usage-title font-semibold">{labels.platformTitle}</h3>
+              <p className="cn-usage-body text-muted-foreground">{labels.platformNote}</p>
+              {rows(platform)}
+            </section>
+          ))}
+        {!connection.rates.length && (
           <p className="cn-usage-body text-muted-foreground">{labels.empty}</p>
         )}
         <ProviderActionFeedback action={action} labels={feedback} />

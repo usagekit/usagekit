@@ -7,6 +7,7 @@ import { satisfiesRuntimeRange } from "./lib/runtime.mjs";
 import { checkPrivateTerms } from "./lib/private-terms.mjs";
 import { publishable, releaseVersion } from "./lib/release.mjs";
 import { checkPackages } from "./check-packages.mjs";
+import "./check-registry.mjs";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 process.chdir(root);

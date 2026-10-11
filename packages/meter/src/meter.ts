@@ -1,5 +1,5 @@
 import type { Meter, PricingCatalog, ReadResult, ValidationFailure } from "@usagekit/core";
-import { resolveReserve } from "./catalog.js";
+import { resolveEstimate, resolveReserve } from "./catalog.js";
 import type { ConnectionResolver } from "./catalog.js";
 import { InvalidInput } from "@usagekit/store";
 import type { Store, Clock } from "@usagekit/store";
@@ -7,6 +7,7 @@ import { defaultPolicy } from "./policy.js";
 import type { MeterPolicy } from "./policy.js";
 import {
   validate,
+  quoteValidation,
   reserveValidation,
   usageValidation,
   operationsValidation,
@@ -60,7 +61,88 @@ export function createMeter({
   };
   const read = async <T>(fn: () => Promise<T>): Promise<ReadResult<T>> =>
     safely(async () => ({ outcome: "ok" as const, value: await fn() }));
-  return {
+  const meter: Meter = {
+    quote: async (access, requested) => {
+      const invalid = quoteValidation(requested);
+      if (invalid) return invalid;
+      if (
+        !access.canReadBillingDetail ||
+        !canRead(access, {
+          kind: "principal",
+          namespace: requested.scope.namespace,
+          principal: requested.scope.principal,
+        }) ||
+        (requested.scope.group !== undefined &&
+          !canRead(access, {
+            kind: "group",
+            namespace: requested.scope.namespace,
+            group: requested.scope.group,
+          }))
+      )
+        return { outcome: "forbidden" };
+      const owner = await resolveOwnership?.({
+        kind: "connection",
+        namespace: requested.scope.namespace,
+        connection: requested.scope.connection,
+      });
+      if (
+        !owner ||
+        !canRead(access, owner) ||
+        (owner.kind === "principal"
+          ? owner.principal !== requested.scope.principal
+          : owner.group !== requested.scope.group)
+      )
+        return { outcome: "forbidden" };
+      if (
+        requested.scope.accessCredential &&
+        !(await canReadBudget(resolveOwnership, access, {
+          kind: "access_credential",
+          namespace: requested.scope.namespace,
+          accessCredential: requested.scope.accessCredential,
+        }))
+      )
+        return { outcome: "forbidden" };
+      return safely(async () => {
+        const resolved = await resolveEstimate(requested, catalog, resolveConnection);
+        if (resolved.kind === "invalid") return resolved.failure;
+        const quantities = resolved.kind === "reserve" ? resolved.input.estimate : [];
+        if (resolved.kind === "reserve") {
+          const invalid = reserveValidation({ ...resolved.input, operationId: "quote" });
+          if (invalid) return invalid;
+        }
+        const statuses = await meter.applicableBudgets(access, {
+          scope: requested.scope,
+          surface: requested.surface,
+          source: requested.source,
+          units: quantities.map((q) => q.unit),
+          ...(requested.platformPools ? { platformPools: requested.platformPools } : {}),
+        });
+        if (statuses.outcome !== "ok") return statuses;
+        return {
+          outcome: "ok" as const,
+          value: {
+            quantities,
+            ...(resolved.kind === "reserve"
+              ? resolved.input.estimateSource
+                ? { estimateSource: resolved.input.estimateSource }
+                : {}
+              : { estimateSource: "unknown" as const }),
+            ...(resolved.kind === "reserve" && resolved.input.providerPriceVersion
+              ? { providerPriceVersion: resolved.input.providerPriceVersion }
+              : {}),
+            ...(resolved.kind === "reserve" && resolved.checkedAt
+              ? { checkedAt: resolved.checkedAt }
+              : {}),
+            ...(resolved.kind === "reserve" && resolved.sampleSize !== undefined
+              ? { sampleSize: resolved.sampleSize }
+              : {}),
+            tracking: resolved.kind === "reserve" ? ("metered" as const) : resolved.state,
+            budgets: statuses.value,
+            asOf: clock.now().toISOString(),
+          },
+        };
+      });
+    },
     importBilling: async (access, i) => {
       const invalid = validateBillingImportInput(i);
       if (invalid) return invalid;
@@ -87,7 +169,10 @@ export function createMeter({
         !canRead(access, owner)
       )
         return { outcome: "forbidden" };
-      const connection = await resolveConnection?.(i.scope.connection);
+      const connection = await resolveConnection?.({
+        namespace: i.scope.namespace,
+        connection: i.scope.connection,
+      });
       if (resolveConnection && (!connection || connection.provider !== i.provider))
         return { outcome: "forbidden" };
       if (catalog && catalog.operationsOf(i.provider).length === 0) return { outcome: "forbidden" };
@@ -281,4 +366,5 @@ export function createMeter({
       });
     },
   };
+  return meter;
 }

@@ -6,11 +6,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   figureText,
+  providerFeedbackLabels,
   fundingLabel,
   ProviderReadFeedback,
   ProviderTime,
 } from "@/components/usagekit/provider-feedback";
 import { UsageSpinner, UsageStatus, usageMotion } from "@/components/usagekit/usage-motion";
+import type { ProviderFeedbackLabels } from "@/components/usagekit/provider-feedback";
 export const providerBalanceLabels = {
   title: "Balance",
   balance: "Available balance",
@@ -37,11 +39,14 @@ export type ProviderBalanceLabels = typeof providerBalanceLabels;
 export function ProviderBalanceCard({
   balance,
   labels: custom,
+  feedbackLabels,
 }: {
   balance: ProviderBalance;
   labels?: Partial<ProviderBalanceLabels>;
+  feedbackLabels?: Partial<ProviderFeedbackLabels>;
 }) {
   const labels = { ...providerBalanceLabels, ...custom };
+  const feedback = { ...providerFeedbackLabels, ...feedbackLabels };
   const availability =
     balance.availability.state === "available"
       ? labels.availabilityAvailable
@@ -57,7 +62,7 @@ export function ProviderBalanceCard({
         </div>
         <CardDescription className="flex flex-wrap gap-x-2">
           <span>{labels[balance.authority]}</span>
-          <span>{fundingLabel(balance.fundingSource)}</span>
+          <span>{fundingLabel(balance.fundingSource, feedback)}</span>
         </CardDescription>
       </CardHeader>
       <CardContent className="cn-usage-gap-md flex flex-col">
@@ -69,10 +74,10 @@ export function ProviderBalanceCard({
             <div key={title as string} className="min-w-0">
               <dt className="cn-usage-label text-muted-foreground">{title as string}</dt>
               <dd
-                key={figureText(value as ProviderBalance["balance"])}
+                key={figureText(value as ProviderBalance["balance"], feedback)}
                 className={`cn-usage-figure-md mt-1 break-all font-semibold tabular-nums ${usageMotion.enter}`}
               >
-                {figureText(value as ProviderBalance["balance"])}
+                {figureText(value as ProviderBalance["balance"], feedback)}
               </dd>
             </div>
           ))}
@@ -106,24 +111,43 @@ export function ProviderBalanceCard({
 export function ProviderBalancePanel({
   connectionId,
   labels,
+  feedbackLabels,
+  onReload,
 }: {
   connectionId: string;
+  /** Runs first on every explicit reload to reverify host access. */
+  onReload?: () => void;
   labels?: Partial<ProviderBalanceLabels>;
+  feedbackLabels?: Partial<ProviderFeedbackLabels>;
 }) {
   const result = useProviderBalance({ connectionId });
+  const reload = () => {
+    onReload?.();
+    result.refresh();
+  };
   if (!result.data?.balance || result.state !== "ok")
     return (
-      <ProviderReadFeedback state={result.state} error={result.error} refresh={result.refresh} />
+      <ProviderReadFeedback
+        state={result.state}
+        error={result.error}
+        refresh={reload}
+        disabled={result.refreshing}
+        {...(feedbackLabels ? { labels: feedbackLabels } : {})}
+      />
     );
   return (
     <div className="space-y-3">
-      <ProviderBalanceCard balance={result.data.balance} {...(labels ? { labels } : {})} />
+      <ProviderBalanceCard
+        balance={result.data.balance}
+        {...(labels ? { labels } : {})}
+        {...(feedbackLabels ? { feedbackLabels } : {})}
+      />
       <Button
         type="button"
         variant="outline"
         size="sm"
         disabled={result.refreshing}
-        onClick={result.refresh}
+        onClick={reload}
       >
         {result.refreshing && <UsageSpinner />}
         {labels?.reload ?? providerBalanceLabels.reload}
@@ -134,11 +158,14 @@ export function ProviderBalancePanel({
 export function ProviderRequestQuote({
   projection,
   labels: custom,
+  feedbackLabels,
 }: {
   projection: ProviderProjection;
   labels?: Partial<ProviderBalanceLabels>;
+  feedbackLabels?: Partial<ProviderFeedbackLabels>;
 }) {
   const labels = { ...providerBalanceLabels, ...custom };
+  const feedback = { ...providerFeedbackLabels, ...feedbackLabels };
   return (
     <Card className="w-full min-w-0">
       <CardHeader>
@@ -171,7 +198,7 @@ export function ProviderRequestQuote({
             >
               <dt className="cn-usage-body text-muted-foreground">{title as string}</dt>
               <dd className="cn-usage-value break-all font-medium tabular-nums">
-                {figureText(value as ProviderProjection["quantity"])}
+                {figureText(value as ProviderProjection["quantity"], feedback)}
               </dd>
             </div>
           ))}
@@ -183,16 +210,35 @@ export function ProviderRequestQuote({
 export function ProviderRequestQuotePanel({
   query,
   labels,
+  feedbackLabels,
+  onReload,
 }: {
   query: Extract<ProviderQuery, { kind: "projection" }>;
+  /** Runs first on every explicit reload to reverify host access. */
+  onReload?: () => void;
   labels?: Partial<ProviderBalanceLabels>;
+  feedbackLabels?: Partial<ProviderFeedbackLabels>;
 }) {
   const result = useProviderProjection(query);
+  const reload = () => {
+    onReload?.();
+    result.refresh();
+  };
   if (!result.data?.projection || result.state !== "ok")
     return (
-      <ProviderReadFeedback state={result.state} error={result.error} refresh={result.refresh} />
+      <ProviderReadFeedback
+        state={result.state}
+        error={result.error}
+        refresh={reload}
+        disabled={result.refreshing}
+        {...(feedbackLabels ? { labels: feedbackLabels } : {})}
+      />
     );
   return (
-    <ProviderRequestQuote projection={result.data.projection} {...(labels ? { labels } : {})} />
+    <ProviderRequestQuote
+      projection={result.data.projection}
+      {...(labels ? { labels } : {})}
+      {...(feedbackLabels ? { feedbackLabels } : {})}
+    />
   );
 }

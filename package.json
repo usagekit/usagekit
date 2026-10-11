@@ -73,7 +73,8 @@
     "esbuild": "0.28.1",
     "@prisma/client": "7.9.1",
     "@prisma/adapter-pg": "7.9.1",
-    "prisma": "7.9.1"
+    "prisma": "7.9.1",
+    "@biomejs/biome": "2.5.15"
   },
   "type": "module",
   "repository": {

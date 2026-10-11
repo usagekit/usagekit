@@ -1,11 +1,12 @@
 import { describe, expect, test } from "vitest";
 import { validateDescriptor } from "./index.js";
-import type { DescriptorProblem, ProviderDescriptor } from "./index.js";
+import type { DescriptorProblem, PriceCalculation, ProviderDescriptor } from "./index.js";
 
 const descriptor = (overrides: Partial<ProviderDescriptor> = {}): ProviderDescriptor => ({
   id: "example",
   label: "Example",
   upstream: "https://api.example.com",
+  pricingInputs: [],
   auth: { kind: "bearer" },
   billing: { unit: "cents", cycle: "monthly_plan" },
   plans: [
@@ -160,3 +161,169 @@ describe("validateDescriptor", () => {
     ).toEqual(["duplicate_operation", "missing_match", "unknown_price_operation"]);
   });
 });
+
+test("formula metadata validates declared options and exact nonnegative coefficients", () => {
+  const d = descriptor(),
+    row = d.prices[0]!;
+  expect(
+    validateDescriptor({
+      ...d,
+      prices: [
+        {
+          ...row,
+          calculation: {
+            kind: "additional_pages",
+            depthOption: "depth",
+            pageSize: 0,
+            additionalPageFactor: "-0.75",
+          },
+        },
+      ],
+    }),
+  ).toEqual([
+    { kind: "unknown_price_option", row: 0, option: "depth" },
+    { kind: "invalid_calculation", row: 0, field: "pageSize" },
+    { kind: "invalid_calculation", row: 0, field: "additionalPageFactor" },
+  ]);
+  expect(
+    validateDescriptor({
+      ...d,
+      prices: [
+        {
+          ...row,
+          calculation: {
+            kind: "base_plus_items",
+            itemCountOption: "priority",
+            perItem: "0.00015",
+            multiplierOption: { key: "priority", value: "high", factor: "2" },
+          },
+        },
+      ],
+    }),
+  ).toEqual([]);
+  expect(
+    validateDescriptor({
+      ...d,
+      prices: [
+        {
+          ...row,
+          calculation: {
+            kind: "base_plus_items",
+            itemCountOption: "missing",
+            perItem: "1e-3",
+            multiplierOption: { key: "priority", value: "high", factor: "-2" },
+          },
+        },
+      ],
+    }),
+  ).toEqual([
+    { kind: "unknown_price_option", row: 0, option: "missing" },
+    { kind: "invalid_calculation", row: 0, field: "perItem" },
+    { kind: "invalid_calculation", row: 0, field: "multiplierOption" },
+  ]);
+});
+
+test("structured subscriptions validate money and provenance, including genuine zero", () => {
+  const d = descriptor(),
+    plan = d.plans[0]!;
+  expect(
+    validateDescriptor({
+      ...d,
+      plans: [
+        {
+          ...plan,
+          subscription: {
+            period: "month",
+            fee: { units: 0n, currency: "USD" },
+            source: "https://example.com/pricing",
+            checkedAt: "2026-09-25",
+          },
+        },
+      ],
+    }),
+  ).toEqual([]);
+  expect(
+    validateDescriptor({
+      ...d,
+      plans: [
+        {
+          ...plan,
+          subscription: {
+            period: "month",
+            fee: { units: -1n, currency: "USD" },
+            source: "",
+            checkedAt: "invalid",
+          },
+        },
+      ],
+    }),
+  ).toEqual([
+    { kind: "invalid_subscription", plan: "basic", field: "fee" },
+    { kind: "invalid_subscription", plan: "basic", field: "source" },
+    { kind: "invalid_subscription", plan: "basic", field: "checkedAt" },
+  ]);
+});
+
+test("request option multipliers validate declared options and nonnegative factors", () => {
+  const d = descriptor();
+  const validate = (key: string, value: string, factor: string) =>
+    validateDescriptor({
+      ...d,
+      prices: [
+        {
+          ...d.prices[0]!,
+          calculation: {
+            kind: "option_multiplier",
+            multiplierOption: { key, value, factor },
+          },
+        },
+      ],
+    });
+  expect.soft(validate("priority", "high", "2")).toEqual([]);
+  expect.soft(validate("priority", "high", "0")).toEqual([]);
+  expect
+    .soft(validate("missing", "high", "2"))
+    .toEqual([{ kind: "unknown_price_option", row: 0, option: "missing" }]);
+  for (const factor of ["-2", "1e-3", "NaN"])
+    expect
+      .soft(validate("priority", "high", factor))
+      .toEqual([{ kind: "invalid_calculation", row: 0, field: "multiplierOption" }]);
+  expect
+    .soft(validate("priority", " ", "2"))
+    .toEqual([{ kind: "invalid_calculation", row: 0, field: "multiplierOption" }]);
+  expect(
+    validateDescriptor({
+      ...d,
+      prices: [
+        {
+          ...d.prices[0]!,
+          calculation: { kind: "option_multiplier" } as PriceCalculation,
+        },
+      ],
+    }),
+  ).toEqual([{ kind: "invalid_calculation", row: 0, field: "multiplierOption" }]);
+});
+
+test.each([undefined, null, ["headers"], ["body", "body"]])(
+  "descriptor rejects invalid pricing input declarations: %j",
+  (pricingInputs) => {
+    const invalid = { ...descriptor(), pricingInputs } as unknown as ProviderDescriptor;
+    expect(validateDescriptor(invalid)).toContainEqual({ kind: "invalid_pricing_inputs" });
+  },
+);
+
+test("query constraints require declared query pricing input", () => {
+  const d = descriptor();
+  d.operations[0]!.match = [{ method: "GET", path: "/search", query: { engine: "images" } }];
+  expect(validateDescriptor(d)).toEqual([{ kind: "undeclared_query_input", operation: "search" }]);
+  expect(validateDescriptor({ ...d, pricingInputs: ["query"] })).toEqual([]);
+});
+
+test.each([1, true, {}])(
+  "invalid pricing input declaration is reported without throwing: %j",
+  (pricingInputs) => {
+    expect(
+      validateDescriptor({ ...descriptor(), pricingInputs } as unknown as ProviderDescriptor),
+    ).toContainEqual({ kind: "invalid_pricing_inputs" });
+  },
+);

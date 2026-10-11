@@ -36,6 +36,10 @@ export type EstimateInput = {
 
 /** The only code in a descriptor. Every function is pure and synchronous. */
 export type Extractors = {
+  /** False means request uncertainty cannot be overridden by a host or BYOK price. */
+  canEstimate?(options: Readonly<Record<string, string>>): boolean;
+  /** True when documented surcharges require the list upper bound even with an override. */
+  requiresListPriceFloor?(options: Readonly<Record<string, string>>): boolean;
   /** Estimate before the call from the matched operation, options and connection plan. Empty means no price. */
   estimate(input: EstimateInput): Quantity[];
   /** Options that select a price row, read from the request. Options are request data, never guessed. */

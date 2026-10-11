@@ -21,7 +21,7 @@ test("deferred task receipt stays pending until billing evidence corrects it thr
       store,
       clock,
       catalog,
-      resolveConnection: () => ({ provider: "dataforseo", plan: "prepaid" }),
+      resolveConnection: () => ({ fundingSource: "byok", provider: "dataforseo", plan: "prepaid" }),
     });
   const ref = { namespace: "test", principal: "u", operationId: "post" },
     matched = catalog.match("dataforseo", post.request);

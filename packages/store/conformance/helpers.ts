@@ -13,7 +13,10 @@ export const input = (overrides: Partial<ReserveInput> = {}): ReserveInput => ({
   source: "app",
   provider: "search",
   operation: "search",
-  estimate: [quantity()],
+  estimate: [
+    quantity(),
+    ...(overrides.fundingSource === "platform" ? [quantity(1n, "customer_cents")] : []),
+  ],
   ...overrides,
 });
 export const ref = (op: ReserveInput) => ({

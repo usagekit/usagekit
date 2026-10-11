@@ -1,6 +1,6 @@
 {
   "name": "@usagekit/client",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "private": true,
   "type": "module",
   "license": "Apache-2.0",
@@ -19,9 +19,9 @@
     "prepublishOnly": "node ../../scripts/deny-publish.mjs"
   },
   "dependencies": {
-    "@usagekit/core": "0.8.0"
+    "@usagekit/core": "0.9.0"
   },
   "devDependencies": {
-    "@usagekit/http": "0.8.0"
+    "@usagekit/http": "0.9.0"
   }
 }

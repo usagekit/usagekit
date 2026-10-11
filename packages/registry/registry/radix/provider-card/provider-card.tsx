@@ -1,4 +1,5 @@
 "use client";
+import type { ReactNode } from "react";
 import { useProviderAction } from "@usagekit/react";
 import type { ProviderAction } from "@usagekit/react";
 import type { ProviderConnection } from "@usagekit/views";
@@ -8,8 +9,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import {
   fundingLabel,
   ProviderActionFeedback,
+  providerFeedbackLabels,
   ProviderTime,
 } from "@/components/usagekit/provider-feedback";
+import type { ProviderFeedbackLabels } from "@/components/usagekit/provider-feedback";
 import { UsageStatus } from "@/components/usagekit/usage-motion";
 import type { UsageTone } from "@/components/usagekit/usage-motion";
 export const providerCardLabels = {
@@ -54,6 +57,17 @@ export function ProviderCard({
   onManage,
   selected = false,
   labels: custom,
+  feedbackLabels,
+  identity,
+  description,
+  metadata,
+  body,
+  source,
+  actions,
+  onTest,
+  onToggle,
+  canEdit = true,
+  formatTime,
 }: {
   connection: ProviderConnection;
   action?: ProviderAction;
@@ -61,13 +75,31 @@ export function ProviderCard({
   /** The connection currently open in an editor. */
   selected?: boolean;
   labels?: Partial<ProviderCardLabels>;
+  feedbackLabels?: Partial<ProviderFeedbackLabels>;
+  identity?: ReactNode;
+  description?: ReactNode;
+  metadata?: ReactNode;
+  body?: ReactNode;
+  source?: ReactNode;
+  /** Receives a current write fence; hosts must apply it to their controls. */
+  actions?:
+    | ReactNode
+    | ((context: { connection: ProviderConnection; canEdit: boolean }) => ReactNode);
+  onTest?: (connection: ProviderConnection) => void | Promise<void>;
+  onToggle?: (connection: ProviderConnection, enabled: boolean) => void | Promise<void>;
+  canEdit?: boolean;
+  formatTime?: (iso: string) => string;
 }) {
   const labels = { ...providerCardLabels, ...custom };
+  const feedback = { ...providerFeedbackLabels, ...feedbackLabels };
   const sharedAction = useProviderAction();
   const action = guardedAction ?? sharedAction;
-  const writable = action.canWrite && !action.pending && !action.ambiguous;
+  const writable = canEdit && action.canWrite && !action.pending && !action.ambiguous;
   const command = { connectionId: connection.id, expectedRevision: connection.revision };
-  const test = () => action.run({ ...command, commandId: crypto.randomUUID(), kind: "test" });
+  const test = () =>
+    onTest
+      ? onTest(connection)
+      : action.run({ ...command, commandId: crypto.randomUUID(), kind: "test" });
   return (
     <Card
       data-selected={selected}
@@ -75,13 +107,17 @@ export function ProviderCard({
     >
       <CardHeader>
         <div className="flex min-w-0 flex-wrap items-start justify-between gap-x-3 gap-y-1">
-          <CardTitle className="min-w-0 break-words leading-snug">{connection.label}</CardTitle>
-          <Badge variant="outline">{fundingLabel(connection.fundingSource)}</Badge>
+          <CardTitle className="min-w-0 break-words leading-snug">
+            {identity}
+            {connection.label}
+          </CardTitle>
+          <Badge variant="outline">{fundingLabel(connection.fundingSource, feedback)}</Badge>
         </div>
         <CardDescription className="flex flex-wrap gap-x-2">
-          <span>{connection.provider}</span>
+          {description ?? <span>{connection.provider}</span>}
           {connection.plan && <span>{connection.plan}</span>}
         </CardDescription>
+        {metadata}
       </CardHeader>
       <CardContent className="cn-usage-gap-md flex flex-col">
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
@@ -132,7 +168,7 @@ export function ProviderCard({
             <dt className="cn-usage-label text-muted-foreground">{labels.observed}</dt>
             <dd className="mt-1 break-words tabular-nums">
               {connection.freshness.observedAt ? (
-                <ProviderTime value={connection.freshness.observedAt} />
+                <ProviderTime value={connection.freshness.observedAt} formatTime={formatTime} />
               ) : (
                 labels.unknown
               )}
@@ -142,6 +178,8 @@ export function ProviderCard({
             </dd>
           </div>
         </dl>
+        {body}
+        {source}
         <div className="flex flex-wrap gap-1.5">
           {onManage && (
             <Button
@@ -161,12 +199,14 @@ export function ProviderCard({
               size="sm"
               disabled={!writable}
               onClick={() =>
-                void action.run({
-                  kind: "settings",
-                  ...command,
-                  commandId: crypto.randomUUID(),
-                  changes: { enabled: !connection.enabled },
-                })
+                void (onToggle
+                  ? onToggle(connection, !connection.enabled)
+                  : action.run({
+                      kind: "settings",
+                      ...command,
+                      commandId: crypto.randomUUID(),
+                      changes: { enabled: !connection.enabled },
+                    }))
               }
             >
               {connection.enabled ? labels.disable : labels.enable}
@@ -184,7 +224,8 @@ export function ProviderCard({
             </Button>
           )}
         </div>
-        <ProviderActionFeedback action={action} />
+        {typeof actions === "function" ? actions({ connection, canEdit: writable }) : actions}
+        <ProviderActionFeedback action={action} labels={feedback} />
       </CardContent>
     </Card>
   );

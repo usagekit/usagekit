@@ -80,7 +80,9 @@
     }
   },
   "expect": {
-    "options": {},
+    "options": {
+      "depth": "10"
+    },
     "requestId": "09251212-1535-0139-0000-4b1c3a0f1d21",
     "receipt": {
       "measurements": [

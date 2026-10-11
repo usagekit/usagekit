@@ -35,18 +35,23 @@ describe("provider B (serpapi)", () => {
   });
 
   test("a search costs one plan unit, past the allowance one extra credit, without a plan unknown", () => {
-    const c = { id: "c1", provider: "serpapi", plan: "developer" };
+    const c = { id: "c1", provider: "serpapi", fundingSource: "byok" as const, plan: "developer" };
     expect(catalog.estimate(c, "search", {})).toEqual({
       quantities: [units(1n), { value: 1n, scale: 0, unit: "requests" }],
       source: "list",
       priceVersion: "serpapi:2026-09-25",
+      checkedAt: "2026-09-25",
     });
     expect(catalog.estimate({ ...c, overage: true }, "search", {}).quantities[0]).toEqual(
       units(1n),
     );
-    expect(catalog.estimate({ id: "c1", provider: "serpapi" }, "search", {}).source).toBe(
-      "unknown",
-    );
+    expect(
+      catalog.estimate(
+        { id: "c1", provider: "serpapi", fundingSource: "byok" as const },
+        "search",
+        {},
+      ).source,
+    ).toBe("unknown");
     expect(catalog.estimate(c, "account", {})).toEqual({ quantities: [], source: "list" });
   });
 

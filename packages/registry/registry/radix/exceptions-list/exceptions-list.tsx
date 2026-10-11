@@ -1,6 +1,9 @@
 "use client";
 
-import { useExceptionsView } from "@usagekit/react";
+import { useState } from "react";
+import type { ReactNode } from "react";
+import { Button } from "@/components/ui/button";
+import { serialize, useMeterBinding, useExceptionsView } from "@usagekit/react";
 import type { ExceptionKind, ExceptionsInput, ExceptionsView } from "@usagekit/views";
 import {
   Table,
@@ -15,6 +18,8 @@ import type { UsageTone } from "@/components/usagekit/usage-motion";
 
 export const exceptionsListLabels = {
   title: "Needs attention",
+  next: "Next page",
+  first: "First page",
   operation: "Operation",
   provider: "Provider",
   principal: "Principal",
@@ -51,6 +56,16 @@ export type ExceptionsListProps = {
   view: ExceptionsView | null;
   labels?: Partial<ExceptionsListLabels>;
   formatAge?: (seconds: number) => string;
+  formatState?: (state: ExceptionsView["rows"][number]["state"]) => ReactNode;
+  formatProvider?: (provider: string) => ReactNode;
+  formatOperation?: (operation: string) => ReactNode;
+  formatOperationId?: (id: string) => ReactNode;
+  showPrincipal?: boolean;
+  onNextPage?: (cursor: string) => void;
+  onFirstPage?: () => void;
+  busy?: boolean;
+  metadata?: ReactNode;
+  details?: ReactNode;
 };
 
 /** Operations that need attention, with their lifecycle state and age at the view's asOf. */
@@ -58,6 +73,16 @@ export function ExceptionsList({
   view,
   labels: custom,
   formatAge: age = formatAge,
+  formatState,
+  formatProvider,
+  formatOperation,
+  formatOperationId,
+  showPrincipal = true,
+  onNextPage,
+  onFirstPage,
+  busy = false,
+  metadata,
+  details,
 }: ExceptionsListProps) {
   const labels = { ...exceptionsListLabels, ...custom };
   if (!view)
@@ -80,61 +105,89 @@ export function ExceptionsList({
       </p>
     );
   return (
-    <div className="cn-usage-frame min-w-0 overflow-hidden border-border">
-      <Table
-        tabIndex={0}
-        aria-label={labels.title}
-        className="focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
-      >
-        <TableHeader className="bg-muted/40">
-          <TableRow className="hover:bg-transparent">
-            <TableHead className={head}>{labels.operation}</TableHead>
-            <TableHead className={head}>{labels.provider}</TableHead>
-            <TableHead className={head}>{labels.principal}</TableHead>
-            <TableHead className={head}>{labels.kind}</TableHead>
-            <TableHead className={head}>{labels.state}</TableHead>
-            <TableHead className={`${head} text-right`}>{labels.age}</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {view.rows.length === 0 ? (
+    <div className="space-y-3">
+      {metadata}
+      <div className="cn-usage-frame min-w-0 overflow-hidden border-border">
+        <Table
+          tabIndex={0}
+          aria-busy={busy || undefined}
+          aria-label={labels.title}
+          className="focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
+        >
+          <TableHeader className="bg-muted/40">
             <TableRow className="hover:bg-transparent">
-              <TableCell
-                colSpan={6}
-                className="cn-usage-body px-4 py-8 text-center text-muted-foreground"
-              >
-                {labels.empty}
-              </TableCell>
+              <TableHead className={head}>{labels.operation}</TableHead>
+              <TableHead className={head}>{labels.provider}</TableHead>
+              {showPrincipal && <TableHead className={head}>{labels.principal}</TableHead>}
+              <TableHead className={head}>{labels.kind}</TableHead>
+              <TableHead className={head}>{labels.state}</TableHead>
+              <TableHead className={`${head} text-right`}>{labels.age}</TableHead>
             </TableRow>
-          ) : (
-            view.rows.map((row) => (
-              <TableRow
-                key={row.operationId}
-                data-kind={row.kind}
-                className="transition-[background-color,opacity] duration-300 starting:opacity-0 motion-reduce:transition-none"
-              >
-                <TableCell className={`${cell} font-mono text-xs text-muted-foreground`}>
-                  {row.operationId}
-                </TableCell>
-                <TableCell className={cell}>
-                  <span className="font-medium">{row.provider}</span>{" "}
-                  <span className="text-muted-foreground">{row.operation}</span>
-                </TableCell>
-                <TableCell className={cell}>{row.principal}</TableCell>
-                <TableCell className={cell}>
-                  <UsageStatus tone={kindTone[row.kind]}>
-                    {labels[row.kind as ExceptionKind]}
-                  </UsageStatus>
-                </TableCell>
-                <TableCell className={`${cell} text-muted-foreground`}>{row.state}</TableCell>
-                <TableCell className={`${cell} text-right tabular-nums`}>
-                  {age(row.ageSeconds)}
+          </TableHeader>
+          <TableBody>
+            {view.rows.length === 0 ? (
+              <TableRow className="hover:bg-transparent">
+                <TableCell
+                  colSpan={showPrincipal ? 6 : 5}
+                  className="cn-usage-body px-4 py-8 text-center text-muted-foreground"
+                >
+                  {labels.empty}
                 </TableCell>
               </TableRow>
-            ))
-          )}
-        </TableBody>
-      </Table>
+            ) : (
+              view.rows.map((row) => (
+                <TableRow
+                  key={row.operationId}
+                  data-kind={row.kind}
+                  className="transition-[background-color,opacity] duration-300 starting:opacity-0 motion-reduce:transition-none"
+                >
+                  <TableCell className={`${cell} font-mono text-xs text-muted-foreground`}>
+                    {formatOperationId?.(row.operationId) ?? row.operationId}
+                  </TableCell>
+                  <TableCell className={cell}>
+                    <span className="font-medium">
+                      {formatProvider?.(row.provider) ?? row.provider}
+                    </span>{" "}
+                    <span className="text-muted-foreground">
+                      {formatOperation?.(row.operation) ?? row.operation}
+                    </span>
+                  </TableCell>
+                  {showPrincipal && <TableCell className={cell}>{row.principal}</TableCell>}
+                  <TableCell className={cell}>
+                    <UsageStatus tone={kindTone[row.kind]}>
+                      {labels[row.kind as ExceptionKind]}
+                    </UsageStatus>
+                  </TableCell>
+                  <TableCell className={`${cell} text-muted-foreground`}>
+                    {formatState?.(row.state) ?? row.state}
+                  </TableCell>
+                  <TableCell className={`${cell} text-right tabular-nums`}>
+                    {age(row.ageSeconds)}
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </div>
+      {details}
+      <div className="flex justify-end gap-2">
+        {onFirstPage && (
+          <Button size="sm" variant="outline" disabled={busy} onClick={onFirstPage}>
+            {labels.first}
+          </Button>
+        )}
+        {onNextPage && view.nextCursor && (
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={busy}
+            onClick={() => onNextPage(view.nextCursor!)}
+          >
+            {labels.next}
+          </Button>
+        )}
+      </div>
     </div>
   );
 }
@@ -143,19 +196,76 @@ export function ExceptionsList({
 export function ExceptionsListPanel({
   labels,
   formatAge: age,
+  formatState,
+  formatProvider,
+  formatOperation,
+  formatOperationId,
+  showPrincipal,
+  metadata,
+  details,
   ...input
-}: ExceptionsInput & Pick<ExceptionsListProps, "labels" | "formatAge">) {
-  const result = useExceptionsView(input);
+}: ExceptionsInput & Omit<ExceptionsListProps, "view" | "onNextPage" | "onFirstPage" | "busy">) {
+  const binding = useMeterBinding();
+  const key = serialize([input, binding?.access]);
+  const [page, setPage] = useState<{ key: string; meter: typeof binding; cursor: string } | null>(
+    null,
+  );
+  const cursor =
+    page?.key === key && page.meter?.meter === binding?.meter
+      ? page.cursor || undefined
+      : input.cursor;
+  const query = { ...input };
+  delete query.cursor;
+  const result = useExceptionsView(cursor ? { ...query, cursor } : query);
+  const [last, setLast] = useState<{
+    key: string;
+    meter: typeof binding;
+    view: ExceptionsView;
+  } | null>(null);
+  const failed = result.state === "forbidden" || result.state === "unavailable";
+  if (failed && last) setLast(null);
+  else if (result.data && !failed && last?.view !== result.data)
+    setLast({ key, meter: binding, view: result.data });
+  const retained =
+    !result.data &&
+    result.state === "loading" &&
+    last?.key === key &&
+    last.meter?.meter === binding?.meter
+      ? last.view
+      : null;
   if (result.state === "unavailable" || result.state === "forbidden")
     return (
-      <p
-        role="alert"
-        className={`cn-usage-empty cn-usage-body border-border text-muted-foreground ${usageMotion.enter}`}
-      >
-        {result.state === "forbidden"
-          ? (labels?.forbidden ?? exceptionsListLabels.forbidden)
-          : (labels?.failed ?? exceptionsListLabels.failed)}
-      </p>
+      <div className="space-y-3">
+        <p
+          role="alert"
+          className={`cn-usage-empty cn-usage-body border-border text-muted-foreground ${usageMotion.enter}`}
+        >
+          {result.state === "forbidden"
+            ? (labels?.forbidden ?? exceptionsListLabels.forbidden)
+            : (labels?.failed ?? exceptionsListLabels.failed)}
+        </p>
+        {cursor && result.state === "unavailable" && (
+          <Button onClick={() => setPage({ key, meter: binding, cursor: "" })}>
+            {labels?.first ?? exceptionsListLabels.first}
+          </Button>
+        )}
+      </div>
     );
-  return <ExceptionsList view={result.data} labels={labels} formatAge={age} />;
+  return (
+    <ExceptionsList
+      view={result.data ?? retained}
+      labels={labels}
+      formatAge={age}
+      formatState={formatState}
+      formatProvider={formatProvider}
+      formatOperation={formatOperation}
+      formatOperationId={formatOperationId}
+      showPrincipal={showPrincipal}
+      metadata={metadata}
+      details={details}
+      busy={retained !== null}
+      onNextPage={(cursor) => setPage({ key, meter: binding, cursor })}
+      onFirstPage={cursor ? () => setPage({ key, meter: binding, cursor: "" }) : undefined}
+    />
+  );
 }

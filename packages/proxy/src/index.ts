@@ -1,5 +1,12 @@
 import type { AccessContext, Meter, Operation, Receipt, Scope } from "@usagekit/core";
 import type { Catalog, ProviderRequest, ReceiptDraft } from "@usagekit/providers";
+import {
+  PricedRequest,
+  RequestPricingError,
+  dispatchPricedRequest,
+  applyProviderCredentials,
+} from "@usagekit/providers";
+export { isJsonMediaType } from "@usagekit/providers";
 
 export type ProxyConnection = { provider: string; secret: string; tags?: readonly string[] };
 export type ProxyOptions = {
@@ -102,13 +109,25 @@ export function createProviderProxy({
       return error(405, "method_not_allowed");
     let conn: ProxyConnection | undefined;
     try {
-      conn = connection(id);
+      const entry = connection(id);
+      if (entry) {
+        // A host may rotate a shared connection object while this request is awaiting I/O.
+        const { provider, secret, tags } = entry;
+        conn = { provider, secret, ...(tags === undefined ? {} : { tags: [...tags] }) };
+      }
     } catch {
       return error(423, "vault_locked");
     }
     if (!conn) return error(404, "connection_not_found");
     const descriptor = catalog.providers().find((p) => p.id === conn.provider);
     if (!descriptor) return error(403, "provider_disabled");
+    try {
+      applyProviderCredentials(descriptor.auth, new URL(descriptor.upstream), new Headers(), {
+        secret: conn.secret,
+      });
+    } catch {
+      return error(400, "invalid_provider_credentials");
+    }
     const upstream = new URL(descriptor.upstream);
     // Set pathname rather than resolving caller text: //host, encoded slashes and backslashes
     // cannot change the descriptor's origin. No provider redirect is followed.
@@ -120,85 +139,60 @@ export function createProviderProxy({
       (base && upstream.pathname !== base && !upstream.pathname.startsWith(base + "/"))
     )
       return error(400, "invalid_upstream_path");
-    for (const key of [...upstream.searchParams.keys()])
-      if (/^(api[_-]?key|access[_-]?token|token|authorization|password|secret)$/i.test(key))
-        upstream.searchParams.delete(key);
     let body: Uint8Array<ArrayBuffer> | undefined;
     try {
       body = await requestBody(request);
     } catch {
       return error(413, "request_too_large");
     }
-    const text = body === undefined ? undefined : new TextDecoder().decode(body);
-    let parsed: unknown = text;
-    if (
-      body !== undefined &&
-      request.headers.get("Content-Type")?.split(";")[0]?.trim() === "application/json"
-    ) {
-      try {
-        parsed = JSON.parse(text!);
-      } catch {
-        return error(400, "invalid_json");
-      }
-    }
-    const providerRequest: ProviderRequest = {
-      method: request.method,
-      url: upstream.href,
-      ...(body === undefined ? {} : { body: parsed }),
-    };
-    let match: ReturnType<Catalog["match"]>;
-    try {
-      match = catalog.match(conn.provider, providerRequest);
-    } catch {
-      return error(400, "invalid_provider_request");
-    }
-    const op = match.operation === "unknown" ? "unknown" : match.operation.id;
     const scope = { ...owner, connection: id, ...(conn.tags ? { tags: conn.tags } : {}) };
-    if (op === "unknown" && strict) {
-      await meter.countRequest({
-        commandId: `proxy-strict:${operationId}`,
-        scope,
-        provider: conn.provider,
-        operation: op,
-        surface: "programmatic",
-        source: "proxy",
-        state: "unpriced",
-      });
-      return error(404, "unknown_operation", operationId);
-    }
     const headers = new Headers();
     for (const name of ["accept", "content-type"]) {
       const value = request.headers.get(name);
       if (value) headers.set(name, value);
     }
+    let priced: PricedRequest;
     try {
-      const auth = descriptor.auth;
-      if (auth.kind === "query") upstream.searchParams.set(auth.param, conn.secret);
-      else if (auth.kind === "basic")
-        headers.set("Authorization", `Basic ${Buffer.from(conn.secret).toString("base64")}`);
-      else if (auth.kind === "bearer") headers.set("Authorization", `Bearer ${conn.secret}`);
-      else headers.set(auth.name, `${auth.prefix ?? ""}${conn.secret}`);
-    } catch {
-      return error(400, "invalid_provider_credentials");
+      priced = await PricedRequest.price({
+        meter,
+        catalog,
+        rejectUnknown: strict,
+        allowUnknownDispatch: !strict,
+        request: {
+          method: request.method,
+          url: upstream.href,
+          headers: Object.fromEntries(headers),
+          ...(body === undefined ? {} : { body }),
+        },
+        input: {
+          operationId,
+          scope,
+          provider: conn.provider,
+          fundingSource: "byok",
+          costOwner: owner.principal,
+          surface: "programmatic",
+          source: "proxy",
+        },
+      });
+    } catch (failure) {
+      if (!(failure instanceof RequestPricingError)) throw failure;
+      if (failure.code === "unknown_operation") {
+        await meter.countRequest({
+          commandId: `proxy-strict:${operationId}`,
+          scope,
+          provider: conn.provider,
+          operation: "unknown",
+          surface: "programmatic",
+          source: "proxy",
+          state: "unpriced",
+        });
+        return error(404, "unknown_operation", operationId);
+      }
+      return error(400, failure.code);
     }
-    // Unknown paths still consume the requests budget and leave an unknown-cost operation.
-    // A monetary bound cannot be guessed: missing bounded units fail closed in Meter.
-    const reserved = await meter.reserve({
-      operationId,
-      scope,
-      provider: conn.provider,
-      operation: op,
-      fundingSource: "byok",
-      costOwner: owner.principal,
-      surface: "programmatic",
-      source: "proxy",
-      ...(match.operation === "unknown"
-        ? {
-            estimate: [{ unit: "requests", value: 1n, scale: 0 }],
-            estimateSource: "unknown" as const,
-          }
-        : { options: match.options }),
-    });
+    const reserved = priced.admission;
+    const op = priced.matched.operation === "unknown" ? "unknown" : priced.matched.operation.id;
+    const providerRequest = priced.parsed;
     if (reserved.outcome === "exceeded") {
       const reset = reserved.exceeded.resetsAt;
       return error(
@@ -258,13 +252,7 @@ export function createProviderProxy({
     const signal = AbortSignal.any([abort.signal, request.signal, AbortSignal.timeout(30000)]);
     let response: Response;
     try {
-      response = await transport(upstream, {
-        method: request.method,
-        headers,
-        redirect: "error",
-        signal,
-        ...(body === undefined ? {} : { body }),
-      });
+      response = await dispatchPricedRequest(priced, transport, signal, { secret: conn.secret });
     } catch {
       try {
         await settle(unknownReceipt(true));

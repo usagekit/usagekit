@@ -1,5 +1,6 @@
 import type {
   Meter,
+  MeterQuoteInput,
   AccessContext,
   OperationRef,
   UsageQuery,
@@ -12,6 +13,8 @@ import type {
 import type { RouteName } from "../schemas/index.js";
 export function dispatchRead(meter: Meter, access: AccessContext, name: RouteName, input: unknown) {
   switch (name) {
+    case "quote":
+      return meter.quote(access, input as MeterQuoteInput);
     case "billingImports":
       return meter.billingImports(access, input as BillingImportsQuery);
     case "operation":

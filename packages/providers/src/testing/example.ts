@@ -12,6 +12,7 @@ const source = "https://example.com/pricing";
 export const exampleDescriptor: ProviderDescriptor = {
   id: "example",
   label: "Example provider",
+  pricingInputs: ["query"],
   upstream: "https://api.example.com/v1",
   auth: { kind: "header", name: "X-Api-Key" },
   billing: { unit: "units", cycle: "monthly_plan" },

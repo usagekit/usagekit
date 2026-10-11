@@ -1,3 +1,4 @@
+import { validateConnectionPolicy, type ValidationFailure } from "@usagekit/core";
 import type { Catalog } from "@usagekit/providers";
 import type { ConnectionMetadata } from "./vault.js";
 /** Reject policy typos at the boundary; omitted fields preserve policy on key rotation. */
@@ -11,19 +12,8 @@ export function connectionMetadata(
     (typeof body.plan !== "string" || !catalog?.plansOf(provider).some((p) => p.id === body.plan))
   )
     return null;
+  if (connectionPolicyFailure(body, catalog)) return null;
   const tracking = body.tracking;
-  if (
-    tracking !== undefined &&
-    (!tracking ||
-      typeof tracking !== "object" ||
-      Array.isArray(tracking) ||
-      Object.entries(tracking).some(
-        ([id, mode]) =>
-          !catalog?.operationsOf(provider).some((o) => o.id === id) ||
-          !["metered", "passthrough"].includes(String(mode)),
-      ))
-  )
-    return null;
   const manualPrices = body.manualPrices;
   if (body.overage !== undefined && typeof body.overage !== "boolean") return null;
   if (
@@ -61,4 +51,26 @@ export function connectionMetadata(
       ? {}
       : { tracking: tracking as NonNullable<ConnectionMetadata["tracking"]> }),
   };
+}
+
+/** The local vault supports BYOK only; reject funding/tracking waivers before persisting. */
+export function connectionPolicyFailure(
+  body: Record<string, unknown>,
+  catalog?: Catalog,
+): ValidationFailure | null {
+  const fundingSource = body.fundingSource === undefined ? "byok" : body.fundingSource;
+  if (fundingSource !== "byok" && fundingSource !== "platform")
+    return { outcome: "invalid", field: "fundingSource", reason: "must be byok or platform" };
+  const failure = validateConnectionPolicy(
+    { fundingSource, tracking: body.tracking },
+    catalog?.operationsOf(String(body.provider)) ?? [],
+  );
+  if (failure) return failure;
+  return fundingSource === "platform"
+    ? {
+        outcome: "invalid",
+        field: "fundingSource",
+        reason: "Only own provider credentials are supported locally",
+      }
+    : null;
 }

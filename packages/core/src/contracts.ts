@@ -231,8 +231,8 @@ export type ReserveResult =
   | { outcome: "exceeded"; exceeded: AllowanceExceeded; operation: null }
   | { outcome: "conflict"; reason: "semantic_mismatch"; operation: Operation }
   /**
-   * The connection's tracking policy is passthrough for this operation, or the catalog marks it
-   * free: counted with state passthrough, never reserved. The caller may forward the call.
+   * The BYOK connection's tracking policy is passthrough for this operation, or the catalog
+   * marks it free: counted with state passthrough, never reserved. The caller may forward the call.
    */
   | { outcome: "passthrough"; replayed: boolean; operation: null }
   /**
@@ -245,14 +245,33 @@ export type ReserveResult =
 export type EstimateSource = "manual" | "measured" | "list" | "unknown";
 
 /**
- * Meter reserve input. With a catalog, estimate may be omitted: the Meter resolves it from the
- * catalog for the connection and the request options. Store always receives a ReserveInput.
+ * Meter reserve input. For BYOK with a catalog, estimate may be omitted: the Meter resolves it
+ * for the connection and request options. Billable platform-funded calls require a host
+ * customer-price estimate; catalog-declared nonbillable calls are counted without a reservation.
+ * Store reservations always receive a ReserveInput.
  */
 export type MeterReserveInput = Omit<ReserveInput, "estimate"> & {
-  /** Omitted: the Meter resolves it through its catalog and the connection policy. */
+  /** BYOK may omit for catalog resolution; billable platform calls require host customer pricing. */
   estimate?: readonly Quantity[];
   /** Request options that move the price, read from the request by the descriptor. */
   options?: Readonly<Record<string, string>>;
+};
+
+/** Authorized advisory estimate. No operation identity or accounting side effects. */
+export type MeterQuoteInput = Omit<
+  MeterReserveInput,
+  "operationId" | "reservationTtlMs" | "correlationId" | "parentOperationId"
+>;
+export type MeterQuote = {
+  quantities: readonly Quantity[];
+  /** Matches stored reservation provenance; omitted when none was supplied or resolved. */
+  estimateSource?: EstimateSource;
+  providerPriceVersion?: string;
+  checkedAt?: string;
+  sampleSize?: number;
+  tracking: "metered" | "passthrough" | "unpriced";
+  budgets: readonly BudgetStatus[];
+  asOf: string;
 };
 
 /**
@@ -581,6 +600,7 @@ export type ExpireReservationsResult =
  * Admission sweeps at most one default batch. Maintenance owns the remaining expired backlog.
  */
 export interface Meter {
+  quote(access: AccessContext, input: MeterQuoteInput): Promise<ReadResult<MeterQuote>>;
   importBilling(
     access: AccessContext,
     input: BillingImportInput,

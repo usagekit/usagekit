@@ -251,6 +251,9 @@ test("CLI release uses stable command payloads; errors have documented exit code
     },
   });
   try {
+    server.vault.unlock("test-passphrase");
+    server.vault.put("example", "c", "test-secret");
+    server.vault.lock();
     await createRemoteMeter({ baseUrl: server.url, token }).reserve({
       operationId: "unused",
       scope: { namespace: "local", principal: "local", connection: "c" },

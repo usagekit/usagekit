@@ -367,7 +367,7 @@ test("an omitted estimate is a typed result until a catalog can resolve it", asy
       clock,
       store: createMemoryStore({ clock, budgets: [] }),
       catalog,
-      resolveConnection: () => ({ provider: "example" }),
+      resolveConnection: () => ({ fundingSource: "byok", provider: "example" }),
     }),
     authenticate: async () => access,
   });
@@ -388,4 +388,41 @@ test("an omitted estimate is a typed result until a catalog can resolve it", asy
   const unknown = await send({ ...rest, operationId: "unknown-op", operation: "missing" });
   expect(unknown.status).toBe(200);
   expect(await unknown.json()).toEqual({ outcome: "unpriced", replayed: false, operation: null });
+});
+
+test("quote GET validates strictly and is available on a commands-disabled mount", async () => {
+  const clock = createManualClock(),
+    store = createMemoryStore({ clock, budgets: [] });
+  const meter = createMeter({
+    clock,
+    store,
+    resolveOwnership: async () => ({ kind: "principal", namespace: "test", principal: "u" }),
+  });
+  const handler = createUsageHandlers({ meter, authenticate: async () => access, commands: false });
+  const { operationId: _, commandId: __, ...quote } = reserve;
+  const getQuote = (q: unknown) =>
+    handler(
+      new Request(
+        "http://test/v1/quotes?q=" +
+          btoa(encodeWire(q)).replaceAll("+", "-").replaceAll("/", "_").replaceAll("=", ""),
+      ),
+    );
+  const response = await getQuote(quote);
+  expect(response.status).toBe(200);
+  expect(decodeWire(await response.text())).toMatchObject({
+    outcome: "ok",
+    value: { quantities: [{ unit: "requests", value: 1n, scale: 0 }], tracking: "metered" },
+  });
+  const quoted = decodeWire(await (await getQuote(quote)).text()) as { value: object };
+  expect(quoted.value).not.toHaveProperty("estimateSource");
+  for (const i of [
+    { ...quote, operationId: "forbidden-field" },
+    { ...quote, estimate: [{ value: "1", unit: "cents", scale: 19 }] },
+    { ...quote, fundingSource: "invented" },
+  ])
+    expect((await getQuote(i)).status).toBe(400);
+  expect((await getQuote({ ...quote, scope: { ...scope, namespace: "other" } })).status).toBe(403);
+  expect(
+    (await handler(new Request("http://test/v1/quotes", { method: "POST", body: "{}" }))).status,
+  ).toBe(404);
 });

@@ -1,4 +1,10 @@
-import type { EstimateSource, Money, Quantity } from "./contracts.js";
+import type {
+  EstimateSource,
+  FundingSource,
+  Money,
+  Quantity,
+  ValidationFailure,
+} from "./contracts.js";
 
 /**
  * Provider descriptors: data that tells usagekit how to price, route, meter and reconcile one
@@ -30,12 +36,33 @@ export type ProviderPlan = {
   cycle: "monthly_plan" | "prepaid" | "trial" | "none";
   allowance?: { unit: BillingUnit; value: bigint };
   allowanceMode: "hard" | "soft";
+  /** Provider subscription data; never a per-receipt debit. */
+  subscription?: { period: "month"; fee: Money; source: string; checkedAt: string };
 };
 
 /**
- * One list price. The descriptor never holds negotiated prices, discounts or volume tiers beyond
- * the public list; those are manual prices on the connection.
+ * Overrides default to a whole-call price; item overrides replace a formula coefficient.
  */
+export type PriceBasis = "call" | "item";
+export type PriceCalculation =
+  | {
+      kind: "option_multiplier";
+      multiplierOption: { key: string; value: string; factor: string };
+    }
+  | {
+      kind: "additional_pages";
+      depthOption: string;
+      pageSize: number;
+      additionalPageFactor: string;
+    }
+  | {
+      kind: "base_plus_items";
+      itemCountOption: string;
+      perItem: string;
+      multiplierOption?: { key: string; value: string; factor: string };
+    };
+
+/** One public list price, with optional request calculation metadata. */
 export type PriceRow = {
   /** ISO date. */
   validFrom: string;
@@ -49,6 +76,7 @@ export type PriceRow = {
   unit: BillingUnit;
   /** Exact nonnegative decimal in that unit. */
   perUnit: string;
+  calculation?: PriceCalculation;
   /** URL of the public price source. */
   source: string;
   /** ISO date of the last check against the source. */
@@ -73,6 +101,24 @@ export type ProviderOperation = {
   match: readonly RequestMatch[];
   /** Options that move the price; values are extracted from the request by `options`. */
   optionKeys?: readonly string[];
+  /** Exhaustive documented request fields; unclassified fields cannot be safely priced. */
+  requestPricing?: {
+    source: string;
+    formula: string;
+    priceFields: Readonly<
+      Record<
+        string,
+        {
+          formula: string;
+          /** A supplied opaque value can prevent any defensible upper bound. */
+          unpricedWhen?: "present" | "true";
+          /** Documented item count when this field is omitted. */
+          defaultCount?: number;
+        }
+      >
+    >;
+    neutralFields: readonly string[];
+  };
   /**
    * Cost is known from the response body, only after a later call, or never per call.
    * response: settle on stream close. deferred: settle with unknown cost, keep pending, resolve
@@ -125,6 +171,8 @@ export type ProviderDescriptor = {
   /** Origin and optional base path, for example "https://api.example.com". */
   upstream: string;
   auth: ProviderAuth;
+  /** Pricing and matching see body/query only when declared; method and URL path are always available. */
+  pricingInputs: readonly ("body" | "query")[];
   stripRequestHeaders?: readonly string[];
   billing: { unit: BillingUnit; cycle: ProviderPlan["cycle"] };
   plans: readonly ProviderPlan[];
@@ -159,27 +207,77 @@ export type BillingLine = {
   window?: { from: string; to: string };
 };
 
-/** Per-connection choice per catalog operation; the default is metered. */
+/** Per-operation tracking; passthrough opts BYOK out of spend enforcement only. */
 export type TrackingPolicy = "metered" | "passthrough";
 
 /** Median of a connection's settled receipts for one operation, with its sample size. */
 export type MeasuredPrice = (
   operation: OperationId,
-) => { quantity: Quantity; samples: number } | undefined;
+) => { quantity: Quantity; samples: number; basis?: PriceBasis; checkedAt?: string } | undefined;
 
 /**
- * Connection data a host resolves for the Meter: provider, selected plan, manual per-call prices,
+ * Connection data a host resolves for the Meter: provider, selected plan, BYOK manual prices,
  * measured prices and tracking policy, all keyed by OperationId. overage is true when the host
  * knows the plan allowance is exhausted.
  */
 export type ConnectionPolicy = {
   provider: ProviderId;
+  /** Actual connection funding, derived by the host from trusted server state. */
+  fundingSource: FundingSource;
   plan?: string;
+  /** BYOK only: estimates the user's own provider cost, including genuine zero. */
   manualPrices?: Readonly<Record<OperationId, Quantity>>;
+  manualPriceBasis?: Readonly<Record<OperationId, PriceBasis>>;
   measured?: MeasuredPrice;
   tracking?: Readonly<Record<OperationId, TrackingPolicy>>;
   overage?: boolean;
 };
+
+/** Validate raw connection settings before saving. Manual prices are BYOK-only. */
+export function validateConnectionPolicy(
+  policy: {
+    fundingSource: FundingSource;
+    tracking?: unknown;
+    manualPrices?: unknown;
+    manualPriceBasis?: unknown;
+  },
+  operations: readonly Pick<ProviderOperation, "id" | "billable">[],
+): ValidationFailure | null {
+  const invalid = (field: string, reason: string): ValidationFailure => ({
+    outcome: "invalid",
+    field,
+    reason,
+  });
+  if (policy.fundingSource === "platform") {
+    for (const field of ["manualPrices", "manualPriceBasis"] as const) {
+      const value = policy[field];
+      const absent =
+        value == null ||
+        (typeof value === "object" && !Array.isArray(value) && Object.keys(value).length === 0);
+      if (!absent) return invalid(field, "manual provider prices are BYOK-only");
+    }
+  }
+  const { tracking } = policy;
+  if (tracking === undefined) return null;
+  if (!tracking || typeof tracking !== "object" || Array.isArray(tracking))
+    return invalid("tracking", "must be an operation-to-tracking map");
+  for (const [id, mode] of Object.entries(tracking)) {
+    const operation = operations.find((entry) => entry.id === id);
+    if (
+      policy.fundingSource === "platform" &&
+      operation?.billable !== false &&
+      (mode === "passthrough" || mode === "unpriced")
+    )
+      return invalid(
+        `tracking.${id}`,
+        "billable platform operations must be metered; credits charges cannot be opted out",
+      );
+    if (!operation) return invalid(`tracking.${id}`, "unknown operation");
+    if (mode !== "metered" && mode !== "passthrough")
+      return invalid(`tracking.${id}`, "must be metered or passthrough");
+  }
+  return null;
+}
 
 /**
  * What the Meter needs from a provider catalog. `@usagekit/providers` createCatalog satisfies
@@ -191,11 +289,19 @@ export type PricingCatalog = {
     connection: Omit<ConnectionPolicy, "tracking"> & { id: string },
     operation: OperationId,
     options: Readonly<Record<string, string>>,
-  ): { quantities: Quantity[]; source: EstimateSource; priceVersion?: string };
+  ): {
+    quantities: Quantity[];
+    source: EstimateSource;
+    priceVersion?: string;
+    checkedAt?: string;
+    sampleSize?: number;
+  };
   operationsOf(providerId: ProviderId): readonly ProviderOperation[];
 };
 
 export type DescriptorProblem =
+  | { kind: "invalid_pricing_inputs" }
+  | { kind: "undeclared_query_input"; operation: OperationId }
   | { kind: "duplicate_operation"; operation: OperationId }
   | { kind: "duplicate_plan"; plan: string }
   | { kind: "missing_match"; operation: OperationId }
@@ -207,6 +313,8 @@ export type DescriptorProblem =
       row: number;
       field: "perUnit" | "validFrom" | "checkedAt" | "source";
     }
+  | { kind: "invalid_calculation"; row: number; field: string }
+  | { kind: "invalid_subscription"; plan: string; field: string }
   | { kind: "unknown_probe_operation"; operation: OperationId }
   | { kind: "billable_probe"; operation: OperationId }
   | { kind: "unknown_price_list_operation"; operation: OperationId }
@@ -221,8 +329,19 @@ const isoDate = (text: string) =>
  */
 export function validateDescriptor(d: ProviderDescriptor): DescriptorProblem[] {
   const problems: DescriptorProblem[] = [];
+  if (
+    !Array.isArray(d.pricingInputs) ||
+    d.pricingInputs.some((part) => part !== "body" && part !== "query") ||
+    new Set(d.pricingInputs).size !== d.pricingInputs.length
+  )
+    problems.push({ kind: "invalid_pricing_inputs" });
   const operations = new Map<string, ProviderOperation>();
   for (const op of d.operations) {
+    if (
+      !(Array.isArray(d.pricingInputs) && d.pricingInputs.includes("query")) &&
+      op.match.some((rule) => Object.keys(rule.query ?? {}).length > 0)
+    )
+      problems.push({ kind: "undeclared_query_input", operation: op.id });
     if (operations.has(op.id)) problems.push({ kind: "duplicate_operation", operation: op.id });
     else operations.set(op.id, op);
   }
@@ -233,6 +352,16 @@ export function validateDescriptor(d: ProviderDescriptor): DescriptorProblem[] {
   for (const plan of d.plans) {
     if (plans.has(plan.id)) problems.push({ kind: "duplicate_plan", plan: plan.id });
     plans.add(plan.id);
+    const fee = plan.subscription;
+    if (fee) {
+      for (const [field, valid] of Object.entries({
+        period: fee.period === "month",
+        fee: fee.fee.currency === "USD" && typeof fee.fee.units === "bigint" && fee.fee.units >= 0n,
+        source: Boolean(fee.source.trim()),
+        checkedAt: isoDate(fee.checkedAt),
+      }))
+        if (!valid) problems.push({ kind: "invalid_subscription", plan: plan.id, field });
+    }
   }
   d.prices.forEach((row, index) => {
     const op = operations.get(row.operation);
@@ -243,8 +372,35 @@ export function validateDescriptor(d: ProviderDescriptor): DescriptorProblem[] {
     for (const key of Object.keys(row.option ?? {}))
       if (op && !(op.optionKeys ?? []).includes(key))
         problems.push({ kind: "unknown_price_option", row: index, option: key });
-    if (!/^\d+(\.\d+)?$/.test(row.perUnit))
+    if (!/^\d+(\.\d{1,18})?$/.test(row.perUnit))
       problems.push({ kind: "invalid_price", row: index, field: "perUnit" });
+    const c = row.calculation;
+    if (c) {
+      const decimal = (x: string) => /^\d+(\.\d{1,18})?$/.test(x);
+      const option = (key: string) => {
+        if (op && !(op.optionKeys ?? []).includes(key))
+          problems.push({ kind: "unknown_price_option", row: index, option: key });
+      };
+      if (c.kind === "additional_pages") {
+        option(c.depthOption);
+        if (!Number.isSafeInteger(c.pageSize) || c.pageSize < 1)
+          problems.push({ kind: "invalid_calculation", row: index, field: "pageSize" });
+        if (!decimal(c.additionalPageFactor))
+          problems.push({ kind: "invalid_calculation", row: index, field: "additionalPageFactor" });
+      } else if (c.kind === "base_plus_items") {
+        option(c.itemCountOption);
+        if (!decimal(c.perItem))
+          problems.push({ kind: "invalid_calculation", row: index, field: "perItem" });
+      } else if (c.kind !== "option_multiplier")
+        problems.push({ kind: "invalid_calculation", row: index, field: "kind" });
+      if (c.kind === "option_multiplier" && !c.multiplierOption)
+        problems.push({ kind: "invalid_calculation", row: index, field: "multiplierOption" });
+      if ((c.kind === "base_plus_items" || c.kind === "option_multiplier") && c.multiplierOption) {
+        option(c.multiplierOption.key);
+        if (!c.multiplierOption.value.trim() || !decimal(c.multiplierOption.factor))
+          problems.push({ kind: "invalid_calculation", row: index, field: "multiplierOption" });
+      }
+    }
     if (!isoDate(row.validFrom))
       problems.push({ kind: "invalid_price", row: index, field: "validFrom" });
     if (!isoDate(row.checkedAt))

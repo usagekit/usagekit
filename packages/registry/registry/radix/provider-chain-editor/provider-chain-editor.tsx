@@ -1,4 +1,13 @@
 "use client";
+import { ProjectChainEditor } from "@/components/usagekit/provider-project-chain";
+import type { ProjectChainProps } from "@/components/usagekit/provider-project-chain";
+export { useProjectChainController } from "@/components/usagekit/provider-project-chain";
+export type {
+  ProjectChainProps,
+  ProjectChainSnapshot,
+  ProjectChainCommand,
+  ProjectChainResult,
+} from "@/components/usagekit/provider-project-chain";
 import { useLayoutEffect, useRef, useState } from "react";
 import { useProviderAction } from "@usagekit/react";
 import type { ProviderAction } from "@usagekit/react";
@@ -6,24 +15,16 @@ import type { ProviderConnection } from "@usagekit/views";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ProviderActionFeedback } from "@/components/usagekit/provider-feedback";
-import { usageMotion } from "@/components/usagekit/usage-motion";
-export const providerChainLabels = {
-  title: "Fallback order",
-  description:
-    "The host decides when fallback is allowed. This changes the explicit connection order only.",
-  up: "Move up",
-  down: "Move down",
-  add: "Add to fallback",
-  remove: "Remove from fallback",
-  save: "Save fallback order",
-  enable: "Enable",
-  disable: "Disable",
-  enabled: "Enabled",
-  disabled: "Disabled",
-  empty: "No fallback connections selected.",
-};
-export type ProviderChainLabels = typeof providerChainLabels;
+import {
+  ProviderActionFeedback,
+  providerFeedbackLabels,
+} from "@/components/usagekit/provider-feedback";
+import { retainMovedRowFocus, usageMotion } from "@/components/usagekit/usage-motion";
+import type { ProviderFeedbackLabels } from "@/components/usagekit/provider-feedback";
+import { providerChainLabels } from "@/components/usagekit/provider-project-controller";
+import type { ProviderChainLabels } from "@/components/usagekit/provider-project-controller";
+export { providerChainLabels } from "@/components/usagekit/provider-project-controller";
+export type { ProviderChainLabels } from "@/components/usagekit/provider-project-controller";
 
 /** Slides reordered items from their previous position; skipped for reduced motion. */
 function useReorderMotion(order: readonly string[]) {
@@ -34,7 +35,11 @@ function useReorderMotion(order: readonly string[]) {
       [...items.current].map(([id, item]) => [id, item.getBoundingClientRect().top]),
     );
   };
+  const orderKey = order.join("\n");
+  const committedOrder = useRef(orderKey);
   useLayoutEffect(() => {
+    if (committedOrder.current === orderKey) return;
+    committedOrder.current = orderKey;
     const previous = before.current;
     before.current = null;
     if (!previous || globalThis.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
@@ -47,7 +52,7 @@ function useReorderMotion(order: readonly string[]) {
           easing: "cubic-bezier(0.23, 1, 0.32, 1)",
         });
     }
-  }, [order.join("\n")]);
+  }, [orderKey]);
   const ref = (id: string) => (item: HTMLElement | null) => {
     if (item) items.current.set(id, item);
     else items.current.delete(id);
@@ -55,18 +60,30 @@ function useReorderMotion(order: readonly string[]) {
   return { capture, ref };
 }
 
-export function ProviderChainEditor({
-  connection,
-  action: guardedAction,
-  connections,
-  labels: custom,
-}: {
+type ConnectionChainProps = {
+  mode?: "connection";
   connection: ProviderConnection;
   action?: ProviderAction;
   connections: readonly ProviderConnection[];
   labels?: Partial<ProviderChainLabels>;
-}) {
+  feedbackLabels?: Partial<ProviderFeedbackLabels>;
+  showMembershipControls?: boolean;
+};
+export function ProviderChainEditor(props: ConnectionChainProps | ProjectChainProps) {
+  if (props.mode === "project")
+    return <ProjectChainEditor {...props} labels={{ ...providerChainLabels, ...props.labels }} />;
+  return <ConnectionChainEditor {...props} />;
+}
+function ConnectionChainEditor({
+  connection,
+  action: guardedAction,
+  connections,
+  labels: custom,
+  feedbackLabels,
+  showMembershipControls = true,
+}: ConnectionChainProps) {
   const labels = { ...providerChainLabels, ...custom };
+  const feedback = { ...providerFeedbackLabels, ...feedbackLabels };
   const sharedAction = useProviderAction();
   const action = guardedAction ?? sharedAction;
   const [chain, setChain] = useState<readonly string[]>([...connection.fallbackChain]);
@@ -130,7 +147,10 @@ export function ProviderChainEditor({
                       size="sm"
                       aria-label={`${labels.up}: ${name}`}
                       disabled={!editable || index === 0}
-                      onClick={() => move(index, -1)}
+                      onClick={(event) => {
+                        move(index, -1);
+                        retainMovedRowFocus(event.currentTarget);
+                      }}
                     >
                       <svg
                         aria-hidden
@@ -151,7 +171,10 @@ export function ProviderChainEditor({
                       size="sm"
                       aria-label={`${labels.down}: ${name}`}
                       disabled={!editable || index === shown.length - 1}
-                      onClick={() => move(index, 1)}
+                      onClick={(event) => {
+                        move(index, 1);
+                        retainMovedRowFocus(event.currentTarget);
+                      }}
                     >
                       <svg
                         aria-hidden
@@ -166,16 +189,18 @@ export function ProviderChainEditor({
                       </svg>
                       {labels.down}
                     </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      aria-label={`${labels.remove}: ${name}`}
-                      disabled={!editable}
-                      onClick={() => setChain(chain.filter((value) => value !== id))}
-                    >
-                      {labels.remove}
-                    </Button>
+                    {showMembershipControls && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        aria-label={`${labels.remove}: ${name}`}
+                        disabled={!editable}
+                        onClick={() => setChain(chain.filter((value) => value !== id))}
+                      >
+                        {labels.remove}
+                      </Button>
+                    )}
                     {item && item.capabilities.includes("settings") && (
                       <Button
                         type="button"
@@ -205,33 +230,34 @@ export function ProviderChainEditor({
             {labels.empty}
           </p>
         )}
-        {connections.some((item) => item.id !== connection.id && !shown.includes(item.id)) && (
-          <div className="flex flex-wrap gap-2">
-            {connections
-              .filter((item) => item.id !== connection.id && !shown.includes(item.id))
-              .map((item) => (
-                <Button
-                  key={item.id}
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  disabled={!editable}
-                  onClick={() => setChain([...chain, item.id])}
-                >
-                  <svg
-                    aria-hidden
-                    viewBox="0 0 16 16"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
+        {showMembershipControls &&
+          connections.some((item) => item.id !== connection.id && !shown.includes(item.id)) && (
+            <div className="flex flex-wrap gap-2">
+              {connections
+                .filter((item) => item.id !== connection.id && !shown.includes(item.id))
+                .map((item) => (
+                  <Button
+                    key={item.id}
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={!editable}
+                    onClick={() => setChain([...chain, item.id])}
                   >
-                    <path d="M8 3.5v9M3.5 8h9" strokeLinecap="round" />
-                  </svg>
-                  {labels.add}: {item.label}
-                </Button>
-              ))}
-          </div>
-        )}
+                    <svg
+                      aria-hidden
+                      viewBox="0 0 16 16"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                    >
+                      <path d="M8 3.5v9M3.5 8h9" strokeLinecap="round" />
+                    </svg>
+                    {labels.add}: {item.label}
+                  </Button>
+                ))}
+            </div>
+          )}
         <div className="border-t border-border pt-4">
           <Button
             type="button"
@@ -249,7 +275,7 @@ export function ProviderChainEditor({
             {labels.save}
           </Button>
         </div>
-        <ProviderActionFeedback action={action} />
+        <ProviderActionFeedback action={action} labels={feedback} />
       </CardContent>
     </Card>
   );

@@ -171,6 +171,10 @@ usagekit report reserve --connection search --provider serpapi --feature search 
 usagekit provider add serpapi --connection search --secret-env SERPAPI_KEY --tracking search=passthrough
 ```
 
+The local pricing resolver accepts connections only in the `local` namespace and reports
+`fundingSource: "byok"`. Embedded hosts must resolve `{ namespace, connection }` to the actual
+connection funding; request funding must match.
+
 `report reserve` can omit `--estimate` for catalogued connections. Repeat `--option key=value`
 for pricing options. Explicit estimates still override catalog prices on metered calls.
 Free/passthrough outcomes never grant a lease; the reporting CLI exits nonzero so existing

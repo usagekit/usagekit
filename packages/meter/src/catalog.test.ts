@@ -39,7 +39,7 @@ const request = (operationId = crypto.randomUUID()): MeterReserveInput => ({
   operation: "search",
 });
 
-function harness(policy: ConnectionPolicy = { provider: "search" }) {
+function harness(policy: ConnectionPolicy = { fundingSource: "byok", provider: "search" }) {
   let price = listed;
   const calls: string[] = [];
   const catalog: PricingCatalog = {
@@ -59,7 +59,8 @@ function harness(policy: ConnectionPolicy = { provider: "search" }) {
     store: createMemoryStore({ clock, budgets: [] }),
     clock,
     catalog,
-    resolveConnection: async (id) => (id === "c1" ? policy : undefined),
+    resolveConnection: async ({ namespace, connection }) =>
+      namespace === "test" && connection === "c1" ? policy : undefined,
   });
   return {
     meter,
@@ -101,7 +102,11 @@ test("catalog estimate is stored with provenance and a retry does not reprice", 
 });
 
 test("tracking passthrough and free operations are counted and never reserved", async () => {
-  const tracked = harness({ provider: "search", tracking: { search: "passthrough" } }),
+  const tracked = harness({
+      fundingSource: "byok",
+      provider: "search",
+      tracking: { search: "passthrough" },
+    }),
     i = request();
   expect(await tracked.meter.reserve(i)).toEqual({
     outcome: "passthrough",
@@ -164,7 +169,7 @@ test("an unknown operation is unpriced unless the caller supplies an estimate", 
 });
 
 test("a disabled provider is unpriced and a different provider is invalid", async () => {
-  const disabled = harness({ provider: "other" });
+  const disabled = harness({ fundingSource: "byok", provider: "other" });
   expect(
     await disabled.meter.reserve({ ...request(), provider: "other", operation: "search" }),
   ).toEqual({ outcome: "unpriced", replayed: false, operation: null });

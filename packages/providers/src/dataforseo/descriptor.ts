@@ -1,4 +1,11 @@
-import type { PriceRow, ProviderDescriptor, ProviderOperation } from "@usagekit/core";
+import type {
+  PriceCalculation,
+  PriceRow,
+  ProviderDescriptor,
+  ProviderOperation,
+} from "@usagekit/core";
+
+import { requestPricing } from "./request-pricing.js";
 
 const docs = "https://docs.dataforseo.com/v3/";
 export const serpPricing = "https://dataforseo.com/pricing/serp/google-organic-serp-api";
@@ -6,12 +13,19 @@ export const labsPricing = "https://dataforseo.com/pricing/dataforseo-labs/dataf
 export const backlinksPricing = "https://dataforseo.com/pricing/backlinks/backlinks";
 const checked = "2026-09-25";
 
-const live = (id: string, label: string, path: string): ProviderOperation => ({
+const live = (
+  id: string,
+  label: string,
+  path: string,
+  optionKeys?: readonly string[],
+): ProviderOperation => ({
   id,
   label,
   billable: true,
+  requestPricing: requestPricing[id]!,
   match: [{ method: "POST", path }],
   costEvidence: "response",
+  ...(optionKeys ? { optionKeys } : {}),
 });
 const free = (
   id: string,
@@ -46,41 +60,81 @@ const row = (
   perUnit: string,
   source: string,
   option?: Record<string, string>,
+  calculation?: PriceCalculation,
 ): PriceRow => ({
   validFrom: checked,
   operation,
   ...(option ? { option } : {}),
   unit: "cents",
   perUnit,
+  ...(calculation ? { calculation } : {}),
   source,
   checkedAt: checked,
 });
 
+// Bill each SERP of up to 10 results at the full base: base * ceil(depth / 10).
+// https://docs.dataforseo.com/v3/serp/google/organic/live/advanced/
+// https://docs.dataforseo.com/v3/serp/google/organic/task_post/
+// The pricing page multiplies for each 10 results; the cost formula charges a full page 2.
+// https://dataforseo.com/pricing/serp/google-organic-serp-api
+// https://dataforseo.com/help-center/serp-api-cost-explained
+// The conflicting 25% later-page discount can only lower the charge, so do not apply it.
+// Unreturned results are refunded: full base per page is a conservative upper bound
+// that never under-reserves; omitted depth still means one page.
+// https://dataforseo.com/help-center/above-100-results-with-serp-api
+const pages: PriceCalculation = {
+  kind: "additional_pages",
+  depthOption: "depth",
+  pageSize: 10,
+  additionalPageFactor: "1",
+};
+const items = (perItem: string, clickstream = true): PriceCalculation => ({
+  kind: "base_plus_items",
+  itemCountOption: "itemCount",
+  perItem,
+  ...(clickstream ? { multiplierOption: { key: "clickstream", value: "true", factor: "2" } } : {}),
+});
+
 /**
  * Provider A: cost per call in every response, prepaid money balance, basic auth. List prices
- * are the per-task base price in cents; per-result charges, depth multipliers and paid
- * parameters come from the receipt.
+ * include request formulas in cents. Actual settlement continues to use response evidence.
+ * Formulas preserve host characterization values; the existing check date is not refreshed.
  */
 export const descriptor: ProviderDescriptor = {
   id: "dataforseo",
   label: "DataForSEO",
   upstream: "https://api.dataforseo.com",
+  pricingInputs: ["body"],
   auth: { kind: "basic" },
   stripRequestHeaders: ["authorization"],
   billing: { unit: "cents", cycle: "prepaid" },
   plans: [{ id: "prepaid", label: "Prepaid balance", cycle: "prepaid", allowanceMode: "hard" }],
   prices: [
-    row("serp.google.organic.live.advanced", "0.2", serpPricing),
-    row("serp.google.organic.task_post", "0.06", serpPricing, { priority: "normal" }),
-    row("serp.google.organic.task_post", "0.12", serpPricing, { priority: "high" }),
+    row("serp.google.organic.live.advanced", "0.2", serpPricing, undefined, pages),
+    row("serp.google.organic.task_post", "0.06", serpPricing, { priority: "normal" }, pages),
+    row("serp.google.organic.task_post", "0.12", serpPricing, { priority: "high" }, pages),
     ...labs.map(([name]) =>
       row(
         `dataforseo_labs.google.${name}.live`,
         name === "historical_rank_overview" ? "12" : "1.2",
         labsPricing,
+        undefined,
+        // Per-request plus per-item, including ranked_keywords/domain_rank_overview.
+        // https://dataforseo.com/pricing/dataforseo-labs/dataforseo-google-api
+        items(name === "historical_rank_overview" ? "0.12" : "0.012"),
       ),
     ),
-    ...backlinks.map(([name]) => row(`backlinks.${name}.live`, "2.4", backlinksPricing)),
+    ...backlinks.map(([name]) =>
+      row(
+        `backlinks.${name}.live`,
+        "2.4",
+        backlinksPricing,
+        undefined,
+        // Every returned row is billed, including summary and history.
+        // https://dataforseo.com/pricing/backlinks/backlinks
+        items("0.0036", false),
+      ),
+    ),
   ],
   priceList: {
     kind: "endpoint",
@@ -93,14 +147,16 @@ export const descriptor: ProviderDescriptor = {
       "serp.google.organic.live.advanced",
       "Google organic SERP, live advanced",
       "/v3/serp/google/organic/live/advanced",
+      ["depth"],
     ),
     {
       id: "serp.google.organic.task_post",
       label: "Google organic SERP, task post",
       billable: true,
       match: [{ method: "POST", path: "/v3/serp/google/organic/task_post" }],
-      optionKeys: ["priority"],
+      optionKeys: ["priority", "depth"],
       costEvidence: "deferred",
+      requestPricing: requestPricing["serp.google.organic.task_post"]!,
     },
     free(
       "serp.google.organic.tasks_ready",
@@ -115,10 +171,15 @@ export const descriptor: ProviderDescriptor = {
       "/v3/serp/google/organic/task_get/advanced/:id",
     ),
     ...labs.map(([name, label]) =>
-      live(`dataforseo_labs.google.${name}.live`, label, `/v3/dataforseo_labs/google/${name}/live`),
+      live(
+        `dataforseo_labs.google.${name}.live`,
+        label,
+        `/v3/dataforseo_labs/google/${name}/live`,
+        ["itemCount", "clickstream"],
+      ),
     ),
     ...backlinks.map(([name, label]) =>
-      live(`backlinks.${name}.live`, label, `/v3/backlinks/${name}/live`),
+      live(`backlinks.${name}.live`, label, `/v3/backlinks/${name}/live`, ["itemCount"]),
     ),
     free(
       "appendix.user_data",

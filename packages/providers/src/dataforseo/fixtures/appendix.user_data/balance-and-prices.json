@@ -235,7 +235,13 @@
           "unit": "cents",
           "perUnit": "0.2",
           "source": "https://docs.dataforseo.com/v3/appendix/user_data/",
-          "checkedAt": "2026-09-25"
+          "checkedAt": "2026-09-25",
+          "calculation": {
+            "kind": "additional_pages",
+            "depthOption": "depth",
+            "pageSize": 10,
+            "additionalPageFactor": "1"
+          }
         },
         {
           "validFrom": "2026-09-25",
@@ -246,7 +252,13 @@
           "unit": "cents",
           "perUnit": "0.06",
           "source": "https://docs.dataforseo.com/v3/appendix/user_data/",
-          "checkedAt": "2026-09-25"
+          "checkedAt": "2026-09-25",
+          "calculation": {
+            "kind": "additional_pages",
+            "depthOption": "depth",
+            "pageSize": 10,
+            "additionalPageFactor": "1"
+          }
         },
         {
           "validFrom": "2026-09-25",
@@ -257,7 +269,13 @@
           "unit": "cents",
           "perUnit": "0.12",
           "source": "https://docs.dataforseo.com/v3/appendix/user_data/",
-          "checkedAt": "2026-09-25"
+          "checkedAt": "2026-09-25",
+          "calculation": {
+            "kind": "additional_pages",
+            "depthOption": "depth",
+            "pageSize": 10,
+            "additionalPageFactor": "1"
+          }
         },
         {
           "validFrom": "2026-09-25",
@@ -265,7 +283,17 @@
           "unit": "cents",
           "perUnit": "1.2",
           "source": "https://docs.dataforseo.com/v3/appendix/user_data/",
-          "checkedAt": "2026-09-25"
+          "checkedAt": "2026-09-25",
+          "calculation": {
+            "kind": "base_plus_items",
+            "itemCountOption": "itemCount",
+            "perItem": "0.012",
+            "multiplierOption": {
+              "key": "clickstream",
+              "value": "true",
+              "factor": "2"
+            }
+          }
         },
         {
           "validFrom": "2026-09-25",
@@ -273,7 +301,17 @@
           "unit": "cents",
           "perUnit": "1.2",
           "source": "https://docs.dataforseo.com/v3/appendix/user_data/",
-          "checkedAt": "2026-09-25"
+          "checkedAt": "2026-09-25",
+          "calculation": {
+            "kind": "base_plus_items",
+            "itemCountOption": "itemCount",
+            "perItem": "0.012",
+            "multiplierOption": {
+              "key": "clickstream",
+              "value": "true",
+              "factor": "2"
+            }
+          }
         },
         {
           "validFrom": "2026-09-25",
@@ -281,7 +319,17 @@
           "unit": "cents",
           "perUnit": "1.2",
           "source": "https://docs.dataforseo.com/v3/appendix/user_data/",
-          "checkedAt": "2026-09-25"
+          "checkedAt": "2026-09-25",
+          "calculation": {
+            "kind": "base_plus_items",
+            "itemCountOption": "itemCount",
+            "perItem": "0.012",
+            "multiplierOption": {
+              "key": "clickstream",
+              "value": "true",
+              "factor": "2"
+            }
+          }
         },
         {
           "validFrom": "2026-09-25",
@@ -289,7 +337,17 @@
           "unit": "cents",
           "perUnit": "1.2",
           "source": "https://docs.dataforseo.com/v3/appendix/user_data/",
-          "checkedAt": "2026-09-25"
+          "checkedAt": "2026-09-25",
+          "calculation": {
+            "kind": "base_plus_items",
+            "itemCountOption": "itemCount",
+            "perItem": "0.012",
+            "multiplierOption": {
+              "key": "clickstream",
+              "value": "true",
+              "factor": "2"
+            }
+          }
         },
         {
           "validFrom": "2026-09-25",
@@ -297,7 +355,17 @@
           "unit": "cents",
           "perUnit": "1.2",
           "source": "https://docs.dataforseo.com/v3/appendix/user_data/",
-          "checkedAt": "2026-09-25"
+          "checkedAt": "2026-09-25",
+          "calculation": {
+            "kind": "base_plus_items",
+            "itemCountOption": "itemCount",
+            "perItem": "0.012",
+            "multiplierOption": {
+              "key": "clickstream",
+              "value": "true",
+              "factor": "2"
+            }
+          }
         },
         {
           "validFrom": "2026-09-25",
@@ -305,7 +373,17 @@
           "unit": "cents",
           "perUnit": "1.2",
           "source": "https://docs.dataforseo.com/v3/appendix/user_data/",
-          "checkedAt": "2026-09-25"
+          "checkedAt": "2026-09-25",
+          "calculation": {
+            "kind": "base_plus_items",
+            "itemCountOption": "itemCount",
+            "perItem": "0.012",
+            "multiplierOption": {
+              "key": "clickstream",
+              "value": "true",
+              "factor": "2"
+            }
+          }
         },
         {
           "validFrom": "2026-09-25",
@@ -313,7 +391,17 @@
           "unit": "cents",
           "perUnit": "12",
           "source": "https://docs.dataforseo.com/v3/appendix/user_data/",
-          "checkedAt": "2026-09-25"
+          "checkedAt": "2026-09-25",
+          "calculation": {
+            "kind": "base_plus_items",
+            "itemCountOption": "itemCount",
+            "perItem": "0.12",
+            "multiplierOption": {
+              "key": "clickstream",
+              "value": "true",
+              "factor": "2"
+            }
+          }
         },
         {
           "validFrom": "2026-09-25",
@@ -321,7 +409,17 @@
           "unit": "cents",
           "perUnit": "1.2",
           "source": "https://docs.dataforseo.com/v3/appendix/user_data/",
-          "checkedAt": "2026-09-25"
+          "checkedAt": "2026-09-25",
+          "calculation": {
+            "kind": "base_plus_items",
+            "itemCountOption": "itemCount",
+            "perItem": "0.012",
+            "multiplierOption": {
+              "key": "clickstream",
+              "value": "true",
+              "factor": "2"
+            }
+          }
         },
         {
           "validFrom": "2026-09-25",
@@ -329,7 +427,12 @@
           "unit": "cents",
           "perUnit": "2.4",
           "source": "https://docs.dataforseo.com/v3/appendix/user_data/",
-          "checkedAt": "2026-09-25"
+          "checkedAt": "2026-09-25",
+          "calculation": {
+            "kind": "base_plus_items",
+            "itemCountOption": "itemCount",
+            "perItem": "0.0036"
+          }
         },
         {
           "validFrom": "2026-09-25",
@@ -337,7 +440,12 @@
           "unit": "cents",
           "perUnit": "2.4",
           "source": "https://docs.dataforseo.com/v3/appendix/user_data/",
-          "checkedAt": "2026-09-25"
+          "checkedAt": "2026-09-25",
+          "calculation": {
+            "kind": "base_plus_items",
+            "itemCountOption": "itemCount",
+            "perItem": "0.0036"
+          }
         },
         {
           "validFrom": "2026-09-25",
@@ -345,7 +453,12 @@
           "unit": "cents",
           "perUnit": "2.4",
           "source": "https://docs.dataforseo.com/v3/appendix/user_data/",
-          "checkedAt": "2026-09-25"
+          "checkedAt": "2026-09-25",
+          "calculation": {
+            "kind": "base_plus_items",
+            "itemCountOption": "itemCount",
+            "perItem": "0.0036"
+          }
         }
       ]
     }

@@ -202,6 +202,9 @@ test("HTTP intent survives server restart and budget enforcement continues", asy
       },
     });
   try {
+    s.vault.unlock("test-passphrase");
+    s.vault.put("example", "c", "test-secret");
+    s.vault.lock();
     await fetch(s.url + "/budgets", {
       method: "PUT",
       headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
@@ -262,6 +265,9 @@ test("provider and budget input errors are safe and locked vault leaves metering
       body: JSON.stringify(body),
     });
   try {
+    s.vault.unlock("test-passphrase");
+    s.vault.put("example", "c", "test-secret");
+    s.vault.lock();
     for (const bad of [
       null,
       [],

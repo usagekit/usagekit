@@ -14,6 +14,7 @@ export type { RemoteOptions } from "./transport.js";
 export function createRemoteMeter(options: RemoteOptions): Meter {
   const request = transport(options);
   return {
+    quote: (_access, q) => request("quote", q, true),
     importBilling: (_access, i) => request("importBilling", i),
     billingImports: (_access, q) => request("billingImports", q, true),
     expireReservations: (i) => request("expire", i),

@@ -1,6 +1,7 @@
 import { sourcesOf, normalizeTags } from "@usagekit/core";
 import type {
   EstimateSource,
+  MeterQuoteInput,
   ValidationFailure,
   ReserveInput,
   UsageQuery,
@@ -94,4 +95,50 @@ export function provenanceValidation(i: { estimateSource?: string }): Validation
 }
 export function requestCountsValidation(q: RequestCountsQuery): ValidationFailure | null {
   return validate(q) ?? windowValidation(q);
+}
+
+/** Validate the quote's required domain fields before touching policy or Store. */
+export function quoteValidation(i: MeterQuoteInput): ValidationFailure | null {
+  if (!i || typeof i !== "object" || !i.scope || typeof i.scope !== "object")
+    return { outcome: "invalid", field: "scope", reason: "required scope" };
+  for (const [field, value] of Object.entries({
+    namespace: i.scope.namespace,
+    principal: i.scope.principal,
+    connection: i.scope.connection,
+    costOwner: i.costOwner,
+    provider: i.provider,
+    operation: i.operation,
+  }))
+    if (typeof value !== "string" || !value.trim())
+      return { outcome: "invalid", field, reason: "required nonempty string" };
+  if (!["byok", "platform"].includes(i.fundingSource))
+    return { outcome: "invalid", field: "fundingSource", reason: "unknown funding source" };
+  if (!sourcesOf(i.surface)?.includes(i.source) || i.source === "import")
+    return { outcome: "invalid", field: "source", reason: "invalid quote source" };
+  if (i.estimate !== undefined && !Array.isArray(i.estimate))
+    return { outcome: "invalid", field: "estimate", reason: "expected quantities" };
+  if (
+    i.estimate?.some(
+      (q) =>
+        !q ||
+        typeof q !== "object" ||
+        typeof q.unit !== "string" ||
+        !q.unit.trim() ||
+        typeof q.value !== "bigint" ||
+        !Number.isInteger(q.scale),
+    )
+  )
+    return { outcome: "invalid", field: "estimate", reason: "expected exact quantities" };
+  if (
+    i.options !== undefined &&
+    (typeof i.options !== "object" ||
+      i.options === null ||
+      Array.isArray(i.options) ||
+      Object.values(i.options).some((x) => typeof x !== "string"))
+  )
+    return { outcome: "invalid", field: "options", reason: "expected string options" };
+  return (
+    reserveValidation({ ...i, operationId: "quote", estimate: i.estimate ?? [] }) ??
+    provenanceValidation(i)
+  );
 }

@@ -44,6 +44,7 @@ export async function resolvePricing(
     }
   return {
     ...policy,
+    fundingSource: "byok",
     ...(manualPrices ? { manualPrices } : {}),
     measured(operation) {
       const values = samples.get(operation);

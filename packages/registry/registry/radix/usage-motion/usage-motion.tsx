@@ -164,6 +164,19 @@ export function UsageSegmented<T extends string>({
   );
 }
 
+/** Keep focus on the moved row when its triggering button becomes disabled. */
+export function retainMovedRowFocus(button: HTMLButtonElement) {
+  requestAnimationFrame(() => {
+    if (
+      !button.isConnected ||
+      !button.disabled ||
+      (document.activeElement !== document.body && document.activeElement !== button)
+    )
+      return;
+    button.closest("li")?.querySelector<HTMLButtonElement>("button:not(:disabled)")?.focus();
+  });
+}
+
 export type UsageNoticeTone = "positive" | "warning" | "error" | "neutral";
 
 const noticeClass: Record<UsageNoticeTone, string> = {

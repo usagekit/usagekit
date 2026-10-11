@@ -1,4 +1,7 @@
 "use client";
+import { ControlledSourceSelector } from "@/components/usagekit/provider-source-control";
+import type { ControlledSourceProps } from "@/components/usagekit/provider-source-control";
+export type { ControlledSourceProps } from "@/components/usagekit/provider-source-control";
 import { useState } from "react";
 import { useProviderAction } from "@usagekit/react";
 import type { ProviderAction } from "@usagekit/react";
@@ -6,31 +9,47 @@ import type { FundingSource } from "@usagekit/core";
 import type { ProviderConnection } from "@usagekit/views";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { fundingLabel, ProviderActionFeedback } from "@/components/usagekit/provider-feedback";
+import {
+  fundingLabel,
+  ProviderActionFeedback,
+  providerFeedbackLabels,
+} from "@/components/usagekit/provider-feedback";
+import type { ProviderFeedbackLabels } from "@/components/usagekit/provider-feedback";
 import { UsageStatus, usageMotion } from "@/components/usagekit/usage-motion";
-export const providerSourceLabels = {
-  title: "Funding source",
-  description: "Provider account charges and host credit charges remain separate.",
-  confirm: "Confirm funding change",
-  cancel: "Cancel",
-  confirmation: "Change the funding source to",
-  current: "Current",
-};
-export type ProviderSourceLabels = typeof providerSourceLabels;
-export function ProviderSourceSelector({
-  connection,
-  action: guardedAction,
-  sources,
-  description,
-  labels: custom,
-}: {
+export { providerSourceLabels } from "@/components/usagekit/provider-source-control";
+import { providerSourceLabels } from "@/components/usagekit/provider-source-control";
+import type { ProviderSourceLabels } from "@/components/usagekit/provider-source-control";
+export type { ProviderSourceLabels } from "@/components/usagekit/provider-source-control";
+type SourceProps = {
+  mode?: "connection";
   connection: ProviderConnection;
   action?: ProviderAction;
   sources: readonly FundingSource[];
   description?: string;
   labels?: Partial<ProviderSourceLabels>;
-}) {
+  feedbackLabels?: Partial<ProviderFeedbackLabels>;
+};
+export function ProviderSourceSelector(props: SourceProps | ControlledSourceProps) {
+  if (props.mode === "controlled")
+    return (
+      <ControlledSourceSelector
+        key={`${props.identity ?? ""}:${props.value}`}
+        {...props}
+        labels={{ ...providerSourceLabels, ...props.labels }}
+      />
+    );
+  return <ConnectionSourceSelector {...props} />;
+}
+function ConnectionSourceSelector({
+  connection,
+  action: guardedAction,
+  sources,
+  description,
+  labels: custom,
+  feedbackLabels,
+}: SourceProps) {
   const labels = { ...providerSourceLabels, ...custom };
+  const feedback = { ...providerFeedbackLabels, ...feedbackLabels };
   const sharedAction = useProviderAction();
   const action = guardedAction ?? sharedAction;
   const [selected, setSelected] = useState<FundingSource | null>(null);
@@ -50,7 +69,7 @@ export function ProviderSourceSelector({
         <p className="cn-usage-body flex flex-wrap items-center gap-2">
           <span className="text-muted-foreground">{labels.current}</span>
           <UsageStatus key={connection.fundingSource} tone="positive" className={usageMotion.enter}>
-            {fundingLabel(connection.fundingSource)}
+            {fundingLabel(connection.fundingSource, feedback)}
           </UsageStatus>
         </p>
         <div className="flex flex-wrap gap-2">
@@ -69,7 +88,7 @@ export function ProviderSourceSelector({
               disabled={!editable || source === connection.fundingSource}
               onClick={() => setSelected(source)}
             >
-              {fundingLabel(source)}
+              {fundingLabel(source, feedback)}
             </Button>
           ))}
         </div>
@@ -79,7 +98,7 @@ export function ProviderSourceSelector({
             className={`cn-usage-panel flex flex-wrap items-center justify-between gap-3 border border-border bg-muted/50 ${usageMotion.enter}`}
           >
             <p className="cn-usage-title font-medium">
-              {labels.confirmation} {fundingLabel(selected)}?
+              {labels.confirmation} {fundingLabel(selected, feedback)}?
             </p>
             <div className="flex flex-wrap gap-2">
               <Button
@@ -105,7 +124,7 @@ export function ProviderSourceSelector({
             </div>
           </div>
         )}
-        <ProviderActionFeedback action={action} />
+        <ProviderActionFeedback action={action} labels={feedback} />
       </CardContent>
     </Card>
   );

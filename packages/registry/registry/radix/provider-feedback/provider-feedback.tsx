@@ -1,6 +1,6 @@
 "use client";
 import { parseProviderDecimal } from "@usagekit/views";
-import type { Figure } from "@usagekit/views";
+import type { Figure, ProviderReconciliation } from "@usagekit/views";
 import type { useProviderAction } from "@usagekit/react";
 import { Button } from "@/components/ui/button";
 import { UsageNotice, UsageSpinner, usageMotion } from "@/components/usagekit/usage-motion";
@@ -11,6 +11,7 @@ export const providerFeedbackLabels = {
   pending: "Applying change…",
   success: "Change applied.",
   forbidden: "You cannot make this change.",
+  invalid: "Check the supplied values.",
   conflict: "This connection changed elsewhere. Reload its latest settings before editing.",
   unknown: "The result is unknown. Check its status before making another change.",
   reconcile: "Check change status",
@@ -27,6 +28,30 @@ export const providerFeedbackLabels = {
   cents: "cents",
 };
 export type ProviderFeedbackLabels = typeof providerFeedbackLabels;
+/** Content-free host code and parameters. The formatter owns localization and safe labels. */
+export type ProviderFeedbackMessage = {
+  code: string;
+  params?: Readonly<Record<string, string | number | boolean | null>>;
+};
+export type ProviderFeedbackSubject =
+  | { kind: "action"; result: ProviderReconciliation | null; ambiguous: boolean }
+  | { kind: "read"; state: string; error: { message?: string; kind?: string } | null };
+type StructuredFeedbackProps = {
+  message?:
+    | ProviderFeedbackMessage
+    | ((subject: ProviderFeedbackSubject) => ProviderFeedbackMessage | null);
+  formatMessage?: (message: ProviderFeedbackMessage) => string;
+};
+function feedbackText(
+  props: StructuredFeedbackProps,
+  subject: ProviderFeedbackSubject,
+  fallback: string | null,
+  standard: string,
+) {
+  if (fallback === null) return null;
+  const message = typeof props.message === "function" ? props.message(subject) : props.message;
+  return message ? (props.formatMessage?.(message) ?? standard) : fallback;
+}
 export function fundingLabel(
   value: "byok" | "platform",
   labels: Pick<ProviderFeedbackLabels, "own" | "platform"> = providerFeedbackLabels,
@@ -44,7 +69,7 @@ export function figureText(
     ? labels.unavailableValue
     : figure.certainty === "unknown"
       ? labels.unknownValue
-      : `${figure.certainty === "estimated" ? `${labels.estimated} ` : ""}${figure.text} ${figure.unit === "customer_cents" ? labels.cents : figure.unit}`;
+      : `${figure.certainty === "estimated" ? `${labels.estimated} ` : ""}${figure.text} ${figure.unit === "customer_cents" || figure.unit === "cents" ? labels.cents : figure.unit}`;
 }
 /** Usagekit money is USD cents; dollars move the decimal point two places, never through a number. */
 function dollarDigits(cents: string) {
@@ -85,42 +110,74 @@ export function centsFromUsd(text: string, maximumScale = 6) {
   return cents.scale ? `${digits.slice(0, -cents.scale)}.${digits.slice(-cents.scale)}` : digits;
 }
 /** ISO instants read as "2026-10-07 10:00 UTC"; any other host text is shown unchanged. */
-export function ProviderTime({ value }: { value: string }) {
+export function ProviderTime({
+  value,
+  formatTime,
+}: {
+  value: string;
+  formatTime?: (iso: string) => string;
+}) {
   const iso = /^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})(:\d{2}(\.\d+)?)?Z$/.exec(value);
-  return <time dateTime={value}>{iso ? `${iso[1]} ${iso[2]} UTC` : value}</time>;
+  return (
+    <time dateTime={value}>{formatTime?.(value) ?? (iso ? `${iso[1]} ${iso[2]} UTC` : value)}</time>
+  );
 }
 export function ProviderActionFeedback({
   action,
+  showReadOnly = true,
   labels: custom,
+  message: structured,
+  formatMessage,
 }: {
   action: ReturnType<typeof useProviderAction>;
+  showReadOnly?: boolean;
   labels?: Partial<ProviderFeedbackLabels>;
-}) {
+} & StructuredFeedbackProps) {
   const labels = { ...providerFeedbackLabels, ...custom };
   const result = action.result;
-  const message = action.ambiguous
+  const fallback = action.ambiguous
     ? labels.unknown
     : result?.outcome === "success"
       ? (result.message ?? labels.success)
       : result?.outcome === "invalid"
         ? `${result.field}: ${result.reason}`
         : result?.outcome === "conflict"
-          ? `${labels.conflict} ${result.reason}`
+          ? labels.conflict
           : result?.outcome === "forbidden"
             ? labels.forbidden
             : result?.outcome === "unavailable"
               ? result.message
               : null;
+  const standard = action.ambiguous
+    ? labels.unknown
+    : result?.outcome === "success"
+      ? labels.success
+      : result?.outcome === "conflict"
+        ? labels.conflict
+        : result?.outcome === "forbidden"
+          ? labels.forbidden
+          : result?.outcome === "invalid"
+            ? labels.invalid
+            : labels.unavailable;
+  const message = action.pending
+    ? null
+    : feedbackText(
+        { message: structured, formatMessage },
+        { kind: "action", result, ambiguous: action.ambiguous },
+        fallback,
+        standard,
+      );
   const tone: UsageNoticeTone =
     result?.outcome === "success" && !action.ambiguous
       ? "positive"
       : action.ambiguous || result?.outcome === "conflict"
         ? "warning"
         : "error";
-  if (action.canWrite && !action.pending && !message && !action.ambiguous) return null;
+  if ((action.canWrite || !showReadOnly) && !action.pending && !message && !action.ambiguous)
+    return null;
   return (
     <div className="min-w-0 space-y-2.5">
-      {!action.canWrite && (
+      {!action.canWrite && showReadOnly && (
         <p role="status" className="cn-usage-body text-muted-foreground">
           {labels.readOnly}
         </p>
@@ -147,7 +204,9 @@ export function ProviderActionFeedback({
           size="sm"
           disabled={action.pending}
           className={usageMotion.enter}
-          onClick={() => void action.reconcile()}
+          onClick={() => {
+            if (!action.pending) void action.reconcile();
+          }}
         >
           {labels.reconcile}
         </Button>
@@ -161,14 +220,33 @@ export function ProviderReadFeedback({
   refresh,
   disabled = false,
   labels: custom,
+  message: structured,
+  formatMessage,
 }: {
   state: string;
   error?: { message?: string; kind?: string } | null;
   refresh: () => void;
   disabled?: boolean;
   labels?: Partial<ProviderFeedbackLabels>;
-}) {
+} & StructuredFeedbackProps) {
   const labels = { ...providerFeedbackLabels, ...custom };
+  const standard =
+    state === "forbidden"
+      ? labels.forbidden
+      : state === "empty"
+        ? labels.empty
+        : labels.unavailable;
+  const fallback =
+    state === "forbidden" || state === "empty" ? standard : (error?.message ?? standard);
+  const message =
+    state === "loading"
+      ? labels.loading
+      : feedbackText(
+          { message: structured, formatMessage },
+          { kind: "read", state, error: error ?? null },
+          fallback,
+          standard,
+        );
   return (
     <div
       role="status"
@@ -176,13 +254,7 @@ export function ProviderReadFeedback({
     >
       <p className="flex min-w-0 items-center gap-2 text-muted-foreground">
         {state === "loading" && <UsageSpinner />}
-        {state === "loading"
-          ? labels.loading
-          : state === "forbidden"
-            ? labels.forbidden
-            : state === "empty"
-              ? labels.empty
-              : (error?.message ?? labels.unavailable)}
+        {message}
       </p>
       {state !== "loading" && (
         <Button type="button" variant="outline" size="sm" disabled={disabled} onClick={refresh}>

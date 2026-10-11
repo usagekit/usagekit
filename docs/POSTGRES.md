@@ -1,7 +1,7 @@
 # Postgres Store
 
-`@usagekit/store-postgres` is published at 0.8.0 in the seven-package cohort, without functional
-changes from 0.6.0. It implements
+`@usagekit/store-postgres` is published at 0.8.0 in the seven-package cohort and moves to 0.9.0
+in lockstep, without functional changes from 0.6.0. It implements
 the complete Store contract, including billing imports, using normalized Postgres tables.
 Install the published exact version anonymously, or use the reviewed candidate tarballs
 when validating an unreleased checkout. See [consuming packages](CONSUMING.md) for the

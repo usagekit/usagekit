@@ -21,7 +21,6 @@ export type {
 export { proposePlanBudget } from "./budget.js";
 export type { BudgetTarget } from "./budget.js";
 export { listEstimate, selectPriceRow } from "./prices.js";
-export { matchOperation } from "./match.js";
 export { pointer } from "./pointer.js";
 export {
   decimalQuantity,
@@ -39,3 +38,12 @@ export { executeProviderRequest } from "./execute.js";
 export type { ProviderExecution, ProviderExecutionInput } from "./execute.js";
 export { parseBillingExport } from "./billing.js";
 export type { ParsedBillingExport } from "./billing.js";
+
+export {
+  PricedRequest,
+  RequestPricingError,
+  dispatchPricedRequest,
+  applyProviderCredentials,
+  isJsonMediaType,
+} from "./priced-request.js";
+export type { RequestPricingInput, ProviderCredentials } from "./priced-request.js";

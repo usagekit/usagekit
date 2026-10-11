@@ -1,6 +1,6 @@
 {
   "name": "@usagekit/meter",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "type": "module",
   "license": "Apache-2.0",
   "description": "Admission, reservations, settlement and recovery.",
@@ -23,8 +23,8 @@
     "prepack": "node ../../scripts/package-license.mjs"
   },
   "dependencies": {
-    "@usagekit/core": "0.8.0",
-    "@usagekit/store": "0.8.0"
+    "@usagekit/core": "0.9.0",
+    "@usagekit/store": "0.9.0"
   },
   "sideEffects": false,
   "publishConfig": {

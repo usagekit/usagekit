@@ -1,7 +1,14 @@
-import { describe, expect, test } from "vitest";
+import { describe, expect, test, vi } from "vitest";
 import { validateBudget } from "@usagekit/store";
 import type { ProviderDescriptor, Quantity } from "@usagekit/core";
-import { createCatalog, decimalQuantity, pointer, selectPriceRow } from "./index.js";
+import {
+  createCatalog,
+  dataforseo,
+  serpapi,
+  decimalQuantity,
+  pointer,
+  selectPriceRow,
+} from "./index.js";
 import type { CatalogConnection, ProviderRequest } from "./index.js";
 import { exampleDescriptor, exampleProvider } from "./testing/index.js";
 
@@ -64,13 +71,22 @@ describe("match", () => {
     expect(catalog.match("missing", get("/search"))).toEqual({ operation: "unknown" });
     expect(disabled.operationsOf("example")).toEqual([]);
     expect(
-      disabled.estimate({ id: "c", provider: "example", plan: "basic" }, "search", {}),
+      disabled.estimate(
+        { id: "c", provider: "example", fundingSource: "byok" as const, plan: "basic" },
+        "search",
+        {},
+      ),
     ).toEqual({ quantities: [request], source: "unknown" });
   });
 });
 
 describe("estimate", () => {
-  const connection: CatalogConnection = { id: "c1", provider: "example", plan: "basic" };
+  const connection: CatalogConnection = {
+    id: "c1",
+    provider: "example",
+    fundingSource: "byok" as const,
+    plan: "basic",
+  };
   const estimate = (c: Partial<CatalogConnection>, op = "search", options = {}) =>
     catalog.estimate({ ...connection, ...c }, op, options);
 
@@ -80,18 +96,20 @@ describe("estimate", () => {
         manualPrices: { search: q(25n, "cents", 2) },
         measured: () => ({ quantity: q(9n, "cents"), samples: 50 }),
       }),
-    ).toEqual({ quantities: [q(25n, "cents", 2), request], source: "manual" });
+    ).toEqual({ quantities: [q(25n, "cents", 2), q(1n, "units"), request], source: "manual" });
   });
 
   test("measured is used with at least the minimum sample, otherwise the list price", () => {
     expect(estimate({ measured: () => ({ quantity: q(3n, "units"), samples: 5 }) })).toEqual({
       quantities: [q(3n, "units"), request],
       source: "measured",
+      sampleSize: 5,
     });
     expect(estimate({ measured: () => ({ quantity: q(3n, "units"), samples: 4 }) })).toEqual({
       quantities: [q(1n, "units"), request],
       source: "list",
       priceVersion: "example:2026-01-01",
+      checkedAt: "2026-09-25",
     });
   });
 
@@ -111,6 +129,7 @@ describe("estimate", () => {
       quantities: [q(30n, "cents", 2), request],
       source: "list",
       priceVersion: "example:2026-01-01",
+      checkedAt: "2026-09-25",
     });
     const later = createCatalog({
       providers: [exampleProvider],
@@ -363,4 +382,80 @@ describe("catalog construction and helpers", () => {
       }),
     ).toMatchObject({ perUnit: "2", option: { priority: "high" } });
   });
+});
+
+test.each(
+  [[], ["body"], ["query"], ["body", "query"]].map((pricingInputs) => ({
+    pricingInputs: pricingInputs as ("body" | "query")[],
+  })),
+)("catalog enforces declared pricing inputs $pricingInputs", ({ pricingInputs }) => {
+  const options = vi.fn(() => ({}));
+  const module = {
+    ...exampleProvider,
+    descriptor: {
+      ...exampleDescriptor,
+      pricingInputs,
+      operations: exampleDescriptor.operations.filter((op) => op.id !== "search.images"),
+      prices: exampleDescriptor.prices.filter((row) => row.operation !== "search.images"),
+    },
+    extractors: { ...exampleProvider.extractors, options },
+  };
+  const c = createCatalog({ providers: [module], enabled: ["example"] });
+  const full = { ...get("/search?priority=high"), body: { private: "body" } };
+  c.match("example", full);
+  const view = options.mock.calls[0] as unknown as [unknown, ProviderRequest];
+  expect(view[1].body).toEqual(pricingInputs.includes("body") ? full.body : undefined);
+  expect(new URL(view[1].url).search).toBe(pricingInputs.includes("query") ? "?priority=high" : "");
+  expect(full.body).toEqual({ private: "body" });
+  expect(full.url).toContain("?priority=high");
+});
+
+test("query match constraints cannot read undeclared query input", () => {
+  const descriptor = structuredClone(exampleDescriptor);
+  const c = createCatalog({
+    providers: [{ ...exampleProvider, descriptor }],
+    enabled: ["example"],
+  });
+  // Mutation after validation also cannot bypass the projection in catalog.match.
+  descriptor.pricingInputs = [];
+  expect(c.match("example", get("/search?engine=images"))).toMatchObject({
+    operation: { id: "search" },
+  });
+});
+
+test("catalog rejects descriptors with undeclared query match constraints", () => {
+  expect(() =>
+    createCatalog({
+      providers: [{ ...exampleProvider, descriptor: { ...exampleDescriptor, pricingInputs: [] } }],
+      enabled: ["example"],
+    }),
+  ).toThrow("undeclared_query_input");
+});
+
+test.each(["/search?engine=images&engine=web", "/search?x=1&%78=2", "/nothing?x=1&x=2"])(
+  "declared query rejects duplicate keys: %s",
+  (path) => {
+    expect(() => catalog.match("example", get(path))).toThrow("InvalidInput:");
+  },
+);
+
+test("bundled descriptors declare exactly what pricing reads", () => {
+  expect(dataforseo.descriptor.pricingInputs).toEqual(["body"]);
+  expect(serpapi.descriptor.pricingInputs).toEqual([]);
+  expect(exampleDescriptor.pricingInputs).toEqual(["query"]);
+});
+
+test("receipt extraction keeps full request inputs even when pricing hides them", () => {
+  const extract = vi.fn(exampleProvider.extractors.extract);
+  const c = createCatalog({
+    providers: [{ ...serpapi, extractors: { ...serpapi.extractors, extract } }],
+    enabled: ["serpapi"],
+  });
+  const request = {
+    method: "POST",
+    url: "https://serpapi.com/search.json?q=kept",
+    body: { kept: true },
+  };
+  c.extract("serpapi", "search", request, { status: 200 }, {});
+  expect(extract.mock.calls[0]?.[1]).toBe(request);
 });

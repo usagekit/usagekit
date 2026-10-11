@@ -1,5 +1,7 @@
 "use client";
 
+import { useId } from "react";
+
 import {
   Select,
   SelectContent,
@@ -50,8 +52,9 @@ function Filter({
   options: readonly FilterOption[];
   onChange: (value: string) => void;
 }) {
+  const id = useId();
   return (
-    <label className="flex flex-col gap-1.5">
+    <label htmlFor={id} className="flex flex-col gap-1.5">
       <span className="text-xs font-medium text-muted-foreground">{label}</span>
       <Select
         value={value}
@@ -60,7 +63,7 @@ function Filter({
           if (next !== null) onChange(next);
         }}
       >
-        <SelectTrigger aria-label={label} className="min-w-40">
+        <SelectTrigger id={id} aria-label={label} className="min-w-40">
           <SelectValue placeholder={placeholder} />
         </SelectTrigger>
         <SelectContent>

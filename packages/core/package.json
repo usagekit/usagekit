@@ -1,6 +1,6 @@
 {
   "name": "@usagekit/core",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "type": "module",
   "license": "Apache-2.0",
   "description": "Exact quantities, ownership and pure domain types.",

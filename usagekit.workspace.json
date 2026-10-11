@@ -170,7 +170,9 @@
     "esbuild",
     "@usagekit/store-d1",
     "pg",
-    "@prisma/adapter-pg"
+    "@prisma/adapter-pg",
+    "react-dom",
+    "prettier"
   ],
   "publishable": [
     "@usagekit/core",

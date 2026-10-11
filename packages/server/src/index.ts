@@ -87,7 +87,10 @@ async function startOwnedServer(
   });
   const meter = createMeter({
       catalog,
-      resolveConnection: (id) => resolvePricing(id, { vault, store, catalog, now: clock.now }),
+      resolveConnection: ({ namespace, connection }) =>
+        namespace === "local"
+          ? resolvePricing(connection, { vault, store, catalog, now: clock.now })
+          : undefined,
       store,
       clock,
       resolveOwnership: async (scope) =>

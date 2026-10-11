@@ -158,7 +158,12 @@ export function admissionTests(factory: StoreFactory) {
         outcome: "exceeded",
         exceeded: { budget: { id: b.id }, boundary: "hardLimit", reserved: quantity(2n) },
       });
-      expect(await f.store.reserve({ ...candidate(), estimate: [quantity(0n)] })).toMatchObject({
+      expect(
+        await f.store.reserve({
+          ...candidate(),
+          estimate: [quantity(0n), quantity(1n, "customer_cents")],
+        }),
+      ).toMatchObject({
         outcome: "reserved",
         warnings: [{ boundary: "limit" }],
       });
