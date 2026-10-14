@@ -35,7 +35,8 @@ description in `build.mjs`:
 - `/docs/` covers installation, storage adapters, the published React packages and checkout
   workflow, hooks, components, budget editing, provider management and
   architecture.
-- `/examples/` links the showcase in every Radix and Base UI style and the public registry.
+- `/examples/` browses every registry block with an isolated live preview, source files,
+  search, Radix/Base UI and style choices, and an origin-derived install command.
   This route is supplied by `npm run preview:build`, alongside the four site pages.
 
 Titles and descriptions follow measured search demand (for example "usage

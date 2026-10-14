@@ -19,22 +19,30 @@ Vercel environment files. The output is ignored by Git. The root `vercel.json` s
 the installation and build commands; no functions, middleware, cron or deployment action
 are included. See the [Build Output API documentation](https://vercel.com/docs/build-output-api).
 
-| Route                             | Content                                                      |
-| --------------------------------- | ------------------------------------------------------------ |
-| `/`                               | Usagekit project home                                        |
-| `/components/`                    | shadcn blocks and headless React hooks                       |
-| `/agents/`                        | Local API proxy and agent spend controls                     |
-| `/docs/`                          | Existing prerendered checkout documentation                  |
-| `/examples/`                      | Style links, block index and origin-derived install commands |
-| `/examples/showcase/`             | Every block in every shadcn style, switched in place         |
-| `/r/styles/<style>/<block>.json`  | shadcn block with that style baked in                        |
-| `/r/radix/<block>.json`           | New York/Radix shadcn block                                  |
-| `/r/base/<block>.json`            | Base UI/Vega shadcn block                                    |
-| `/r/<block>.json`                 | New York/Radix default alias                                 |
-| `/r/registry.json`                | Default registry index                                       |
-| `/r/{radix,base}/registry.json`   | Variant registry index                                       |
-| `/r/styles/<style>/registry.json` | Registry index for one style                                 |
-| `/preview-manifest.json`          | Source revision, dirty state and artifact boundaries         |
+| Route                             | Content                                                                  |
+| --------------------------------- | ------------------------------------------------------------------------ |
+| `/`                               | Usagekit project home                                                    |
+| `/components/`                    | shadcn blocks and headless React hooks                                   |
+| `/agents/`                        | Local API proxy and agent spend controls                                 |
+| `/docs/`                          | Existing prerendered checkout documentation                              |
+| `/examples/`                      | Searchable component catalog, live previews, source and install commands |
+| `/examples/showcase/`             | Every block in every shadcn style, switched in place                     |
+| `/r/styles/<style>/<block>.json`  | shadcn block with that style baked in                                    |
+| `/r/radix/<block>.json`           | New York/Radix shadcn block                                              |
+| `/r/base/<block>.json`            | Base UI/Vega shadcn block                                                |
+| `/r/<block>.json`                 | New York/Radix default alias                                             |
+| `/r/registry.json`                | Default registry index                                                   |
+| `/r/{radix,base}/registry.json`   | Variant registry index                                                   |
+| `/r/styles/<style>/registry.json` | Registry index for one style                                             |
+| `/preview-manifest.json`          | Source revision, dirty state and artifact boundaries                     |
+
+The catalog groups all 22 blocks by usage, budgets, providers and monitoring. Each selection
+loads one isolated, interactive example from the same prepared host as the showcase. The
+Preview and Code tabs switch between the live component and every source file in its actual
+registry artifact. Library and style choices update both the preview and the origin-derived
+install command. The selected block, style, sample state and theme are shareable URL parameters.
+Search, tabs, style choices and copying work with the keyboard; mobile uses a horizontal
+component list. Examples use local fixture ports only, including provider management.
 
 The showcase builds from an ignored host prepared by the registry consumer helper; the earlier
 `/examples/new-york/`, `/examples/base/` and per-style addresses redirect to it with their

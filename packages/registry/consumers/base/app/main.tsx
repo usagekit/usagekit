@@ -32,6 +32,7 @@ import { createDemoProviderPort, providerBinding } from "./demo-providers";
 import { NativeUsage, scenarios } from "./native-usage";
 import { setShowcaseStyle, showcaseStyles, useShowcaseStyle } from "./showcase-style";
 import "./index.css";
+import { ComponentExample } from "./component-example";
 
 const libraries = [
   { key: "radix", label: "Radix" },
@@ -415,8 +416,7 @@ function Showcase() {
     </MeterProvider>
   );
 }
+const embedded = new URLSearchParams(location.search).get("embed");
 createRoot(document.getElementById("root")!).render(
-  <StrictMode>
-    <Showcase />
-  </StrictMode>,
+  <StrictMode>{embedded ? <ComponentExample name={embedded} /> : <Showcase />}</StrictMode>,
 );

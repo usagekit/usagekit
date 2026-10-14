@@ -123,7 +123,7 @@ for (const sheet of sheets)
 writeFileSync(
   join(host, "app/index.css"),
   readFileSync(join(consumers, "styles/index.css"), "utf8") +
-    `\n/* Usagekit style sheets, one class per style on <html>. */\n${sheets.map((sheet) => `@import "./styles/${sheet}.css";`).join("\n")}\n`,
+    `\nhtml:has(.example-surface), body:has(.example-surface) { background: var(--background); }\nhtml:has(.example-surface) { color-scheme: light; }\nhtml.dark:has(.example-surface) { color-scheme: dark; }\n.example-surface { color: var(--foreground); }\n/* Usagekit style sheets, one class per style on <html>. */\n${sheets.map((sheet) => `@import "./styles/${sheet}.css";`).join("\n")}\n`,
 );
 const list = styles.map(({ name, variant, sheet, label }) => ({ name, variant, sheet, label }));
 writeFileSync(

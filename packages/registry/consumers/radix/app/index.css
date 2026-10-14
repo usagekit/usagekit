@@ -94,3 +94,18 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* An isolated catalog example keeps the host theme, without a second page shell. */
+html:has(.example-surface),
+body:has(.example-surface) {
+  background: var(--background);
+}
+html:has(.example-surface) {
+  color-scheme: light;
+}
+html.dark:has(.example-surface) {
+  color-scheme: dark;
+}
+.example-surface {
+  color: var(--foreground);
+}
