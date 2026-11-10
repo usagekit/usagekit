@@ -553,6 +553,30 @@ describe("metered dispatch leases", () => {
     expect(await h.figures("tokens")).toMatchObject({ used: 2500n, reserved: 0n });
     expect((await h.operation("turn-1"))!.receipts).toHaveLength(1);
   });
+  it("duplicate settles racing lease expiry record one receipt and count once", async () => {
+    const h = setup();
+    const dispatch = await h.admit("turn-1");
+    const input = { usage: [q("tokens", 1500n), q("customer_cents", 7n)], cost: cost(70_000n) };
+    h.clock.advance(59_999);
+    const inTime = dispatch.settle(input);
+    h.clock.advance(1);
+    const outcomes = await Promise.all([inTime, dispatch.settle(input), dispatch.settle(input)]);
+    expect(outcomes.filter((o) => o.outcome === "settled" && !o.replayed)).toHaveLength(1);
+    for (const outcome of outcomes)
+      if (outcome.outcome === "rejected") expect(outcome.reason).toBe("lease_lost");
+    expect(await dispatch.settle(input)).toMatchObject({ outcome: "settled", replayed: true });
+    expect((await h.operation("turn-1"))!.receipts).toMatchObject([{ id: "turn-1:receipt" }]);
+    expect(await h.figures("tokens")).toMatchObject({ used: 1500n, reserved: 0n });
+    expect(await h.figures("requests")).toMatchObject({ used: 1n, reserved: 0n });
+    // The same duplicates when every one of them starts after the lease expired.
+    const late = await h.admit("turn-2");
+    h.clock.advance(60_000);
+    const recovered = await Promise.all([late.settle(input), late.settle(input)]);
+    expect(recovered.filter((o) => o.outcome === "settled" && !o.replayed)).toHaveLength(1);
+    expect(await late.settle(input)).toMatchObject({ outcome: "settled", replayed: true });
+    expect((await h.operation("turn-2"))!.receipts).toHaveLength(1);
+    expect(await h.figures("tokens")).toMatchObject({ used: 3000n, reserved: 0n });
+  });
   it("reports lease_lost while another holder recovers and settles on a later retry", async () => {
     const h = setup();
     const dispatch = await h.admit("turn-1");

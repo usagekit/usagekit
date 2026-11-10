@@ -372,6 +372,38 @@ describe("metered streamText", () => {
       expect(t.tokens).toEqual({ used: 0n, reserved: 4000n });
     }
   });
+  it("a stream that finishes without a usage part stays pending", async () => {
+    const unreported = (): ReadableStream<Chunk> =>
+      simulateReadableStream<Chunk>({
+        chunks: [
+          ...text("done"),
+          {
+            type: "finish",
+            finishReason: { unified: "stop", raw: undefined },
+            usage: {
+              inputTokens: {
+                total: undefined,
+                noCache: undefined,
+                cacheRead: undefined,
+                cacheWrite: undefined,
+              },
+              outputTokens: { total: undefined, text: undefined, reasoning: undefined },
+            },
+          },
+        ],
+      });
+    const ended = (): ReadableStream<Chunk> => simulateReadableStream<Chunk>({ chunks: text("x") });
+    for (const steps of [[unreported], [toolStep, unreported], [ended]]) {
+      const t = await turn(steps);
+      expect(t.outcome).toMatchObject({ outcome: "pending" });
+      expect(t.operation).toMatchObject({ state: "pending", receipts: [{}] });
+      expect(t.receipt).toMatchObject({
+        cost: { certainty: "unknown" },
+        measurements: [{}, { unit: "tokens", certainty: "unknown", quantity: null }, {}],
+      });
+      expect(t.tokens).toEqual({ used: 0n, reserved: 4000n });
+    }
+  });
   it("a negative reported total stays pending without an estimator", async () => {
     const malformed = () =>
       simulateReadableStream<Chunk>({ chunks: [...text("done"), finish("stop", -100, 20)] });

@@ -111,8 +111,8 @@ therefore never prices as zero: settle it with `settleUnknown` instead.
 
 No Store code changes. The shared conformance suite gains settlement cases (multi-unit
 admission, settle below and above the estimate, late and corrected settlement, abandoned
-dispatch), which run against memory, SQLite, the Cloudflare Store, Postgres and the embedded
-and remote Meter. The Postgres lane adds races between settle and reserve on independent pools.
+dispatch, a duplicated settlement racing lease expiry), which run against memory, SQLite, the
+Cloudflare Store, Postgres and the embedded and remote Meter. The Postgres lane adds races between settle and reserve on independent pools.
 
 ## Rejected
 

@@ -168,6 +168,44 @@ export function settlementTests(factory: StoreFactory) {
       expect(await figures("tokens")).toEqual({ used: 1_500_000n, reserved: 0n });
       expect(await figures("customer_cents")).toEqual({ used: 10_000n, reserved: 0n });
     });
+    test("duplicate settlements racing lease expiry record one receipt", async () => {
+      const g = await dispatched(600n, 100n);
+      const late = evidence(150n, 10_000n);
+      const duplicate = { ...ref(g.operation), commandId: crypto.randomUUID(), receipt: late };
+      /** One writer of the duplicated command: by lease, or by recovery once the lease expired. */
+      const attempt = async () => {
+        const leased = await f.store.settle({
+          ...duplicate,
+          expectedVersion: g.operation.version,
+          authority: { kind: "lease", leaseId: g.lease.leaseId },
+        });
+        if (leased.outcome !== "rejected" || leased.reason !== "lease_expired") return leased;
+        const claim = await f.store.claimForRecovery({
+          ...ref(g.operation),
+          holder: "stream",
+          leaseTtlMs: 1000,
+        });
+        if (!("claimed" in claim) || !claim.claimed) return claim;
+        return f.store.settle({
+          ...duplicate,
+          expectedVersion: claim.operation.version,
+          authority: { kind: "recovery", leaseId: claim.lease.leaseId },
+        });
+      };
+      // The first writer starts inside the lease; the lease expires while the others start.
+      const first = attempt();
+      f.clock.advance(1000);
+      const results = await Promise.all([first, attempt(), attempt(), attempt()]);
+      expect(
+        results.filter((r) => "outcome" in r && r.outcome === "settled" && !r.replayed),
+      ).toHaveLength(1);
+      await attempt();
+      const stored = await f.store.getOperation(ref(g.operation));
+      expect(stored).toMatchObject({ state: "settled", lease: null, receipts: [{ id: late.id }] });
+      expect(stored!.receipts).toHaveLength(1);
+      expect(await figures("tokens")).toEqual({ used: 1_500_000n, reserved: 0n });
+      expect(await figures("customer_cents")).toEqual({ used: 10_000n, reserved: 0n });
+    });
     test("concurrent settles and reserves keep every figure exact and within the limit", async () => {
       const open = [];
       for (let n = 0; n < 6; n++) open.push(await dispatched(100n, 10n));
