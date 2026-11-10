@@ -1,4 +1,4 @@
-import type { Meter, ReserveInput } from "@usagekit/core";
+import type { AllowanceExceeded, Meter, ReserveInput } from "@usagekit/core";
 
 export type RequestMeteredFetchOptions = {
   meter: Meter;
@@ -11,16 +11,25 @@ export type RequestMeteredFetchOptions = {
   holder?: string;
   leaseTtlMs?: number;
 };
+export type RequestMeteringErrorCode =
+  | "admission_denied"
+  | "unsupported_budget_unit"
+  | "dispatch_denied"
+  | "accounting_failed"
+  | "transport_failed";
 export class RequestMeteringError extends Error {
+  /** The budget that denied admission. Set only when the Meter reported a budget denial. */
+  readonly exceeded?: AllowanceExceeded;
+  /** The budget unit a requests-only estimate cannot cover. Set only for unsupported_budget_unit. */
+  readonly unit?: string;
   constructor(
-    public readonly code:
-      | "admission_denied"
-      | "dispatch_denied"
-      | "accounting_failed"
-      | "transport_failed",
+    public readonly code: RequestMeteringErrorCode,
+    detail: { exceeded?: AllowanceExceeded; unit?: string } = {},
   ) {
     super(code);
     this.name = "RequestMeteringError";
+    if (detail.exceeded) this.exceeded = detail.exceeded;
+    if (detail.unit !== undefined) this.unit = detail.unit;
   }
 }
 
@@ -51,6 +60,15 @@ export function createRequestMeteredFetch(options: RequestMeteredFetchOptions): 
     } catch {
       throw new RequestMeteringError("admission_denied");
     }
+    if (reserved.outcome === "exceeded")
+      throw new RequestMeteringError("admission_denied", { exceeded: reserved.exceeded });
+    // A money or token budget on this scope needs an estimate in its unit; this adapter only
+    // knows the request count, so it fails before any reservation or dispatch.
+    if (reserved.outcome === "invalid" && "unit" in reserved)
+      throw new RequestMeteringError("unsupported_budget_unit", { unit: reserved.unit });
+    // The connection tracks this operation as passthrough: counted, never reserved, and
+    // forwarded as the Meter contract allows. A replay still never dispatches.
+    if (reserved.outcome === "passthrough" && !reserved.replayed) return options.fetch(input, init);
     if (reserved.outcome !== "reserved" || reserved.replayed)
       throw new RequestMeteringError("admission_denied");
     if (signal?.aborted) {

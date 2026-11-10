@@ -1,8 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 import { createMeter } from "@usagekit/meter";
 import { createMemoryStore } from "@usagekit/store";
-import { createRequestMeteredFetch } from "./request-metered-fetch.js";
-function setup(limit = 2n) {
+import type { Budget } from "@usagekit/core";
+import { createRequestMeteredFetch, RequestMeteringError } from "./request-metered-fetch.js";
+function setup(limit = 2n, extraBudgets: readonly Omit<Budget, "scope">[] = []) {
   const clock = { now: () => new Date() };
   const scope = { namespace: "chat-test", principal: "u1", connection: "provider-ephemeral" };
   const store = createMemoryStore({
@@ -18,6 +19,14 @@ function setup(limit = 2n) {
         window: { kind: "since_reset", epoch: "request-one", startsAt: clock.now().toISOString() },
         onExceed: "block",
       },
+      ...extraBudgets.map((budget) => ({
+        ...budget,
+        scope: {
+          kind: "principal" as const,
+          namespace: scope.namespace,
+          principal: scope.principal,
+        },
+      })),
     ],
   });
   const meter = createMeter({ store, clock });
@@ -188,5 +197,81 @@ describe("request-metered fetch", () => {
     const settle = vi.spyOn(h.meter, "settle");
     expect(await h.call(url)).toBe(response);
     expect(settle.mock.calls[0]?.[0].receipt.failed).toBe(true);
+  });
+  it("carries the exceeded budget so a caller can name the limit", async () => {
+    const h = setup(1n);
+    await h.call(url);
+    const failure = await h.call(url).catch((error: unknown) => error);
+    expect(failure).toBeInstanceOf(RequestMeteringError);
+    expect(failure).toMatchObject({
+      code: "admission_denied",
+      exceeded: {
+        code: "allowance_exceeded",
+        boundary: "limit",
+        budget: { id: "request-limit", unit: "requests" },
+        // The first request settled with unknown cost, so it still holds its reservation.
+        reserved: { unit: "requests", value: 1n },
+      },
+    });
+    expect((failure as RequestMeteringError).message).toBe("admission_denied");
+    expect(h.transport).toHaveBeenCalledOnce();
+  });
+  it("other admission denials carry no exceeded budget", async () => {
+    const h = setup();
+    h.options.createOperationId = () => "same";
+    const call = createRequestMeteredFetch(h.options);
+    await call(url);
+    const failure = await call(url).catch((error: unknown) => error);
+    expect(failure).toMatchObject({ code: "admission_denied" });
+    expect((failure as RequestMeteringError).exceeded).toBeUndefined();
+  });
+  it.each(["customer_cents", "tokens"])(
+    "a %s budget on the same scope fails before dispatch with a distinct error",
+    async (unit) => {
+      const h = setup(2n, [
+        {
+          id: `${unit}-limit`,
+          version: 1,
+          surface: "app",
+          unit,
+          limit: { unit, value: 1000n, scale: 0 },
+          window: { kind: "since_reset", epoch: "one", startsAt: new Date().toISOString() },
+          onExceed: "block",
+        },
+      ]);
+      const reserve = vi.spyOn(h.meter, "reserve");
+      const failure = await h.call(url).catch((error: unknown) => error);
+      expect(failure).toBeInstanceOf(RequestMeteringError);
+      expect(failure).toMatchObject({ code: "unsupported_budget_unit", unit });
+      expect((failure as RequestMeteringError).exceeded).toBeUndefined();
+      expect(h.transport).not.toHaveBeenCalled();
+      expect(await reserve.mock.results[0]!.value).toMatchObject({ operation: null });
+    },
+  );
+  it("forwards a passthrough connection unchanged without settlement", async () => {
+    const h = setup();
+    vi.spyOn(h.meter, "reserve").mockResolvedValue({
+      outcome: "passthrough",
+      replayed: false,
+      operation: null,
+    });
+    const intent = vi.spyOn(h.meter, "markDispatchIntent");
+    const settle = vi.spyOn(h.meter, "settle");
+    const response = new Response("free");
+    h.transport.mockResolvedValue(response);
+    expect(await h.call(url)).toBe(response);
+    expect(h.transport).toHaveBeenCalledOnce();
+    expect(intent).not.toHaveBeenCalled();
+    expect(settle).not.toHaveBeenCalled();
+  });
+  it("a replayed passthrough never dispatches", async () => {
+    const h = setup();
+    vi.spyOn(h.meter, "reserve").mockResolvedValue({
+      outcome: "passthrough",
+      replayed: true,
+      operation: null,
+    });
+    await expect(h.call(url)).rejects.toMatchObject({ code: "admission_denied" });
+    expect(h.transport).not.toHaveBeenCalled();
   });
 });
