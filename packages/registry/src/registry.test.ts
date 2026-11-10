@@ -254,6 +254,8 @@ describe("registry sources", () => {
   test("copy is host text with English defaults", () => {
     for (const { name, variant, path } of sources) {
       const entry = readFileSync(path, "utf8");
+      // The input primitive has no copy; the host supplies its accessible label.
+      if (name === "credential-input") continue;
       // Only the public block's props contract counts. A bundled helper's labels
       // must not conceal a block that stopped accepting host copy.
       const delegated: Record<string, { block: string; props: string }> = {

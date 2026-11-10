@@ -137,7 +137,7 @@ Use a stable, memoized host `BudgetWriter` to enable edits. Its server implement
 verify authorization, preserve allowed scope/unit/window and use budget version
 compare-and-swap. A timed-out write stays unknown until authoritative reconciliation;
 never translate a missing read into permission to retry. Read-only is the default, and
-customer credit authority remains in the host. See [UI](UI.md) for APIs, all twenty-two blocks,
+customer credit authority remains in the host. See [UI](UI.md) for APIs, all twenty-three blocks,
 shared cache behavior and writer outcomes.
 
 ## What 0.9.0 adds

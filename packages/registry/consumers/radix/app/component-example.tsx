@@ -5,6 +5,7 @@ import { BudgetEditor } from "@/components/usagekit/budget-editor";
 import { BudgetManagerPanel } from "@/components/usagekit/budget-manager-panel";
 import { ConnectionList } from "@/components/usagekit/connection-list";
 import { CostSummaryCardPanel } from "@/components/usagekit/cost-summary-card";
+import { CredentialInput } from "@/components/usagekit/credential-input";
 import { CoverageSummaryPanel } from "@/components/usagekit/coverage-summary";
 import { ExceptionsListPanel } from "@/components/usagekit/exceptions-list";
 import { HeaderStatusPanel } from "@/components/usagekit/header-status";
@@ -215,6 +216,15 @@ function ExampleBlock({ name }: { name: string }) {
       );
     case "provider-manager-panel":
       return <ProviderManagerPanel />;
+    case "credential-input":
+      return (
+        <div className="max-w-sm space-y-2 p-6">
+          <label htmlFor="example-credential" className="text-sm font-medium">
+            Provider key
+          </label>
+          <CredentialInput id="example-credential" placeholder="Demo values only" />
+        </div>
+      );
     case "provider-connect-form":
       return <ProviderConnectForm provider={demoProviders[0]!} fundingSource="byok" requireTest />;
     case "provider-balance-card":

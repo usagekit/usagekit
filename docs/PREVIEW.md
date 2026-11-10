@@ -36,7 +36,7 @@ are included. See the [Build Output API documentation](https://vercel.com/docs/b
 | `/r/styles/<style>/registry.json` | Registry index for one style                                             |
 | `/preview-manifest.json`          | Source revision, dirty state and artifact boundaries                     |
 
-The catalog groups all 22 blocks by usage, budgets, providers and monitoring. Each selection
+The catalog groups all 23 blocks by usage, budgets, providers and monitoring. Each selection
 loads one isolated, interactive example from the same prepared host as the showcase. The
 Preview and Code tabs switch between the live component and every source file in its actual
 registry artifact. Library and style choices update both the preview and the origin-derived
@@ -47,7 +47,7 @@ component list. Examples use local fixture ports only, including provider manage
 The showcase builds from an ignored host prepared by the registry consumer helper; the earlier
 `/examples/new-york/`, `/examples/base/` and per-style addresses redirect to it with their
 style. Tracked website and consumer sources are not rewritten. The showcase uses the actual
-React hooks and all 22 blocks. Metering, budget editing and provider controls use in-memory
+React hooks and every block; `credential-input` appears inside the provider forms. Metering, budget editing and provider controls use in-memory
 fixtures: changes reset on reload, there are no provider calls, and credential inputs are
 for demo values only. The registry's host primitive dependencies remain shadcn names;
 there is no invented production origin. Copy commands use the current preview's origin.

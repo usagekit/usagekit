@@ -348,6 +348,39 @@ const load = async (variant: Variant, name: string): Promise<Module> =>
   )) as Module;
 
 describe.each(variants)("%s a11y regression", (variant) => {
+  test("credential input preserves host refs and masks uncontrolled secrets without requests", async () => {
+    const { CredentialInput } = await load(variant, "credential-input");
+    const ref = { current: null as HTMLInputElement | null };
+    const change = vi.fn();
+    const view = render(
+      createElement(CredentialInput!, {
+        ref,
+        "aria-label": "Provider key",
+        onChange: change,
+        className: "host-class",
+        type: "text",
+        autoComplete: "on",
+        "data-private": "false",
+      }),
+    );
+    const input = screen.getByLabelText("Provider key") as HTMLInputElement;
+    expect(ref.current).toBe(input);
+    expect(input.type).toBe("password");
+    expect(input.autocomplete).toBe("off");
+    expect(input.getAttribute("data-private")).toBe("true");
+    expect(input.getAttribute("data-ph-mask")).toBe("true");
+    expect(input.className).toContain("ph-no-capture");
+    expect(input.className).toContain("host-class");
+    fireEvent.change(input, { target: { value: "synthetic-local-key" } });
+    expect(change).toHaveBeenCalledTimes(1);
+    expect(input.value).toBe("synthetic-local-key");
+    expect(input.getAttribute("value")).toBeNull();
+    input.value = "";
+    expect(input.value).toBe("");
+    view.unmount();
+    expect(ref.current).toBeNull();
+  });
+
   test("filter labels identify unique controls across instances", async () => {
     const { UsageFilters } = await load(variant, "usage-filters");
     const props = {

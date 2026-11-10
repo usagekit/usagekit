@@ -328,6 +328,11 @@
           "path": "registry/radix/provider-credential-state/provider-credential-state.tsx",
           "type": "registry:component",
           "target": "@components/usagekit/provider-credential-state.tsx"
+        },
+        {
+          "path": "registry/radix/credential-input/credential-input.tsx",
+          "type": "registry:component",
+          "target": "@components/usagekit/credential-input.tsx"
         }
       ],
       "docs": "Host primitives: @/components/ui/button, @/components/ui/card, @/components/ui/input, @/components/ui/label. Bundled components copy to @components/usagekit/. Wrap panels in ProviderManagementProvider with a verified host binding. Read-only by default; credentials travel only in the explicit action argument. The host must authorize every read and action."
@@ -624,6 +629,11 @@
           "path": "registry/radix/provider-allocation-observation/provider-allocation-observation.tsx",
           "type": "registry:component",
           "target": "@components/usagekit/provider-allocation-observation.tsx"
+        },
+        {
+          "path": "registry/radix/credential-input/credential-input.tsx",
+          "type": "registry:component",
+          "target": "@components/usagekit/credential-input.tsx"
         }
       ],
       "docs": "Host primitives: @/components/ui/badge, @/components/ui/button, @/components/ui/card, @/components/ui/input, @/components/ui/label. Bundled components copy to @components/usagekit/. Wrap panels in ProviderManagementProvider with a verified host binding. Read-only by default; credentials travel only in the explicit action argument. The host must authorize every read and action."
@@ -694,6 +704,22 @@
         }
       ],
       "docs": "Rebind @/components/ui/badge to host primitives. Pass authorized native observations, localized labels and actions. Bundles the shared usage meter and motion helpers and the pure usageProgress helper; no Meter or balance authority is inferred."
+    },
+    {
+      "name": "credential-input",
+      "type": "registry:block",
+      "title": "Credential input",
+      "description": "Masked credential input with host-owned state, lifetime and accessible label. No storage or network requests.",
+      "registryDependencies": ["input"],
+      "dependencies": ["@usagekit/react", "@usagekit/views", "@usagekit/core"],
+      "files": [
+        {
+          "path": "registry/radix/credential-input/credential-input.tsx",
+          "type": "registry:component",
+          "target": "@components/usagekit/credential-input.tsx"
+        }
+      ],
+      "docs": "Rebind @/components/ui/input (Input) to the host primitive. Supply an accessible label and ref or controlled value. Host owns clearing, storage policy and analytics exclusion. No MeterProvider is required."
     }
   ]
 }
