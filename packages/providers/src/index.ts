@@ -47,3 +47,6 @@ export {
   isJsonMediaType,
 } from "./priced-request.js";
 export type { RequestPricingInput, ProviderCredentials } from "./priced-request.js";
+
+export { createRequestMeteredFetch, RequestMeteringError } from "./request-metered-fetch.js";
+export type { RequestMeteredFetchOptions } from "./request-metered-fetch.js";
