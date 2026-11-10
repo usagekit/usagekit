@@ -239,6 +239,9 @@ that requested it.
 The first terminal event settles; later ones are ignored. A started call without reported
 usage is an interrupted call, and every one of them is accounted for: a stream retried with
 `streamRetries` leaves one interrupted call per failed attempt, each billed by the provider.
+A call that ended with malformed usage counts as interrupted too: a missing total, a count
+that is not a non-negative integer, or cached parts larger than the input total are never
+clamped into a measured amount.
 `estimateInterruptedCall` runs once per interrupted call (`index` of `interrupted`), each
 estimate is added and the turn settles as `estimated`. Without an estimator, or when it
 returns nothing or counts that are not non-negative integers for any of those calls, the

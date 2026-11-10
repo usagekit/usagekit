@@ -214,8 +214,9 @@ try {
 - **AI SDK 7.** `meterStreamText` from `@usagekit/providers/ai-sdk` returns the callbacks to
   spread into `streamText`: it sums usage per finished model call, settles on `onEnd` and
   settles partial usage on `onAbort` or `onStepError`. `estimateInterruptedCall` is asked
-  once for every call that reported no usage, including each failed attempt of a retried
-  stream; a call it cannot estimate keeps the turn pending. `ai` is an optional peer
+  once for every call that reported no usage or malformed usage (a negative total, for
+  example), including each failed attempt of a retried stream; a call it cannot estimate
+  keeps the turn pending. `ai` is an optional peer
   dependency (`>=7 <8`), needed only for that subpath.
 - **Coming from `createRequestMeteredFetch`.** The fetch wrapper still counts requests only
   and still fails with `unsupported_budget_unit` beside a token or money budget. For a turn

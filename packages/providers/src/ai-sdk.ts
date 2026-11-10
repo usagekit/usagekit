@@ -7,14 +7,23 @@ import type { Cost, Quantity } from "@usagekit/core";
 import type { MeteredDispatch, SettleOutcome } from "./metered-dispatch.js";
 import type { TokenCounts } from "./token-pricing.js";
 
-/** Token counts of one model call, or undefined when the provider reported no totals. */
+const isCount = (value: unknown): value is number | bigint =>
+  typeof value === "bigint" ? value >= 0n : Number.isSafeInteger(value) && (value as number) >= 0;
+/**
+ * Token counts of one model call, or undefined when the provider reported no usable totals:
+ * a missing total, a count that is not a non-negative integer, or cached parts larger than
+ * the input total. Such usage is unknown; it is never clamped into a measured amount.
+ */
 export function tokenCountsOf(usage: LanguageModelUsage | undefined): TokenCounts | undefined {
-  if (usage?.inputTokens === undefined || usage.outputTokens === undefined) return undefined;
-  const cacheRead = usage.inputTokenDetails?.cacheReadTokens ?? 0;
-  const cacheWrite = usage.inputTokenDetails?.cacheWriteTokens ?? 0;
+  const { inputTokens, outputTokens } = usage ?? {};
+  const cacheRead = usage?.inputTokenDetails?.cacheReadTokens ?? 0;
+  const cacheWrite = usage?.inputTokenDetails?.cacheWriteTokens ?? 0;
+  if (typeof inputTokens !== "number" || typeof outputTokens !== "number") return undefined;
+  if (![inputTokens, outputTokens, cacheRead, cacheWrite].every(isCount)) return undefined;
+  if (cacheRead + cacheWrite > inputTokens) return undefined;
   return {
-    input: Math.max(0, usage.inputTokens - cacheRead - cacheWrite),
-    output: usage.outputTokens,
+    input: inputTokens - cacheRead - cacheWrite,
+    output: outputTokens,
     cacheRead,
     cacheWrite,
   };
@@ -65,8 +74,6 @@ export type MeteredStreamText = {
   settled: Promise<SettleOutcome>;
 };
 
-const isCount = (value: unknown): value is number | bigint =>
-  typeof value === "bigint" ? value >= 0n : Number.isSafeInteger(value) && (value as number) >= 0;
 /** A host estimate with its optional cache counts, or undefined when any count is unusable. */
 function estimatedCounts(estimate: TokenCounts | undefined): Required<TokenCounts> | undefined {
   if (!estimate) return undefined;

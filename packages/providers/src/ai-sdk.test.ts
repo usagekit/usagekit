@@ -180,6 +180,42 @@ describe("AI SDK usage mapping", () => {
     ).toBeUndefined();
     expect(tokenCountsOf(undefined)).toBeUndefined();
   });
+  it("reports malformed totals as unknown instead of clamping them", () => {
+    const details = {
+      inputTokenDetails: {
+        noCacheTokens: undefined,
+        cacheReadTokens: undefined,
+        cacheWriteTokens: undefined,
+      },
+      outputTokenDetails: { textTokens: undefined, reasoningTokens: undefined },
+      totalTokens: undefined,
+    };
+    const cached = (cacheReadTokens: number, cacheWriteTokens: number) => ({
+      ...details,
+      inputTokens: 100,
+      outputTokens: 20,
+      inputTokenDetails: { noCacheTokens: undefined, cacheReadTokens, cacheWriteTokens },
+    });
+    for (const [inputTokens, outputTokens] of [
+      [-100, 20],
+      [100, -20],
+      [100.5, 20],
+      [100, Number.NaN],
+      [Number.POSITIVE_INFINITY, 20],
+      [Number.MAX_SAFE_INTEGER + 1, 20],
+    ] as const)
+      expect(tokenCountsOf({ ...details, inputTokens, outputTokens })).toBeUndefined();
+    expect(tokenCountsOf(cached(-1, 0))).toBeUndefined();
+    expect(tokenCountsOf(cached(0, 1.5))).toBeUndefined();
+    // Cached parts cannot exceed the total they are part of.
+    expect(tokenCountsOf(cached(80, 30))).toBeUndefined();
+    expect(tokenCountsOf(cached(80, 20))).toEqual({
+      input: 0,
+      output: 20,
+      cacheRead: 80,
+      cacheWrite: 20,
+    });
+  });
 });
 
 describe("metered streamText", () => {
@@ -335,6 +371,27 @@ describe("metered streamText", () => {
       expect(t.outcome).toMatchObject({ outcome: "pending" });
       expect(t.tokens).toEqual({ used: 0n, reserved: 4000n });
     }
+  });
+  it("a negative reported total stays pending without an estimator", async () => {
+    const malformed = () =>
+      simulateReadableStream<Chunk>({ chunks: [...text("done"), finish("stop", -100, 20)] });
+    const t = await turn([malformed]);
+    expect(t.outcome).toMatchObject({ outcome: "pending" });
+    expect(t.operation.state).toBe("pending");
+    expect(t.receipt).toMatchObject({
+      cost: { certainty: "unknown" },
+      measurements: [
+        { unit: "requests" },
+        { unit: "tokens", certainty: "unknown", quantity: null },
+        {},
+      ],
+    });
+    expect(t.tokens).toEqual({ used: 0n, reserved: 4000n });
+    // With an estimator the malformed call is estimated like an interrupted one.
+    const estimated = await turn([toolStep, malformed], interrupted);
+    expect(estimated.receipt).toMatchObject({
+      measurements: [{ unit: "tokens", certainty: "estimated", quantity: { value: 274n } }, {}, {}],
+    });
   });
   it("without an estimator an interrupted turn stays pending with its whole reservation", async () => {
     const t = await turn([toolStep, new Error("provider down")]);
