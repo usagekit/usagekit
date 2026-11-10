@@ -90,6 +90,10 @@ pending. Either way the budgets are charged the whole reservation, never zero.
 **Idempotency.** A repeated `admit` with the same `id` returns `replayed` and never grants a
 second dispatch; a different estimate under the same `id` is a `conflict`. `settle` uses one
 command id per operation and keeps its first receipt, so a retry replays the stored result.
+That holds after a call that threw as well: the command may have committed, so the handle
+stops renewing and a retry submits the first evidence again, whatever it is given. Evidence
+the Meter rejects as `invalid` (a negative amount, for example) is the exception: nothing was
+recorded, so the handle drops it, keeps the lease renewing and settles a corrected call.
 A turn that outlives its lease still settles exactly once, through recovery authority or, if
 the sweep ran first, through a correction that supersedes the sweep's receipt.
 
@@ -305,6 +309,10 @@ at once.
 `lease_lost` means another holder is recovering the operation at that moment. Call `settle`
 again: the handle keeps the first evidence, and once the other holder is done the turn
 settles through a correction. Without a retry the sweep's whole-reservation charge stands.
+
+`invalid` with a detail from the Meter's validation means the evidence itself was refused.
+The reservation is untouched and the dispatch stays open: call `settle` again with corrected
+usage, or `settleUnknown` when the usage cannot be established.
 
 ## Leases and maintenance
 

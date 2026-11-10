@@ -200,6 +200,8 @@ try {
   unit. Admission is atomic across all of them; a refusal names the exceeded budget.
 - **Settlement.** Less than the estimate returns the difference. More is recorded in full and
   reported as `overshoot`; the budget then refuses the next admit until its window resets.
+  Inspect the outcome: a `rejected` settlement recorded nothing. After `invalid` settle again
+  with corrected usage; after a thrown call retry, and the handle resubmits its first evidence.
 - **Leases.** A heartbeat renews the dispatch lease while the stream runs. A turn that
   outlives its lease still settles exactly once.
 - **Abandoned turns.** When the process dies nothing is released: the whole reservation keeps

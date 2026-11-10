@@ -394,6 +394,54 @@ describe("metered dispatch settlement", () => {
     expect(await h.figures("tokens")).toMatchObject({ used: 1500n, reserved: 0n });
     expect((await h.operation("turn-1"))!.receipts).toHaveLength(1);
   });
+  it("a corrected settle succeeds after the Meter rejected invalid evidence", async () => {
+    vi.useFakeTimers();
+    const h = setup(undefined, { renewEveryMs: 20_000 });
+    const renew = vi.spyOn(h.meter, "renewLease");
+    const dispatch = await h.admit("turn-1");
+    expect(
+      await dispatch.settle({
+        usage: [q("tokens", -1n), q("customer_cents", 7n)],
+        cost: cost(70_000n),
+      }),
+    ).toMatchObject({ outcome: "rejected", reason: "invalid" });
+    expect(await h.operation("turn-1")).toMatchObject({ state: "dispatch_intended", receipts: [] });
+    // Nothing was recorded, so the dispatch is still open and its lease keeps renewing.
+    h.clock.advance(20_000);
+    await vi.advanceTimersByTimeAsync(20_000);
+    expect(renew).toHaveBeenCalledTimes(1);
+    expect(
+      await dispatch.settle({
+        usage: [q("tokens", 20n), q("customer_cents", 7n)],
+        cost: cost(70_000n),
+      }),
+    ).toMatchObject({ outcome: "settled", replayed: false, via: "lease" });
+    expect(await h.figures("tokens")).toMatchObject({ used: 20n, reserved: 0n });
+    expect((await h.operation("turn-1"))!.receipts).toHaveLength(1);
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(renew).toHaveBeenCalledTimes(1);
+  });
+  it("a retry after a failure of unknown outcome still submits the first evidence", async () => {
+    vi.useFakeTimers();
+    const h = setup(undefined, { renewEveryMs: 20_000 });
+    const renew = vi.spyOn(h.meter, "renewLease");
+    const dispatch = await h.admit("turn-1");
+    const settle = vi.spyOn(h.meter, "settle").mockRejectedValueOnce(new Error("connection reset"));
+    const first = { usage: [q("tokens", 1500n), q("customer_cents", 7n)], cost: cost(70_000n) };
+    await expect(dispatch.settle(first)).rejects.toThrow("connection reset");
+    // The command may have committed: renewal stops and the evidence is kept.
+    await vi.advanceTimersByTimeAsync(40_000);
+    expect(renew).not.toHaveBeenCalled();
+    expect(
+      await dispatch.settle({
+        usage: [q("tokens", 9000n), q("customer_cents", 40n)],
+        cost: cost(1n),
+      }),
+    ).toMatchObject({ outcome: "settled", replayed: false });
+    expect(settle.mock.calls[1]![0].receipt).toEqual(settle.mock.calls[0]![0].receipt);
+    expect(await h.figures("tokens")).toMatchObject({ used: 1500n, reserved: 0n });
+    expect((await h.operation("turn-1"))!.receipts).toHaveLength(1);
+  });
   it("an unknown cost keeps the operation pending with its whole reservation", async () => {
     const h = setup();
     const dispatch = await h.admit("turn-1");

@@ -111,7 +111,11 @@ export interface MeteredDispatch {
   readonly reserved: readonly Quantity[];
   /** Extends the lease by the configured TTL. The heartbeat calls this on its own. */
   renew(): Promise<LeaseRenewalOutcome>;
-  /** Settles once. A repeated call keeps the first receipt and returns its stored result. */
+  /**
+   * Settles once. A repeated call keeps the first receipt and returns its stored result, also
+   * after a call that threw. Evidence the Meter rejects as invalid is dropped: nothing was
+   * recorded, the lease keeps renewing and a corrected call settles.
+   */
   settle(input: DispatchSettlement): Promise<SettleOutcome>;
   /** For a turn whose usage cannot be estimated: records no amounts and keeps the reservation. */
   settleUnknown(input?: { failed?: boolean }): Promise<SettleOutcome>;
@@ -229,6 +233,7 @@ export function createMeteredDispatch(options: MeteredDispatchOptions): MeteredD
       receipt: Receipt,
     ): SettleOutcome => {
       const { operation, alerts, replayed } = result;
+      stop();
       if (operation.state !== "settled")
         return (finished = { outcome: "pending", replayed, via, operation, alerts });
       const overshoot = admitted.estimate.flatMap((estimate) => {
@@ -244,6 +249,15 @@ export function createMeteredDispatch(options: MeteredDispatchOptions): MeteredD
       detail: result.reason,
       operation: result.operation ?? null,
     });
+    /**
+     * First evidence wins: a retry resubmits the same receipt, so the Store replays it. Only a
+     * validation failure drops it: the Meter recorded nothing, so a corrected settle may follow.
+     */
+    let first: Receipt | undefined;
+    const refused = (receipt: Receipt, result: ValidationFailure): SettleOutcome => {
+      if (first === receipt) first = undefined;
+      return rejected(result);
+    };
     /** The receipt is already this operation's evidence: a replay, whoever asked first. */
     const recorded = (
       operation: Operation,
@@ -298,27 +312,32 @@ export function createMeteredDispatch(options: MeteredDispatchOptions): MeteredD
           });
         }
         if (result.outcome === "settled") return conclude(result, via, receipt);
-        if (result.outcome === "invalid" || !result.operation) return rejected(result);
+        if (result.outcome === "invalid") return refused(receipt, result);
+        if (!result.operation) return rejected(result);
         operation = result.operation;
       }
       return { outcome: "rejected", reason: "lease_lost", operation };
     };
-    /** First evidence wins: a retry resubmits the same receipt, so the Store replays it. */
-    let first: Receipt | undefined;
     const submit = async (candidate: Receipt): Promise<SettleOutcome> => {
       if (finished) return { ...finished, replayed: true };
       const receipt = (first ??= candidate);
-      stop();
-      const result = await meter.settle({
-        ...ref,
-        commandId: `${id}:settle`,
-        expectedVersion: admitted.version,
-        authority: { kind: "lease", leaseId },
-        receipt,
-      });
-      if (result.outcome === "settled") return conclude(result, "lease", receipt);
-      if (result.outcome === "invalid" || !result.operation) return rejected(result);
-      return settleLate(receipt, result.operation);
+      try {
+        const result = await meter.settle({
+          ...ref,
+          commandId: `${id}:settle`,
+          expectedVersion: admitted.version,
+          authority: { kind: "lease", leaseId },
+          receipt,
+        });
+        if (result.outcome === "settled") return conclude(result, "lease", receipt);
+        if (result.outcome === "invalid") return refused(receipt, result);
+        if (!result.operation) return rejected(result);
+        return await settleLate(receipt, result.operation);
+      } catch (error) {
+        // The command may have committed: the evidence stays and renewal ends.
+        stop();
+        throw error;
+      }
     };
     const receiptOf = (
       measurements: Measurement[],
