@@ -348,6 +348,23 @@ describe("metered dispatch settlement", () => {
       }),
     ).toMatchObject({ outcome: "settled" });
   });
+  it("settles explicit request usage after automatic request admission", async () => {
+    const h = setup();
+    const dispatch = await h.admit("turn-1");
+    expect(
+      await dispatch.settle({
+        usage: [q("requests", 1n), q("tokens", 1500n), q("customer_cents", 7n)],
+        cost: cost(70_000n),
+      }),
+    ).toMatchObject({ outcome: "settled", via: "lease", overshoot: [] });
+    expect(await h.figures("requests")).toMatchObject({ used: 1n, reserved: 0n });
+    expect(await h.figures("tokens")).toMatchObject({ used: 1500n, reserved: 0n });
+    expect((await h.operation("turn-1"))!.receipts[0]!.measurements).toMatchObject([
+      { unit: "requests", certainty: "measured", quantity: { value: 1n } },
+      { unit: "tokens" },
+      { unit: "customer_cents" },
+    ]);
+  });
   it("a repeated settle keeps the first receipt and never counts twice", async () => {
     const h = setup();
     const dispatch = await h.admit("turn-1");

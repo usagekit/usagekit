@@ -58,7 +58,11 @@ export type AdmitResult =
   | { outcome: "refused"; reason: "dispatch_denied"; detail: string };
 
 export type DispatchSettlement = {
-  /** Actual amounts. Every reserved unit must be present; a missing unit is never read as zero. */
+  /**
+   * Actual amounts. Every reserved unit must be present; a missing unit is never read as zero.
+   * The `requests` unit the handle added at admission is the exception: it is recorded as one
+   * request unless `usage` states its own `requests` amount.
+   */
   usage: readonly Quantity[];
   /** Provider cost from host-owned prices. An unknown cost keeps the operation pending. */
   cost: Cost;
@@ -357,7 +361,7 @@ export function createMeteredDispatch(options: MeteredDispatchOptions): MeteredD
           quantity,
           certainty,
         }));
-        if (addedRequests) measurements.push(requestsMeasured);
+        if (addedRequests && !units.has(requestsUnit)) measurements.push(requestsMeasured);
         return submit(receiptOf(measurements, input));
       },
       settleUnknown: async (input = {}) =>

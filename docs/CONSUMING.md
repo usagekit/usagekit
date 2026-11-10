@@ -214,8 +214,8 @@ try {
 - **Coming from `createRequestMeteredFetch`.** The fetch wrapper still counts requests only
   and still fails with `unsupported_budget_unit` beside a token or money budget. For a turn
   with such budgets, replace the wrapped fetch with the dispatch handle and give the SDK the
-  plain provider `fetch`; the handle counts one `requests` unit per turn itself. Request-only
-  scopes need no change.
+  plain provider `fetch`; the handle counts one `requests` unit per turn itself, or the
+  `requests` amount the settlement states. Request-only scopes need no change.
 
 See [metered dispatch](METERED-DISPATCH.md) for the design, the complete AI SDK example,
 every outcome and the maintenance sweep.

@@ -73,7 +73,9 @@ above it is recorded in full: the budget may then exceed its limit, and the next
 refused until the window resets. The overshoot of one budget is bounded by the sum, over
 operations in flight, of actual minus estimate; it is zero when estimates are upper bounds.
 `settle` reports each overshoot. Every reserved unit must appear in `usage`, otherwise the
-handle rejects the call before any command: a missing unit is never treated as zero.
+handle rejects the call before any command: a missing unit is never treated as zero. The
+`requests` unit the handle added at admission is the one exception: the handle records it as
+one request, unless `usage` states its own `requests` amount, which is then recorded instead.
 
 **Partial settlement.** A turn that fails, times out or is aborted settles what it spent,
 with `failed: true` and `certainty: "estimated"` when a model call was interrupted. A host
