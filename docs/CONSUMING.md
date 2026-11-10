@@ -141,6 +141,83 @@ never translate a missing read into permission to retry. Read-only is the defaul
 customer credit authority remains in the host. See [UI](UI.md) for APIs, all twenty-three blocks,
 shared cache behavior and writer outcomes.
 
+## Unreleased: token- and money-settled dispatch
+
+Not part of 0.10.0 and not published. Until a later cohort is approved, try it from reviewed
+local tarballs as described under [an unpublished candidate](#trying-an-unpublished-candidate).
+`core`, `store`, `meter`, `views`, `react` and `store-postgres` have no functional changes:
+the addition composes the existing Meter commands, so no Store migration is needed.
+
+`createMeteredDispatch` (`providers`) enforces request, token and money budgets around one
+streaming model call. Admit before the call with an upper-bound estimate, settle with the
+usage the stream reported:
+
+```ts
+import { createMeteredDispatch, tokenQuantities } from "@usagekit/providers";
+
+// Host-owned prices, money per million tokens; the library ships none.
+const pricing = {
+  prices: {
+    input: { units: 3_000_000n, currency: "USD" },
+    output: { units: 15_000_000n, currency: "USD" },
+  },
+  moneyUnit: "customer_cents",
+} as const;
+const dispatcher = createMeteredDispatch({ meter });
+
+const admitted = await dispatcher.admit({
+  id: turnId, // idempotency key: a repeat never reserves or dispatches twice
+  operation: {
+    scope: { namespace: "assistant", principal: userId, group: teamId, connection: "platform" },
+    fundingSource: "platform",
+    costOwner: "platform",
+    surface: "app",
+    source: "app",
+    provider: "anthropic",
+    operation: modelId,
+  },
+  estimate: tokenQuantities({ input: 60_000, output: 8_000 }, pricing).usage,
+});
+if (admitted.outcome === "refused") {
+  // budget_exceeded carries the AllowanceExceeded of the budget that denied the turn.
+  return admitted.reason === "budget_exceeded" ? limitReached(admitted.exceeded) : fail(admitted);
+}
+try {
+  const result = await callModel();
+  await admitted.dispatch.settle(tokenQuantities(result.tokens, pricing));
+} catch (error) {
+  // A failed, timed out or aborted turn settles what it spent; never release it as zero.
+  await admitted.dispatch.settle({
+    ...tokenQuantities(tokensSpentSoFar(), pricing),
+    certainty: "estimated",
+    failed: true,
+  });
+  throw error;
+}
+```
+
+- **Budgets.** Any budget on the scope applies: `requests`, the token unit and the money
+  unit. Admission is atomic across all of them; a refusal names the exceeded budget.
+- **Settlement.** Less than the estimate returns the difference. More is recorded in full and
+  reported as `overshoot`; the budget then refuses the next admit until its window resets.
+- **Leases.** A heartbeat renews the dispatch lease while the stream runs. A turn that
+  outlives its lease still settles exactly once.
+- **Abandoned turns.** When the process dies nothing is released: the whole reservation keeps
+  counting. Schedule `dispatcher.settleAbandoned` next to `expireReservations` to record such
+  turns at their full estimate.
+- **AI SDK 7.** `meterStreamText` from `@usagekit/providers/ai-sdk` returns the callbacks to
+  spread into `streamText`: it sums usage per finished model call, settles on `onEnd` and
+  settles partial usage on `onAbort` or `onStepError`. `ai` is an optional peer dependency
+  (`>=7 <8`), needed only for that subpath.
+- **Coming from `createRequestMeteredFetch`.** The fetch wrapper still counts requests only
+  and still fails with `unsupported_budget_unit` beside a token or money budget. For a turn
+  with such budgets, replace the wrapped fetch with the dispatch handle and give the SDK the
+  plain provider `fetch`; the handle counts one `requests` unit per turn itself. Request-only
+  scopes need no change.
+
+See [metered dispatch](METERED-DISPATCH.md) for the design, the complete AI SDK example,
+every outcome and the maintenance sweep.
+
 ## What 0.10.0 adds
 
 The 0.10.0 source candidate awaits exact-source and version approval. Pin all seven packages

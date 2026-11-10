@@ -769,3 +769,11 @@ through an injected Meter without buffering its response. It meters dispatched r
 attempts, not token usage or monetary charges, and fails with `unsupported_budget_unit` when a
 money or token budget applies to the same scope. See [request-metered fetch](REQUEST-METERED-FETCH.md)
 for errors, cancellation, unknown cost, store durability and host security responsibilities.
+
+## Token- and money-settled dispatch
+
+Unreleased, after 0.10.0. `createMeteredDispatch` admits one model turn against every
+applicable request, token and money budget and settles it with the usage its stream reported;
+`@usagekit/providers/ai-sdk` wires that into AI SDK 7 `streamText`. Prices stay with the
+host: `priceTokens` and `tokenQuantities` apply a host-owned table, and the catalog ships no
+model prices. See [metered dispatch](METERED-DISPATCH.md).
