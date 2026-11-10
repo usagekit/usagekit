@@ -21,7 +21,14 @@ migration, so every shipped Store supports it.
 ## Public API
 
 ```ts
-const dispatcher = createMeteredDispatch({ meter, holder, leaseTtlMs, renewEveryMs, now });
+const dispatcher = createMeteredDispatch({
+  meter,
+  holder,
+  leaseTtlMs,
+  renewEveryMs,
+  maxOpenMs,
+  now,
+});
 
 const admitted = await dispatcher.admit({ id, operation, estimate });
 // admitted | refused: budget_exceeded (exceeded), unsupported_budget_unit (unit),
@@ -297,8 +304,11 @@ settles through a correction. Without a retry the sweep's whole-reservation char
 
 The lease defaults to two minutes and a heartbeat renews it every third of that, on an
 unreferenced timer that stops at settlement. `renewEveryMs: 0` disables the heartbeat; the
-host then calls `dispatch.renew()` itself. Losing the lease does not stop the stream, since
-recovery never dispatches again, and the late settlement paths keep accounting exact.
+host then calls `dispatch.renew()` itself. The heartbeat also stops `maxOpenMs` after
+admission, ten minutes by default: a dispatch that nobody settles then loses its lease and
+is resolved as abandoned, instead of holding its reservation for the life of the process.
+Raise it for turns that legitimately run longer. Losing the lease does not stop the stream,
+since recovery never dispatches again, and the late settlement paths keep accounting exact.
 
 A scheduled job resolves turns whose process died:
 

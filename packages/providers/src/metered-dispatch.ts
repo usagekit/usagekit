@@ -24,6 +24,12 @@ export type MeteredDispatchOptions = {
   leaseTtlMs?: number;
   /** Heartbeat that renews the lease while a dispatch is open; defaults to a third of the lease. 0 disables it. */
   renewEveryMs?: number;
+  /**
+   * The heartbeat stops this long after admission; defaults to ten minutes. A dispatch that is
+   * never settled then loses its lease and is resolved as abandoned instead of holding its
+   * reservation for the life of the process. Explicit `renew()` calls are not limited.
+   */
+  maxOpenMs?: number;
 };
 export type DispatchAdmission = {
   /** Caller-supplied idempotency key of the whole turn; becomes the operation id. */
@@ -177,6 +183,7 @@ export function createMeteredDispatch(options: MeteredDispatchOptions): MeteredD
   const { meter, now = () => new Date(), holder = "metered-dispatch" } = options;
   const leaseTtlMs = options.leaseTtlMs ?? 120_000;
   const renewEveryMs = options.renewEveryMs ?? Math.floor(leaseTtlMs / 3);
+  const maxOpenMs = options.maxOpenMs ?? 600_000;
 
   function open(
     id: string,
@@ -200,7 +207,11 @@ export function createMeteredDispatch(options: MeteredDispatchOptions): MeteredD
       return { renewed: false, reason: result.reason };
     };
     if (renewEveryMs > 0) {
-      timer = setInterval(() => void renew().catch(() => {}), renewEveryMs);
+      const openedAt = now().getTime();
+      timer = setInterval(() => {
+        if (now().getTime() - openedAt >= maxOpenMs) stop();
+        else void renew().catch(() => {});
+      }, renewEveryMs);
       (timer as { unref?: () => void }).unref?.();
     }
     const requestsMeasured: Measurement = {

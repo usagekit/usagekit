@@ -37,7 +37,12 @@ function setup(
     teamBudget("tokens", 10_000n),
     teamBudget("customer_cents", 50n),
   ],
-  options: { holder?: string; renewEveryMs?: number; leaseTtlMs?: number } = {},
+  options: {
+    holder?: string;
+    renewEveryMs?: number;
+    leaseTtlMs?: number;
+    maxOpenMs?: number;
+  } = {},
 ) {
   const clock = createManualClock("2026-11-10T12:00:00.000Z");
   const store = createMemoryStore({ clock, budgets });
@@ -437,6 +442,21 @@ describe("metered dispatch leases", () => {
     await dispatch.settle({ usage: [q("tokens", 1n), q("customer_cents", 1n)], cost: cost(1n) });
     await vi.advanceTimersByTimeAsync(60_000);
     expect(renew).toHaveBeenCalledTimes(2);
+  });
+  it("the heartbeat stops after maxOpenMs, so a dispatch nobody settles becomes abandoned", async () => {
+    vi.useFakeTimers();
+    const h = setup(undefined, { renewEveryMs: 20_000, maxOpenMs: 90_000 });
+    const renew = vi.spyOn(h.meter, "renewLease");
+    await h.admit("turn-1");
+    for (let n = 0; n < 10; n++) {
+      h.clock.advance(20_000);
+      await vi.advanceTimersByTimeAsync(20_000);
+    }
+    // Renewed at 20, 40, 60 and 80 seconds; the lease then runs out at 140 seconds.
+    expect(renew).toHaveBeenCalledTimes(4);
+    expect(await h.dispatcher.settleAbandoned({ access, scope: scopeAll, ...month })).toMatchObject(
+      { examined: 1, pending: 1 },
+    );
   });
   it("defaults the heartbeat to a third of the lease", async () => {
     vi.useFakeTimers();
