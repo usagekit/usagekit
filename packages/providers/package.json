@@ -13,6 +13,10 @@
       "types": "./dist/testing/index.d.ts",
       "import": "./dist/testing/index.js"
     },
+    "./ai-sdk": {
+      "types": "./dist/ai-sdk.d.ts",
+      "import": "./dist/ai-sdk.js"
+    },
     "./eslint": {
       "types": "./dist/eslint.d.ts",
       "import": "./dist/eslint.js"
@@ -35,13 +39,17 @@
   },
   "peerDependencies": {
     "vitest": ">=5.0.1 <6",
-    "eslint": ">=9 <11"
+    "eslint": ">=9 <11",
+    "ai": ">=7 <8"
   },
   "peerDependenciesMeta": {
     "vitest": {
       "optional": true
     },
     "eslint": {
+      "optional": true
+    },
+    "ai": {
       "optional": true
     }
   },
