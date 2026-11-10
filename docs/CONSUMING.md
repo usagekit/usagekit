@@ -1,21 +1,22 @@
 # Consuming usagekit
 
 Use Node 22.23.4 and pin packages from a release cohort to the same exact version.
-The seven-package 0.9.0 cohort is published. It adds pricing formulas, authorized
-`Meter.quote`, host-priced credits calls and React draft rebase signals for the host
-composition blocks. See [what 0.9.0 adds](#what-090-adds).
-The preceding 0.8.0, 0.7.0 and 0.6.0 cohorts and the four-package 0.5.0 runtime cohort
+The seven-package 0.9.1 cohort is published. It adds conservative estimates for historical
+provider requests with explicit date bounds to the 0.9.0 pricing formulas, authorized
+`Meter.quote`, host-priced credits calls and React draft rebase signals. Both boundary months
+count, including partial months; the actual response determines settlement. Requests without
+both bounds remain unknown. See [what 0.9.0 adds](#what-090-adds).
+The preceding 0.9.0, 0.8.0, 0.7.0 and 0.6.0 cohorts and the four-package 0.5.0 runtime cohort
 remain available.
-The 0.9.1 source candidate adds conservative estimates for historical provider requests
-with explicit date bounds. Both boundary months count, including partial months; the
-actual response determines settlement. Requests without both bounds remain unknown.
-All seven packages move together. Use reviewed local tarballs for 0.9.1 until separately
-approved and published.
+The 0.10.0 source candidate adds request-metered fetch to `@usagekit/providers`, the
+`credential-input` registry block and the Node 22.23.4 baseline. All seven packages move
+together. Use reviewed local tarballs for 0.10.0 until separately approved and published.
+See [what 0.10.0 adds](#what-0100-adds).
 
 Source: <https://github.com/usagekit/usagekit>. Documentation and registry: <https://usagekit.dev>.
 
 ```sh
-npm install --save-exact @usagekit/core@0.9.0 @usagekit/store@0.9.0 @usagekit/meter@0.9.0 @usagekit/providers@0.9.0
+npm install --save-exact @usagekit/core@0.9.1 @usagekit/store@0.9.1 @usagekit/meter@0.9.1 @usagekit/providers@0.9.1
 ```
 
 The registry is `https://registry.npmjs.org/`. No scope registry mapping is needed.
@@ -68,7 +69,7 @@ Skipped capabilities are not passed guarantees.
 ## Headless views and React components
 
 `@usagekit/views`, `@usagekit/react` and `@usagekit/store-postgres` belong to the
-published seven-package 0.9.0 cohort. The 0.9.1 source candidate uses the same cohort.
+published seven-package 0.9.1 cohort. The 0.10.0 source candidate uses the same cohort.
 In 0.7.0, `@usagekit/react` adds `useProviderEditor(query, options?)`, which keeps a draft base
 separate from current evidence and rebases only after an explicit successful reload; see
 [provider UI](PROVIDER-UI.md). In 0.8.0, `@usagekit/views` adds `ProviderRate.fallback`, the price
@@ -82,22 +83,22 @@ Check availability without credentials:
 
 ```sh
 for package in core store meter providers views react store-postgres; do
-  npm view "@usagekit/$package@0.9.0" version --registry https://registry.npmjs.org/
+  npm view "@usagekit/$package@0.9.1" version --registry https://registry.npmjs.org/
 done
 ```
 
 After all seven versions are available, install the packages your application needs:
 
 ```sh
-npm install --save-exact @usagekit/core@0.9.0 @usagekit/store@0.9.0 @usagekit/meter@0.9.0 @usagekit/providers@0.9.0 @usagekit/views@0.9.0 @usagekit/react@0.9.0
+npm install --save-exact @usagekit/core@0.9.1 @usagekit/store@0.9.1 @usagekit/meter@0.9.1 @usagekit/providers@0.9.1 @usagekit/views@0.9.1 @usagekit/react@0.9.1
 # Optional server-side Postgres storage:
-npm install --save-exact @usagekit/store-postgres@0.9.0
+npm install --save-exact @usagekit/store-postgres@0.9.1
 ```
 
-The published registry blocks use exact 0.9.0 `@usagekit/react`, `@usagekit/views` and
-`@usagekit/core` versions. This checkout builds candidate blocks requesting 0.9.1. Use
-reviewed cohort tarballs for those blocks until 0.9.1 is published; do not mix cohorts.
-For the published 0.9.0 blocks:
+The published registry blocks use exact 0.9.1 `@usagekit/react`, `@usagekit/views` and
+`@usagekit/core` versions. This checkout builds candidate blocks requesting 0.10.0. Use
+reviewed cohort tarballs for those blocks until 0.10.0 is published; do not mix cohorts.
+For the published 0.9.1 blocks:
 
 ```sh
 # Choose the primitive family configured in your shadcn application:
@@ -139,6 +140,23 @@ compare-and-swap. A timed-out write stays unknown until authoritative reconcilia
 never translate a missing read into permission to retry. Read-only is the default, and
 customer credit authority remains in the host. See [UI](UI.md) for APIs, all twenty-three blocks,
 shared cache behavior and writer outcomes.
+
+## What 0.10.0 adds
+
+The 0.10.0 source candidate awaits exact-source and version approval. Pin all seven packages
+to 0.10.0 together. `core`, `store`, `meter`, `views`, `react` and `store-postgres` have no
+functional changes.
+
+- **Request-metered fetch** (`providers`). `createRequestMeteredFetch` wraps a host-owned
+  Fetch transport with an injected Meter: one `requests` reservation and dispatch grant per
+  attempt, settled with unknown cost when headers arrive, without reading the response body.
+  `RequestMeteringError` carries the `AllowanceExceeded` detail of a budget denial, and a
+  money or token budget on the same scope fails before dispatch with `unsupported_budget_unit`.
+  See [request-metered fetch](REQUEST-METERED-FETCH.md).
+- **`credential-input` registry block**. A masked, presentational secret field over the host
+  `Input`. Provider credential forms use it for secret fields. See [UI](UI.md#ephemeral-credential-inputs).
+- **Node 22.23.4 baseline**. The workspace requires the 22.23.4 security release; consumers
+  should run at least that Node 22 patch.
 
 ## What 0.9.0 adds
 
