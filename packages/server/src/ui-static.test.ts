@@ -84,6 +84,7 @@ test("the UI uses the base registry blocks in the Vega style and base primitives
     "provider-source-control",
     "provider-credential-controls",
     "provider-credential-state",
+    "credential-input",
     "provider-feedback",
     "usage-overview-card",
     "usage-connection-row",

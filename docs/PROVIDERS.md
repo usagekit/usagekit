@@ -761,3 +761,11 @@ revision/row identity before further editing; non-success outcomes retain normal
 Refresh cleanup uses the latest committed `onReadRefreshChange` callback. Discarded concurrent
 renders cannot redirect the final `null` notification to an uncommitted host fence. See
 [provider UI contracts](PROVIDER-UI.md) for composition and refresh details.
+
+## Request-only streaming transport adapter
+
+The `createRequestMeteredFetch` export, new in 0.10.0, gates a host-owned streaming transport
+through an injected Meter without buffering its response. It meters dispatched request
+attempts, not token usage or monetary charges, and fails with `unsupported_budget_unit` when a
+money or token budget applies to the same scope. See [request-metered fetch](REQUEST-METERED-FETCH.md)
+for errors, cancellation, unknown cost, store durability and host security responsibilities.

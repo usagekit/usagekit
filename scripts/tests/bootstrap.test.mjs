@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -17,13 +17,37 @@ function temporary(t) {
 }
 
 test("runtime ranges accept stable patches and reject old or next-major releases", () => {
-  for (const version of ["22.23.1", "22.23.2", "22.24.0"])
-    assert.ok(satisfiesRuntimeRange(version, ">=22.23.1 <23"));
-  for (const version of ["22.23.0", "21.99.0", "23.0.0", "22.24.0-rc.1"])
-    assert.equal(satisfiesRuntimeRange(version, ">=22.23.1 <23"), false);
+  for (const version of ["22.23.4", "22.23.5", "22.24.0"])
+    assert.ok(satisfiesRuntimeRange(version, ">=22.23.4 <23"));
+  for (const version of [
+    "22.23.0",
+    "22.23.1",
+    "22.23.2",
+    "22.23.3",
+    "21.99.0",
+    "23.0.0",
+    "22.24.0-rc.1",
+  ])
+    assert.equal(satisfiesRuntimeRange(version, ">=22.23.4 <23"), false);
   assert.ok(satisfiesRuntimeRange("10.9.4", ">=10.9.3 <11"));
   assert.equal(satisfiesRuntimeRange("10.9.2", ">=10.9.3 <11"), false);
   assert.equal(satisfiesRuntimeRange("11.0.0", ">=10.9.3 <11"), false);
+});
+
+test("manifest and runtime selection enforce the patched Node baseline", () => {
+  const manifest = JSON.parse(readFileSync(new URL("../../package.json", import.meta.url), "utf8"));
+  const lock = JSON.parse(
+    readFileSync(new URL("../../package-lock.json", import.meta.url), "utf8"),
+  );
+  const pinned = readFileSync(new URL("../../.nvmrc", import.meta.url), "utf8").trim();
+  assert.equal(pinned, "22.23.4");
+  assert.equal(manifest.engines.node, ">=22.23.4 <23");
+  assert.equal(lock.packages[""].engines.node, manifest.engines.node);
+  assert.ok(satisfiesRuntimeRange(pinned, manifest.engines.node));
+  for (const version of ["22.23.1", "22.23.2", "22.23.3", "22.23.4-rc.1", "23.0.0"])
+    assert.equal(satisfiesRuntimeRange(version, manifest.engines.node), false);
+  assert.equal(manifest.packageManager, "npm@10.9.3");
+  assert.equal(manifest.engines.npm, ">=10.9.3 <11");
 });
 
 test("expired approval is removed while active approval reports path and lifetime", (t) => {

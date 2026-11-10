@@ -47,6 +47,7 @@ export const registryBlocks = [
   ["provider-balance-card", "Balance authority and data freshness."],
   ["provider-allocation-editor", "Own and hosted limits across app and API."],
   ["provider-manager-panel", "Compose the provider management workflow."],
+  ["credential-input", "A masked secret field with host-owned lifetime."],
 ] as const;
 
 export const readHooks = [

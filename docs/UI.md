@@ -139,7 +139,7 @@ and labels to provide application copy; all strings have English defaults.
 
 ## Copyable registry blocks
 
-Both Radix/New York and Base UI/base-vega contain the same twenty-two blocks:
+Both Radix/New York and Base UI/base-vega contain the same twenty-three blocks:
 
 | Block                        | Purpose                                                          |
 | ---------------------------- | ---------------------------------------------------------------- |
@@ -165,6 +165,7 @@ Both Radix/New York and Base UI/base-vega contain the same twenty-two blocks:
 | `provider-balance-card`      | Separate provider or host-wallet balance and freshness           |
 | `provider-allocation-editor` | Funding-by-surface limits and availability suggestions           |
 | `provider-manager-panel`     | Compose connection, rate, funding and allocation tools           |
+| `credential-input`           | Masked secret field with host-owned label and lifetime           |
 
 Provider blocks use a separate host-owned `ProviderManagementPort`. They do not infer
 provider credentials, connection ownership, prices or wallet balances from Meter reads.
@@ -386,3 +387,24 @@ empty bound array cannot distinguish those states.
 See [registry composition APIs](PROVIDER-UI.md#registry-composition-apis) for controlled provider
 editors and credential policies. New bundled helpers ship with both Radix and Base variants;
 regenerate local server copies with `node scripts/sync-server-ui.mjs` after source changes.
+
+## Ephemeral credential inputs
+
+The copyable `credential-input` registry block is a presentational `CredentialInput`
+over the host `@/components/ui/input`. It is not a new npm React export or a vault.
+Existing provider credential forms use the same primitive for secret fields.
+It works outside `MeterProvider`, accepts a React 19 input ref or a controlled value,
+and makes no network requests. Hosts supply the accessible label and descriptions.
+
+For session-only BYOK, keep credentials in an uncontrolled input ref, pass them only
+to the explicitly selected provider transport, and clear the input on connection,
+workspace and session changes. Do not place credentials in commands, transcripts,
+query keys, analytics or logs. The host owns that lifecycle and any retention policy.
+Use the existing provider management hooks when the host actually implements their
+connection persistence, authorization and reconciliation contract; do not fake that
+contract just to render a password field.
+
+The primitive enforces password type, disables completion and correction, and adds
+recorder-masking hints. These are defense in depth, not a guarantee against every
+browser extension or analytics recorder. Configure analytics exclusion at the host.
+It does not claim browser memory zeroization or silently test credentials.

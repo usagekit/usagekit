@@ -580,7 +580,7 @@ export function Docs() {
             </p>
             <p>
               To build an unreleased source checkout, from the repository root with Node{" "}
-              <strong>22.23.1</strong> and npm <strong>10.9.3</strong>, install and build the local
+              <strong>22.23.4</strong> and npm <strong>10.9.3</strong>, install and build the local
               workspaces. This links the React and view packages locally; it does not publish them.
             </p>
             <Code lang="shell" title="Terminal" className="docs-block">

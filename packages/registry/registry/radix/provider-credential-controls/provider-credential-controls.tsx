@@ -5,6 +5,7 @@ import type { ProviderAction } from "@usagekit/react";
 import type { ProviderActionResult, ProviderConnection, ProviderDefinition } from "@usagekit/views";
 import type { FundingSource } from "@usagekit/core";
 import { Input } from "@/components/ui/input";
+import { CredentialInput } from "@/components/usagekit/credential-input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { fundingLabel } from "@/components/usagekit/provider-feedback";
@@ -130,21 +131,23 @@ export function CredentialFields({
     renderFields({ fields, values, change, readOnly: !editable })
   ) : (
     <>
-      {fields.map((field) => (
-        <div key={`${source}:${field.name}`} className={`space-y-2 ${usageMotion.enter}`}>
-          <Label htmlFor={`${id}-${field.name}`}>{field.label}</Label>
-          <Input
-            id={`${id}-${field.name}`}
-            type={field.kind === "secret" ? "password" : "text"}
-            autoComplete="off"
-            spellCheck={false}
-            value={values[field.name] ?? ""}
-            readOnly={!editable}
-            placeholder={field.placeholder}
-            onChange={(event) => change(field.name, event.target.value)}
-          />
-        </div>
-      ))}
+      {fields.map((field) => {
+        const FieldInput = field.kind === "secret" ? CredentialInput : Input;
+        return (
+          <div key={`${source}:${field.name}`} className={`space-y-2 ${usageMotion.enter}`}>
+            <Label htmlFor={`${id}-${field.name}`}>{field.label}</Label>
+            <FieldInput
+              id={`${id}-${field.name}`}
+              autoComplete="off"
+              spellCheck={false}
+              value={values[field.name] ?? ""}
+              readOnly={!editable}
+              placeholder={field.placeholder}
+              onChange={(event) => change(field.name, event.target.value)}
+            />
+          </div>
+        );
+      })}
     </>
   );
 }

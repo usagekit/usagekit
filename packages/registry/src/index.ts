@@ -22,6 +22,7 @@ export const blockNames = [
   "provider-manager-panel",
   "usage-overview-card",
   "usage-cap-pill",
+  "credential-input",
 ] as const;
 export type BlockName = (typeof blockNames)[number];
 export const variants = ["radix", "base"] as const;

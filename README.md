@@ -5,16 +5,16 @@ costs and application credits. Both BYOK and platform-funded keys are in scope.
 Host A uses Postgres and Prisma. Host B adds team-owned connections.
 Host C targets Cloudflare D1. A local server shares the embedded Meter contract.
 
-**Release 0.9.0 is published. The 0.9.1 source candidate bounds historical provider request estimates by explicit date ranges; the seven packages move in lockstep. See [consuming packages](docs/CONSUMING.md).**
-Licensed under Apache-2.0. `@usagekit/core`, `store`, `meter`, `providers`, `views`, `react` and `store-postgres` 0.9.0 are published on registry.npmjs.org.
-The 0.9.1 release allow-list contains these seven packages. Other workspaces remain private. Candidate publication needs separate exact-source and version owner approval.
+**Release 0.9.1 is published. The 0.10.0 source candidate adds request-metered fetch to `@usagekit/providers` and the `credential-input` registry block, and requires Node 22.23.4; the seven packages move in lockstep. See [what 0.10.0 adds](docs/CONSUMING.md#what-0100-adds).**
+Licensed under Apache-2.0. `@usagekit/core`, `store`, `meter`, `providers`, `views`, `react` and `store-postgres` 0.9.1 are published on registry.npmjs.org.
+The 0.10.0 release allow-list contains these seven packages. Other workspaces remain private. Candidate publication needs separate exact-source and version owner approval.
 
 [Project website](https://usagekit.dev) · [Source](https://github.com/usagekit/usagekit) · [Issues](https://github.com/usagekit/usagekit/issues) · [Roadmap](docs/ROADMAP.md)
 
 ## Start here
 
-Use Node **22.23.1** from `.nvmrc` and npm **10.9.3** as the baseline.
-Supported ranges are Node `>=22.23.1 <23` and npm `>=10.9.3 <11`.
+Use Node **22.23.4** from `.nvmrc` and npm **10.9.3** as the baseline.
+Supported ranges are Node `>=22.23.4 <23` and npm `>=10.9.3 <11`.
 The lockfile pins dependencies. `@types/node` is pinned to the Node 22 line.
 
 ```sh

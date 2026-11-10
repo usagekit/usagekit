@@ -40,6 +40,7 @@ const groups = [
       "provider-balance-card",
       "provider-allocation-editor",
       "connection-list",
+      "credential-input",
     ],
   },
   { title: "Monitoring", names: ["coverage-summary", "exceptions-list"] },
