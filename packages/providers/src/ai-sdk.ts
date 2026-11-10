@@ -106,15 +106,23 @@ export function meterStreamText(options: MeterStreamTextOptions): MeteredStreamT
       failed: failed || interrupted,
     });
   };
+  /** A host observer that throws must not fail the SDK callback that triggered settlement. */
+  const observe = (notify: () => void) => {
+    try {
+      notify();
+    } catch {
+      // The settlement result stands; observers are for logging only.
+    }
+  };
   const finish = (): Promise<void> =>
-    (settling ??= settle().then(
+    (settling ??= (async () => settle())().then(
       (outcome) => {
         resolve(outcome);
-        options.onSettled?.(outcome);
+        observe(() => options.onSettled?.(outcome));
       },
       (error: unknown) => {
         reject(error);
-        options.onSettleError?.(error);
+        observe(() => options.onSettleError?.(error));
       },
     ));
   return {

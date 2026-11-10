@@ -289,6 +289,35 @@ describe("metered streamText", () => {
     expect(t.receipt).toMatchObject({ failed: true, cost: { certainty: "unknown" } });
     expect(t.tokens).toEqual({ used: 0n, reserved: 4000n });
   });
+  it("callbacks never reject when a host observer throws", async () => {
+    const fake = (settle: () => Promise<never> | Promise<{ outcome: "untracked" }>) =>
+      meterStreamText({
+        dispatch: {
+          id: "turn-1",
+          tracking: "passthrough",
+          reserved: [],
+          renew: async () => ({ renewed: false, reason: "untracked" }),
+          settle,
+          settleUnknown: settle,
+        },
+        measure: () => ({ usage: [], cost: { certainty: "unknown", money: null } }),
+        onSettled: () => {
+          throw new Error("logger down");
+        },
+        onSettleError: () => {
+          throw new Error("logger down");
+        },
+      });
+    const fine = fake(async () => ({ outcome: "untracked" }));
+    await expect(fine.callbacks.onEnd({ finishReason: "stop" })).resolves.toBeUndefined();
+    await expect(fine.settled).resolves.toEqual({ outcome: "untracked" });
+    const broken = fake(async () => {
+      throw new Error("storage down");
+    });
+    await expect(broken.callbacks.onAbort()).resolves.toBeUndefined();
+    await expect(broken.callbacks.onStepError()).resolves.toBeUndefined();
+    await expect(broken.settled).rejects.toThrow("storage down");
+  });
   it("reports a storage failure and leaves the reservation to lease expiry", async () => {
     const onSettleError = vi.fn();
     const failure = new Error("storage down");
