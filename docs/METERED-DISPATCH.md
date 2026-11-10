@@ -168,7 +168,8 @@ export async function runTurn(turn: Turn) {
   const metered = meterStreamText({
     dispatch: admitted.dispatch,
     measure: (counts) => tokenQuantities(counts, pricing),
-    // A call cut off by an abort, timeout or broken stream never reports usage.
+    // A call cut off by an abort, timeout or broken stream never reports usage. Called once
+    // per such call, so return whole numbers that bound one call, not the turn.
     estimateInterruptedCall: () => ({ input: turn.promptTokens(), output: turn.streamedTokens() }),
     onSettled: (outcome) => log.info({ turn: turn.id, settlement: outcome.outcome }),
     onSettleError: (error) => log.error({ turn: turn.id, error }),
@@ -227,11 +228,14 @@ that requested it.
 | `onError`                  | Marks the turn failed; the terminal event that follows settles it.    |
 
 The first terminal event settles; later ones are ignored. A started call without reported
-usage is an interrupted call. With `estimateInterruptedCall` its estimate is added and the
-turn settles as `estimated`; without it the adapter calls `settleUnknown`, so nothing is
-guessed and the whole reservation stays held. `metered.settled` resolves with the outcome,
-or rejects when storage failed; in that case nothing was recorded and the lease-expiry rule
-applies. The callbacks never throw into the SDK.
+usage is an interrupted call, and every one of them is accounted for: a stream retried with
+`streamRetries` leaves one interrupted call per failed attempt, each billed by the provider.
+`estimateInterruptedCall` runs once per interrupted call (`index` of `interrupted`), each
+estimate is added and the turn settles as `estimated`. Without an estimator, or when it
+returns nothing or counts that are not non-negative integers for any of those calls, the
+adapter calls `settleUnknown`, so nothing is guessed and the whole reservation stays held.
+`metered.settled` resolves with the outcome, or rejects when storage failed; in that case
+nothing was recorded and the lease-expiry rule applies. The callbacks never throw into the SDK.
 
 A host that already passes its own callbacks calls the adapter's from them:
 
@@ -247,7 +251,7 @@ streamText({
 
 Verified against `ai` 7.0.168: its tests run real `streamText` calls with the SDK's mock
 model through success, abort mid-stream, abort during a tool, timeout, a provider error
-chunk, a rejected call and a broken stream.
+chunk, a rejected call, a broken stream and a stream retried twice before it succeeds.
 
 ## Without the AI SDK
 

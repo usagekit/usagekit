@@ -33,11 +33,15 @@ export type MeterStreamTextOptions = {
   ) => { usage: readonly Quantity[]; cost: Cost };
   /**
    * Estimate of a model call that started but never reported usage (abort, timeout, broken
-   * stream): typically its prompt plus the output streamed so far. Without it such a turn is
-   * not guessed at: it stays pending and keeps its whole reservation.
+   * stream, a retried stream attempt): typically its prompt plus the output streamed so far.
+   * Called once per such call, `index` of `interrupted`. Without it, or when it returns
+   * nothing or counts that are not non-negative integers for any of them, the turn is not
+   * guessed at: it stays pending and keeps its whole reservation.
    */
   estimateInterruptedCall?: (info: {
     finished: readonly Required<TokenCounts>[];
+    index: number;
+    interrupted: number;
   }) => TokenCounts | undefined;
   /** Observes the settlement, for logging. Budget effects are already recorded. */
   onSettled?: (outcome: SettleOutcome) => void;
@@ -61,7 +65,19 @@ export type MeteredStreamText = {
   settled: Promise<SettleOutcome>;
 };
 
-const big = (value: number | bigint | undefined) => BigInt(value ?? 0);
+const isCount = (value: unknown): value is number | bigint =>
+  typeof value === "bigint" ? value >= 0n : Number.isSafeInteger(value) && (value as number) >= 0;
+/** A host estimate with its optional cache counts, or undefined when any count is unusable. */
+function estimatedCounts(estimate: TokenCounts | undefined): Required<TokenCounts> | undefined {
+  if (!estimate) return undefined;
+  const counts = {
+    input: estimate.input,
+    output: estimate.output,
+    cacheRead: estimate.cacheRead ?? 0,
+    cacheWrite: estimate.cacheWrite ?? 0,
+  };
+  return Object.values(counts).every(isCount) ? counts : undefined;
+}
 /**
  * Settles one `streamText` turn. Usage is summed per finished model call, so an abort during
  * tool execution still charges the calls that completed. `onEnd` settles the total; `onAbort`
@@ -84,26 +100,26 @@ export function meterStreamText(options: MeterStreamTextOptions): MeteredStreamT
   settled.catch(() => undefined);
 
   const settle = async (): Promise<SettleOutcome> => {
-    const interrupted = started > finished.length || unreported > 0;
+    // Every call without reported usage, whether its end event came or not. A retried stream
+    // leaves one per failed attempt, and each of them was billed by the provider.
+    const interrupted = Math.max(started - finished.length, unreported);
     const calls = [...finished];
-    let certainty: "measured" | "estimated" = "measured";
-    if (interrupted) {
-      const estimate = estimateInterruptedCall?.({ finished });
+    for (let index = 0; index < interrupted; index++) {
+      const estimate = estimatedCounts(estimateInterruptedCall?.({ finished, index, interrupted }));
       if (!estimate) return dispatch.settleUnknown({ failed: true });
-      calls.push({ cacheRead: 0, cacheWrite: 0, ...estimate });
-      certainty = "estimated";
+      calls.push(estimate);
     }
     const total = { input: 0n, output: 0n, cacheRead: 0n, cacheWrite: 0n };
     for (const call of calls) {
-      total.input += big(call.input);
-      total.output += big(call.output);
-      total.cacheRead += big(call.cacheRead);
-      total.cacheWrite += big(call.cacheWrite);
+      total.input += BigInt(call.input);
+      total.output += BigInt(call.output);
+      total.cacheRead += BigInt(call.cacheRead);
+      total.cacheWrite += BigInt(call.cacheWrite);
     }
     return dispatch.settle({
       ...measure(total, { modelCalls: started }),
-      certainty,
-      failed: failed || interrupted,
+      certainty: interrupted > 0 ? "estimated" : "measured",
+      failed: failed || interrupted > 0,
     });
   };
   /** A host observer that throws must not fail the SDK callback that triggered settlement. */

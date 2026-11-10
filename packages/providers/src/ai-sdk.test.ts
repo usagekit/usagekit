@@ -71,6 +71,7 @@ async function turn(
   run: {
     abortSignal?: AbortSignal;
     timeout?: number;
+    streamRetries?: number;
     onDelta?: () => void;
     execute?: () => Promise<string>;
   } = {},
@@ -121,6 +122,7 @@ async function turn(
     maxRetries: 0,
     ...(run.abortSignal ? { abortSignal: run.abortSignal } : {}),
     ...(run.timeout ? { timeout: run.timeout } : {}),
+    ...(run.streamRetries ? { streamRetries: run.streamRetries } : {}),
     ...metered.callbacks,
   });
   try {
@@ -144,6 +146,7 @@ async function turn(
   return {
     outcome,
     operation,
+    modelCalls: call,
     receipt: operation.receipts.at(-1)!,
     renew,
     tokens: { used: tokens.used!.value, reserved: tokens.reserved!.value },
@@ -281,6 +284,57 @@ describe("metered streamText", () => {
     const dead = await turn([toolStep, died], interrupted);
     expect(dead.receipt).toMatchObject({ failed: true });
     expect(dead.tokens).toEqual({ used: 274n, reserved: 0n });
+  });
+  it("estimates every interrupted attempt of a retried stream", async () => {
+    const broken = () =>
+      simulateReadableStream<Chunk>({
+        chunks: [
+          { type: "text-start", id: "t" },
+          { type: "text-delta", id: "t", delta: "par" },
+          { type: "error", error: new Error("overloaded") },
+        ],
+      });
+    const estimateInterruptedCall = vi.fn(() => ({ input: 150, output: 4 }));
+    const measure = vi.fn<MeterStreamTextOptions["measure"]>((counts) =>
+      tokenQuantities(counts, pricing),
+    );
+    const t = await turn(
+      [broken, broken, answerStep],
+      { estimateInterruptedCall, measure },
+      { streamRetries: 2 },
+    );
+    expect(t.modelCalls).toBe(3);
+    expect(estimateInterruptedCall).toHaveBeenCalledTimes(2);
+    expect(measure).toHaveBeenCalledExactlyOnceWith(expect.anything(), { modelCalls: 3 });
+    // 180 measured tokens plus 154 for each of the two interrupted attempts.
+    expect(t.receipt).toMatchObject({
+      measurements: [{ unit: "tokens", certainty: "estimated", quantity: { value: 488n } }, {}, {}],
+    });
+    expect(t.tokens).toEqual({ used: 488n, reserved: 0n });
+  });
+  it("an interrupted attempt that cannot be estimated keeps the turn pending", async () => {
+    const died = () =>
+      new ReadableStream<Chunk>({
+        start(controller) {
+          controller.enqueue({ type: "text-start", id: "t" });
+          controller.error(new Error("socket hang up"));
+        },
+      });
+    const estimates: (Record<string, number> | undefined)[] = [
+      undefined,
+      {},
+      { input: 150 },
+      { input: 150.5, output: 4 },
+      { input: 150, output: -4 },
+      { input: 150, output: 4, cacheRead: Number.NaN },
+    ];
+    for (const estimate of estimates) {
+      const t = await turn([toolStep, died], {
+        estimateInterruptedCall: () => estimate as { input: number; output: number } | undefined,
+      });
+      expect(t.outcome).toMatchObject({ outcome: "pending" });
+      expect(t.tokens).toEqual({ used: 0n, reserved: 4000n });
+    }
   });
   it("without an estimator an interrupted turn stays pending with its whole reservation", async () => {
     const t = await turn([toolStep, new Error("provider down")]);
