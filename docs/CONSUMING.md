@@ -196,6 +196,10 @@ try {
 }
 ```
 
+- **Token counts.** `tokenQuantities` and `priceTokens` need whole, non-negative `input` and
+  `output` counts and throw `InvalidInput: tokens` otherwise; only the cache counts are
+  optional. Pass normalized counts, not a raw provider usage object, and call
+  `dispatch.settleUnknown` when the provider reported none.
 - **Budgets.** Any budget on the scope applies: `requests`, the token unit and the money
   unit. Admission is atomic across all of them; a refusal names the exceeded budget.
 - **Settlement.** Less than the estimate returns the difference. More is recorded in full and

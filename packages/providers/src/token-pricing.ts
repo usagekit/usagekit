@@ -1,6 +1,9 @@
 import type { Cost, Money, Quantity } from "@usagekit/core";
 
-/** Tokens of one call or one turn. `input` excludes the cached tokens counted separately. */
+/**
+ * Tokens of one call or one turn. `input` excludes the cached tokens counted separately.
+ * `input` and `output` are required: an absent count is unknown usage, never zero.
+ */
 export type TokenCounts = {
   input: number | bigint;
   /** Every generated token, reasoning included. */
@@ -15,8 +18,8 @@ export type TokenCounts = {
 export type TokenPrices = { input: Money; output: Money; cacheRead?: Money; cacheWrite?: Money };
 
 const million = 1_000_000n;
-function count(value: number | bigint | undefined): bigint {
-  if (value === undefined) return 0n;
+/** A missing count fails here like any other malformed one; callers default the optional ones. */
+function count(value: number | bigint): bigint {
   if (typeof value === "bigint" ? value < 0n : !Number.isSafeInteger(value) || value < 0)
     throw new Error("InvalidInput: tokens");
   return BigInt(value);
@@ -32,8 +35,8 @@ export function priceTokens(counts: TokenCounts, prices: TokenPrices): Money {
   const exact =
     count(counts.input) * input +
     count(counts.output) * rate(prices.output) +
-    count(counts.cacheRead) * (prices.cacheRead ? rate(prices.cacheRead) : input) +
-    count(counts.cacheWrite) * (prices.cacheWrite ? rate(prices.cacheWrite) : input);
+    count(counts.cacheRead ?? 0) * (prices.cacheRead ? rate(prices.cacheRead) : input) +
+    count(counts.cacheWrite ?? 0) * (prices.cacheWrite ? rate(prices.cacheWrite) : input);
   return { units: (exact + million - 1n) / million, currency: "USD" };
 }
 export type TokenQuantityOptions = {
@@ -60,8 +63,8 @@ export function tokenQuantities(
       value:
         count(counts.input) +
         count(counts.output) +
-        count(counts.cacheRead) +
-        count(counts.cacheWrite),
+        count(counts.cacheRead ?? 0) +
+        count(counts.cacheWrite ?? 0),
       scale: 0,
     },
   ];

@@ -102,7 +102,10 @@ the sweep ran first, through a correction that supersedes the sweep's receipt.
 The library ships no provider prices. `priceTokens(counts, prices)` turns token counts into
 exact `Money` from a price table the host owns (money per million tokens, rounded up to one
 money unit), and `tokenQuantities` builds the estimate or the settlement in the host's token
-and money units. Unknown cost keeps an operation pending, as elsewhere in usagekit.
+and money units. Unknown cost keeps an operation pending, as elsewhere in usagekit. Both
+helpers require the `input` and `output` counts and throw `InvalidInput: tokens` when one is
+absent, negative or not a whole number; only the cache counts default to zero. Unknown usage
+therefore never prices as zero: settle it with `settleUnknown` instead.
 
 ## Stores
 

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import fc from "fast-check";
 import { priceTokens, tokenQuantities } from "./token-pricing.js";
-import type { TokenPrices } from "./token-pricing.js";
+import type { TokenCounts, TokenPrices } from "./token-pricing.js";
 
 const usd = (units: bigint) => ({ units, currency: "USD" as const });
 /** $3 and $15 per million tokens: 3 and 15 money units per token. */
@@ -33,6 +33,18 @@ describe("token pricing", () => {
     expect(() => priceTokens({ input: 1, output: 0 }, { ...prices, input: usd(-1n) })).toThrow(
       "InvalidInput: prices",
     );
+  });
+  it("rejects a missing input or output count instead of pricing it as zero", () => {
+    // What a JavaScript caller or unvalidated provider data can pass despite the type.
+    const partial: Partial<TokenCounts>[] = [{ output: 5 }, { input: 5 }, {}];
+    for (const counts of partial as TokenCounts[]) {
+      expect(() => priceTokens(counts, prices)).toThrow("InvalidInput: tokens");
+      expect(() => tokenQuantities(counts, { prices })).toThrow("InvalidInput: tokens");
+      expect(() => tokenQuantities(counts)).toThrow("InvalidInput: tokens");
+    }
+    // Only the cache counts are optional.
+    expect(priceTokens({ input: 5, output: 5 }, prices)).toEqual(usd(90n));
+    expect(tokenQuantities({ input: 5, output: 5 }).usage[0]!.value).toBe(10n);
   });
   it("is monotonic and never below the exact amount", () => {
     fc.assert(
