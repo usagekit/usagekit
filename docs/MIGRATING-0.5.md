@@ -21,7 +21,7 @@ the same local cohort rather than a registry version:
 npm install --save-exact /absolute/candidate/usagekit-core-0.5.0.tgz /absolute/candidate/usagekit-store-0.5.0.tgz /absolute/candidate/usagekit-meter-0.5.0.tgz /absolute/candidate/usagekit-providers-0.5.0.tgz
 ```
 
-Use Node 22.23.1. Record the source SHA and tarball checksums with the consumer results. A
+Use Node 22.23.4. Record the source SHA and tarball checksums with the consumer results. A
 candidate may precede its preparation commit; verify its package manifests and compiled
 runtime/declarations against the final reviewed cohort before publication. Temporary file
 dependencies belong only in candidate validation; published consumers pin the registry cohort

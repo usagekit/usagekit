@@ -1,6 +1,6 @@
 # Consuming usagekit
 
-Use Node 22.23.1 and pin packages from a release cohort to the same exact version.
+Use Node 22.23.4 and pin packages from a release cohort to the same exact version.
 The seven-package 0.9.0 cohort is published. It adds pricing formulas, authorized
 `Meter.quote`, host-priced credits calls and React draft rebase signals for the host
 composition blocks. See [what 0.9.0 adds](#what-090-adds).

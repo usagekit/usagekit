@@ -7,7 +7,7 @@ It is a single-owner loopback server, not a hosted multi-user service.
 
 ## Install and start
 
-From this checkout, use Node 22.23.1 and npm 10.9.3:
+From this checkout, use Node 22.23.4 and npm 10.9.3:
 
 ```sh
 nvm use

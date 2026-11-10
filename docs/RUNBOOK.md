@@ -9,7 +9,7 @@ these procedures implement.
 
 ```sh
 cd <workspace>/usagekit
-export PATH=$HOME/.nvm/versions/node/v22.23.1/bin:$PATH   # pinned Node; ignore the nvm "not installed" warning
+export PATH=$HOME/.nvm/versions/node/v22.23.4/bin:$PATH   # pinned Node; ignore the nvm "not installed" warning
 git status --short                                        # must be empty unless you know why
 git branch --show-current                                 # know whose branch you are on
 ```

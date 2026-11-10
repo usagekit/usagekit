@@ -13,8 +13,8 @@ The 0.9.1 release allow-list contains these seven packages. Other workspaces rem
 
 ## Start here
 
-Use Node **22.23.1** from `.nvmrc` and npm **10.9.3** as the baseline.
-Supported ranges are Node `>=22.23.1 <23` and npm `>=10.9.3 <11`.
+Use Node **22.23.4** from `.nvmrc` and npm **10.9.3** as the baseline.
+Supported ranges are Node `>=22.23.4 <23` and npm `>=10.9.3 <11`.
 The lockfile pins dependencies. `@types/node` is pinned to the Node 22 line.
 
 ```sh
