@@ -617,6 +617,29 @@ describe("abandoned dispatches", () => {
       { id: "turn-1:receipt", supersedes: "turn-1:abandoned" },
     ]);
   });
+  it("resolves a sweep that lands between the rejected settle and the recovery claim", async () => {
+    const h = setup();
+    const dispatch = await h.admit("turn-1", 4000n, 20n);
+    h.clock.advance(60_000);
+    const claim = h.meter.claimForRecovery.bind(h.meter);
+    vi.spyOn(h.meter, "claimForRecovery").mockImplementationOnce(async (input) => {
+      vi.mocked(h.meter.claimForRecovery).mockImplementation(claim);
+      await h.dispatcher.settleAbandoned({
+        access,
+        scope: scopeAll,
+        ...month,
+        cost: () => cost(200_000n),
+      });
+      return claim(input);
+    });
+    expect(
+      await dispatch.settle({
+        usage: [q("tokens", 1200n), q("customer_cents", 4n)],
+        cost: cost(40_000n),
+      }),
+    ).toMatchObject({ outcome: "settled", via: "correction" });
+    expect(await h.figures("tokens")).toMatchObject({ used: 1200n, reserved: 0n });
+  });
   it("a late turn also replaces a pending sweep receipt", async () => {
     const h = setup();
     const dispatch = await h.admit("turn-1", 4000n, 20n);

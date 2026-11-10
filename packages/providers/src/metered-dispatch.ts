@@ -223,11 +223,11 @@ export function createMeteredDispatch(options: MeteredDispatchOptions): MeteredD
       });
       return (finished = { outcome: "settled", replayed, via, operation, alerts, overshoot });
     };
-    const rejected = (result: Exclude<SettleResult, { outcome: "settled" }>): SettleOutcome => ({
+    const rejected = (result: { reason: string; operation?: Operation | null }): SettleOutcome => ({
       outcome: "rejected",
       reason: "invalid",
       detail: result.reason,
-      operation: result.outcome === "rejected" ? result.operation : null,
+      operation: result.operation ?? null,
     });
     /** The receipt is already this operation's evidence: a replay, whoever asked first. */
     const recorded = (
@@ -235,49 +235,58 @@ export function createMeteredDispatch(options: MeteredDispatchOptions): MeteredD
       receipt: Receipt,
       via: "lease" | "recovery" | "correction",
     ): SettleOutcome | null => {
-      const current = effectiveReceipt(operation);
-      if (current?.id !== receipt.id) return null;
+      // Still a replay when a later host correction superseded it.
+      const current = operation.receipts.find((stored) => stored.id === receipt.id);
+      if (!current) return null;
       return evidence(current) === evidence(receipt)
         ? conclude({ outcome: "settled", replayed: true, operation, alerts: [] }, via, receipt)
         : { outcome: "rejected", reason: "already_settled", operation };
     };
-    /** The lease no longer authorizes settlement: recover, or correct what recovery recorded. */
-    const settleLate = async (receipt: Receipt, operation: Operation): Promise<SettleOutcome> => {
-      const replay = recorded(operation, receipt, "lease");
-      if (replay) return replay;
-      const leased = !!operation.lease && Date.parse(operation.lease.expiresAt) > now().getTime();
-      if (leased) return { outcome: "rejected", reason: "lease_lost", operation };
+    /**
+     * The lease no longer authorizes settlement: recover, or correct what recovery recorded.
+     * Another writer may move the operation between two commands, so each refusal that returns
+     * the current operation is evaluated again, a bounded number of times.
+     */
+    const settleLate = async (receipt: Receipt, seen: Operation): Promise<SettleOutcome> => {
       const command = { ...ref, commandId: `${id}:settle`, receipt };
-      if (operation.state === "dispatch_intended") {
-        const claim = await meter.claimForRecovery({ ...ref, holder, leaseTtlMs });
-        if (!("claimed" in claim) || !claim.claimed)
-          return {
-            outcome: "rejected",
-            reason: "lease_lost",
-            operation: "claimed" in claim ? claim.operation : null,
-          };
-        const result = await meter.settle({
-          ...command,
-          expectedVersion: claim.operation.version,
-          authority: { kind: "recovery", leaseId: claim.lease.leaseId },
-        });
-        return result.outcome === "settled"
-          ? conclude(result, "recovery", receipt)
-          : rejected(result);
+      let operation = seen;
+      for (let attempt = 0; attempt < 3; attempt++) {
+        const replay = recorded(operation, receipt, "lease");
+        if (replay) return replay;
+        if (operation.lease && Date.parse(operation.lease.expiresAt) > now().getTime()) break;
+        let result: SettleResult, via: "recovery" | "correction";
+        if (operation.state === "dispatch_intended") {
+          const claim = await meter.claimForRecovery({ ...ref, holder, leaseTtlMs });
+          if (!("claimed" in claim)) return rejected(claim);
+          if (!claim.claimed) {
+            if (claim.reason !== "not_recoverable" || !claim.operation) break;
+            operation = claim.operation;
+            continue;
+          }
+          via = "recovery";
+          result = await meter.settle({
+            ...command,
+            expectedVersion: claim.operation.version,
+            authority: { kind: "recovery", leaseId: claim.lease.leaseId },
+          });
+        } else {
+          const superseded = effectiveReceipt(operation);
+          if ((operation.state !== "pending" && operation.state !== "settled") || !superseded)
+            return { outcome: "rejected", reason: "invalid", detail: operation.state, operation };
+          via = "correction";
+          result = await meter.correct({
+            ...command,
+            expectedVersion: operation.version,
+            authority: { kind: "late_evidence", source: holder },
+            replacesReceiptId: superseded.id,
+            reason: "settled after lease expiry",
+          });
+        }
+        if (result.outcome === "settled") return conclude(result, via, receipt);
+        if (result.outcome === "invalid" || !result.operation) return rejected(result);
+        operation = result.operation;
       }
-      const superseded = effectiveReceipt(operation);
-      if ((operation.state !== "pending" && operation.state !== "settled") || !superseded)
-        return { outcome: "rejected", reason: "invalid", detail: operation.state, operation };
-      const result = await meter.correct({
-        ...command,
-        expectedVersion: operation.version,
-        authority: { kind: "late_evidence", source: holder },
-        replacesReceiptId: superseded.id,
-        reason: "settled after lease expiry",
-      });
-      return result.outcome === "settled"
-        ? conclude(result, "correction", receipt)
-        : rejected(result);
+      return { outcome: "rejected", reason: "lease_lost", operation };
     };
     /** First evidence wins: a retry resubmits the same receipt, so the Store replays it. */
     let first: Receipt | undefined;
