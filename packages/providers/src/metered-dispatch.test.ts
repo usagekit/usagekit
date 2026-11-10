@@ -309,6 +309,19 @@ describe("metered dispatch settlement", () => {
     });
     expect(await h.figures("tokens")).toMatchObject({ used: 900n, reserved: 0n });
   });
+  it("a turn that never called the model returns its whole token and money reservation", async () => {
+    const h = setup();
+    const dispatch = await h.admit("turn-1");
+    expect(
+      await dispatch.settle({
+        usage: [q("tokens", 0n), q("customer_cents", 0n)],
+        cost: { certainty: "measured", money: { units: 0n, currency: "USD" } },
+        failed: true,
+      }),
+    ).toMatchObject({ outcome: "settled", overshoot: [] });
+    expect(await h.figures("tokens")).toMatchObject({ used: 0n, reserved: 0n });
+    expect(await h.figures("customer_cents")).toMatchObject({ used: 0n, reserved: 0n });
+  });
   it("rejects usage that omits a reserved unit before any command", async () => {
     const h = setup();
     const dispatch = await h.admit("turn-1");
