@@ -5,10 +5,10 @@ costs and application credits. Both BYOK and platform-funded keys are in scope.
 Host A uses Postgres and Prisma. Host B adds team-owned connections.
 Host C targets Cloudflare D1. A local server shares the embedded Meter contract.
 
-**Release 0.9.1 is published. The 0.10.0 source candidate adds request-metered fetch to `@usagekit/providers` and the `credential-input` registry block, and requires Node 22.23.4; the seven packages move in lockstep. See [what 0.10.0 adds](docs/CONSUMING.md#what-0100-adds).**
-Licensed under Apache-2.0. `@usagekit/core`, `store`, `meter`, `providers`, `views`, `react` and `store-postgres` 0.9.1 are published on registry.npmjs.org.
-The 0.10.0 release allow-list contains these seven packages. Other workspaces remain private. Candidate publication needs separate exact-source and version owner approval.
-Unreleased after 0.10.0: `createMeteredDispatch` in `@usagekit/providers` admits a streaming model call against request, token and money budgets and settles it with actual usage, with an AI SDK 7 adapter at `@usagekit/providers/ai-sdk`. See [metered dispatch](docs/METERED-DISPATCH.md).
+**Release 0.10.0 is published. The 0.11.0 source candidate adds token- and money-settled dispatch to `@usagekit/providers`; the seven packages move in lockstep. See [what 0.11.0 adds](docs/CONSUMING.md#what-0110-adds).**
+Licensed under Apache-2.0. `@usagekit/core`, `store`, `meter`, `providers`, `views`, `react` and `store-postgres` 0.10.0 are published on registry.npmjs.org.
+The 0.11.0 release allow-list contains these seven packages. Other workspaces remain private. Candidate publication needs separate exact-source and version owner approval.
+`createMeteredDispatch` ships in 0.11.0: it admits a streaming model call against request, token and money budgets and settles it with actual usage, with an AI SDK 7 adapter at `@usagekit/providers/ai-sdk`. See [metered dispatch](docs/METERED-DISPATCH.md).
 
 [Project website](https://usagekit.dev) · [Source](https://github.com/usagekit/usagekit) · [Issues](https://github.com/usagekit/usagekit/issues) · [Roadmap](docs/ROADMAP.md)
 

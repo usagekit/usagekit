@@ -772,7 +772,7 @@ for errors, cancellation, unknown cost, store durability and host security respo
 
 ## Token- and money-settled dispatch
 
-Unreleased, after 0.10.0. `createMeteredDispatch` admits one model turn against every
+New in 0.11.0, `createMeteredDispatch` admits one model turn against every
 applicable request, token and money budget and settles it with the usage its stream reported;
 `@usagekit/providers/ai-sdk` wires that into AI SDK 7 `streamText`. Prices stay with the
 host: `priceTokens` and `tokenQuantities` apply a host-owned table, and the catalog ships no
