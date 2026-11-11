@@ -1,6 +1,6 @@
 # Metered dispatch
 
-An unreleased addition to `@usagekit/providers`, after 0.10.0. It lets a host enforce
+Metered dispatch ships in 0.11.0 in `@usagekit/providers`. It lets a host enforce
 request, token and money budgets around one streaming model call: admit before the call,
 settle with real usage when the stream ends. The first half of this page is the design note;
 the second half shows how to use it.

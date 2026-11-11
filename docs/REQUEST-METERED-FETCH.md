@@ -1,7 +1,7 @@
 # Request-metered fetch
 
 `createRequestMeteredFetch` is an additive export from `@usagekit/providers`, new in the
-0.10.0 source candidate. The adapter reserves one `requests` unit before each transport
+0.10.0 release. The adapter reserves one `requests` unit before each transport
 attempt and dispatches only after a first intent grant. It uses the injected Meter and
 never creates its own Store, budget or credentials.
 
@@ -64,7 +64,7 @@ read budgets, so the check happens on the first call rather than at construction
 Treat `unsupported_budget_unit` as a configuration error for operators, not a user limit.
 Either keep request-only metering on a scope whose applicable budgets are all `requests`
 (for example a dedicated connection or surface), or meter that traffic with
-[metered dispatch](METERED-DISPATCH.md), the unreleased dispatch handle that reserves an
+[metered dispatch](METERED-DISPATCH.md), the dispatch handle shipping in 0.11.0 that reserves an
 estimate in the money or token unit and settles the actual amount. The two are alternatives
 for one turn, not layers: the handle already counts one `requests` unit per turn, so its SDK
 call takes the plain provider `fetch`. See

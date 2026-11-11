@@ -23,19 +23,19 @@
     "prepublishOnly": "node ../../scripts/deny-publish.mjs"
   },
   "dependencies": {
-    "@usagekit/core": "0.10.0",
-    "@usagekit/store": "0.10.0",
-    "@usagekit/meter": "0.10.0",
+    "@usagekit/core": "0.11.0",
+    "@usagekit/store": "0.11.0",
+    "@usagekit/meter": "0.11.0",
     "@usagekit/store-sqlite": "0.0.0",
-    "@usagekit/http": "0.10.0",
+    "@usagekit/http": "0.11.0",
     "hono": "4.13.8",
     "@hono/node-server": "2.1.1",
-    "@usagekit/providers": "0.10.0",
+    "@usagekit/providers": "0.11.0",
     "@usagekit/proxy": "0.0.0",
-    "@usagekit/views": "0.10.0"
+    "@usagekit/views": "0.11.0"
   },
   "devDependencies": {
-    "@usagekit/client": "0.10.0",
-    "@usagekit/react": "0.10.0"
+    "@usagekit/client": "0.11.0",
+    "@usagekit/react": "0.11.0"
   }
 }
