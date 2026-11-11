@@ -39,8 +39,9 @@ Settlement records request count when response headers arrive (or transport reje
 It does not claim that streaming completed or that the provider charged a known amount.
 A later stream failure remains outside this request-only receipt. Monetary cost is
 always unknown; the operation can therefore remain `pending` and keep its reservation.
-For token or money accounting, use a separate receipt-aware adapter with final stream
-evidence and durable recovery. Never convert unknown cost to zero.
+For token or money accounting, use [metered dispatch](METERED-DISPATCH.md), which settles a
+turn with its final stream usage and resolves abandoned turns. Never convert unknown cost to
+zero.
 
 No monetary ceiling is promised. Meter settlement failures stop delivery and attempt to
 cancel the body; they never retry provider dispatch. Replayed reservations and denied
@@ -62,8 +63,12 @@ read budgets, so the check happens on the first call rather than at construction
 
 Treat `unsupported_budget_unit` as a configuration error for operators, not a user limit.
 Either keep request-only metering on a scope whose applicable budgets are all `requests`
-(for example a dedicated connection or surface), or meter that traffic with a
-receipt-aware adapter that can estimate and settle the money or token unit.
+(for example a dedicated connection or surface), or meter that traffic with
+[metered dispatch](METERED-DISPATCH.md), the unreleased dispatch handle that reserves an
+estimate in the money or token unit and settles the actual amount. The two are alternatives
+for one turn, not layers: the handle already counts one `requests` unit per turn, so its SDK
+call takes the plain provider `fetch`. See
+[how the two relate](METERED-DISPATCH.md#relation-to-request-metered-fetch).
 
 ## Errors
 

@@ -5,7 +5,12 @@ import type { AccessContext, Meter } from "@usagekit/core";
 import { createManualClock, createMemoryStore } from "@usagekit/store";
 import { canonical as canonicalReference } from "@usagekit/store/reference";
 import { createMeter } from "@usagekit/meter";
-import { dataforseo, createCatalog } from "@usagekit/providers";
+import {
+  dataforseo,
+  createCatalog,
+  createMeteredDispatch,
+  tokenQuantities,
+} from "@usagekit/providers";
 import { loadUsageSummary, parseProviderDecimal } from "@usagekit/views";
 import type { ProviderManagementPort } from "@usagekit/views";
 import {
@@ -44,6 +49,32 @@ const view = await loadUsageSummary(meter, access, {
 assert.equal(view.complete, true);
 assert.equal(formatMoney(fromDecimalString("12.3456")), "12.3456");
 assert.equal(typeof canonicalReference, "function");
+const pricing = {
+  prices: {
+    input: { units: 3_000_000n, currency: "USD" },
+    output: { units: 15_000_000n, currency: "USD" },
+  },
+  moneyUnit: "customer_cents",
+} as const;
+const admitted = await createMeteredDispatch({ meter, now: clock.now, renewEveryMs: 0 }).admit({
+  id: "consumer-turn",
+  operation: {
+    scope: { namespace: "consumer", principal: "owner", connection: "platform" },
+    fundingSource: "platform",
+    costOwner: "platform",
+    surface: "app",
+    source: "app",
+    provider: "example",
+    operation: "generate",
+  },
+  estimate: tokenQuantities({ input: 1000, output: 200 }, pricing).usage,
+});
+assert.equal(admitted.outcome, "admitted");
+if (admitted.outcome === "admitted")
+  assert.equal(
+    (await admitted.dispatch.settle(tokenQuantities({ input: 400, output: 80 }, pricing))).outcome,
+    "settled",
+  );
 assert.ok(createCatalog({ providers: [dataforseo], enabled: [dataforseo.descriptor.id] }));
 assert.equal(parseProviderDecimal("0.012", "cents").outcome, "valid");
 function Status() {

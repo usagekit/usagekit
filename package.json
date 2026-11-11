@@ -74,7 +74,8 @@
     "@prisma/client": "7.9.1",
     "@prisma/adapter-pg": "7.9.1",
     "prisma": "7.9.1",
-    "@biomejs/biome": "2.5.15"
+    "@biomejs/biome": "2.5.15",
+    "ai": "7.0.168"
   },
   "type": "module",
   "repository": {

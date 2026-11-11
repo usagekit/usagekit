@@ -50,3 +50,19 @@ export type { RequestPricingInput, ProviderCredentials } from "./priced-request.
 
 export { createRequestMeteredFetch, RequestMeteringError } from "./request-metered-fetch.js";
 export type { RequestMeteredFetchOptions } from "./request-metered-fetch.js";
+
+export { createMeteredDispatch } from "./metered-dispatch.js";
+export type {
+  AbandonedSweep,
+  AbandonedSweepResult,
+  AdmitResult,
+  DispatchAdmission,
+  DispatchSettlement,
+  LeaseRenewalOutcome,
+  MeteredDispatch,
+  MeteredDispatchOptions,
+  MeteredDispatcher,
+  SettleOutcome,
+} from "./metered-dispatch.js";
+export { priceTokens, tokenQuantities } from "./token-pricing.js";
+export type { TokenCounts, TokenPrices, TokenQuantityOptions } from "./token-pricing.js";
