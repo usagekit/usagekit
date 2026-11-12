@@ -67,6 +67,7 @@ export {
   toDecimalString,
   formatMoney,
   moneyScale,
+  normalizeLegacyMoney,
   add as addMoney,
   sub as subtractMoney,
   compare as compareMoney,

@@ -65,6 +65,19 @@ export async function fixture() {
     connect,
     counters,
     client: () => pool,
+    async replayMoneyMigration() {
+      await pool.query(
+        `ALTER TABLE "${schema}".metering_receipt DROP COLUMN cost_scale; DELETE FROM "${schema}".metering_schema_version WHERE version=2`,
+      );
+      await migratePostgresStore({ pool, schema });
+    },
+    async moneyColumns() {
+      return (
+        await pool.query(
+          `SELECT cost_units::text,cost_scale FROM "${schema}".metering_receipt ORDER BY recorded_at,receipt_pk`,
+        )
+      ).rows.sort((a, b) => a.cost_scale - b.cost_scale);
+    },
     async restart() {
       await pool.end();
       pool = connect();

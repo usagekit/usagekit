@@ -99,7 +99,7 @@ test("billing journal upgrades v5 and retains exact imports, revisions and repla
   let store = createSqliteStore({ path, clock });
   try {
     expect(store.database.prepare("SELECT MAX(version) AS version FROM migrations").get()).toEqual({
-      version: 6n,
+      version: 7n,
     });
     const first = await store.importBilling(billingInput());
     if (first.outcome !== "imported") throw new Error("fixture import");

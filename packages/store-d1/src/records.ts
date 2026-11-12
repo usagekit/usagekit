@@ -1,4 +1,5 @@
 import type { Database } from "./database.js";
+import { moneyScale } from "@usagekit/core";
 import type { Operation, Receipt, OperationRef, ReserveInput } from "@usagekit/core";
 import { encode, decode, integer } from "./serialize.js";
 import { key, effective } from "./util.js";
@@ -53,9 +54,7 @@ export function receipts(db: Database, pk: string): Receipt[] {
                 money: {
                   units: row.cost_units,
                   currency: "USD",
-                  ...(metadata.cost?.money?.scale === undefined
-                    ? {}
-                    : { scale: metadata.cost!.money!.scale }),
+                  ...(Number(row.cost_scale) === 4 ? {} : { scale: Number(row.cost_scale) }),
                 },
               },
         ...(row.supersedes ? { supersedes: row.supersedes } : {}),
@@ -108,17 +107,20 @@ export function appendReceipt(db: Database, op: Operation, r: Receipt): void {
       recordedAt: ______,
       ...metadata
     } = r;
-  db.prepare("INSERT INTO receipts VALUES(?,?,?,?,?,?,?,?,?,?)").run(
+  db.prepare(
+    "INSERT INTO receipts(receipt_pk,operation_pk,receipt_id,supersedes,receipt_json,occurred_at,recorded_at,cost_units,cost_certainty,sequence,cost_scale) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+  ).run(
     rpk,
     pk,
     r.id,
     r.supersedes ?? null,
-    encode({ ...metadata, ...(r.cost.money?.scale === undefined ? {} : { cost: r.cost }) }),
+    encode(metadata),
     r.occurredAt,
     r.recordedAt,
     integer(r.cost.money?.units ?? null),
     r.cost.certainty,
     op.receipts.length - 1,
+    r.cost.money ? moneyScale(r.cost.money) : 4,
   );
   for (const m of r.measurements)
     db.prepare("INSERT INTO measurements VALUES(?,?,?,?,?)").run(

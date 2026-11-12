@@ -13,5 +13,7 @@ export type StoreFixture = {
   close(): Promise<void>;
   /** Persistent adapters must terminate and reopen their backing process here. */
   restart?: () => Promise<Store>;
+  replayMoneyMigration?: () => Promise<void>;
+  moneyColumns?: () => Promise<{ cost_units: string; cost_scale: number }[]>;
 };
 export type StoreFactory = () => Promise<StoreFixture>;

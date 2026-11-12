@@ -12,7 +12,13 @@ import type {
   ReconciliationEntry,
   ValidationFailure,
 } from "@usagekit/core";
-import { normalizeTags, addMoney, subtractMoney, moneyScale } from "@usagekit/core";
+import {
+  normalizeTags,
+  normalizeLegacyMoney,
+  addMoney,
+  subtractMoney,
+  moneyScale,
+} from "@usagekit/core";
 import { settlementState } from "./memory/settlement.js";
 import { canonical, copy, maxMoneyUnits } from "./memory/state.js";
 
@@ -230,6 +236,7 @@ export function prepareBillingImport(
   snapshot: BillingSnapshot,
   now: Date,
 ): BillingPreparation {
+  i = normalizeLegacyMoney(i);
   const error = validateBillingImportInput(i);
   if (error) return { result: error, changes: [], familyId: "" };
   const window = normalizedWindow(i.window),
@@ -314,6 +321,15 @@ export function prepareBillingImport(
   const reconciliations: ReconciliationEntry[] = [];
   for (const [n, line] of i.lines.entries()) {
     if (line.providerRequestId === undefined) {
+      if (line.cost.scale !== undefined)
+        return {
+          familyId,
+          changes: [],
+          result: invalid(
+            "lines." + n + ".cost",
+            "non-legacy money scale requires a matching settlementPolicy operation",
+          ),
+        };
       reconciliations.push(
         reconciliation("aggregate", line.window!, line.cost, "aggregate:" + n, line.operation),
       );
@@ -326,6 +342,15 @@ export function prepareBillingImport(
     );
     if (candidates.length > 1) return reject("ambiguous_request", n);
     const before = candidates[0] ?? null;
+    if (line.cost.scale !== undefined && !before?.settlementPolicy)
+      return {
+        familyId,
+        changes: [],
+        result: invalid(
+          "lines." + n + ".cost",
+          "non-legacy money scale requires a matching settlementPolicy operation",
+        ),
+      };
     // Historical receipts may carry different request ids for the same operation.
     // Two lines must never create competing updates from the same version.
     if (before && matched.includes(before.operationId)) return reject("ambiguous_request", n);

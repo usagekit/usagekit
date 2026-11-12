@@ -631,3 +631,23 @@ prices for billable credits calls; see [what 0.9.0 adds](#what-090-adds).
 
 Provider execution in this candidate uses the pricing boundary described in the upgrade notes
 above. See the [provider contract](PROVIDERS.md#8-executable-wrapper-and-local-pricing).
+
+### Upgrade order for the unreleased native settlement extension
+
+Upgrade every reader and client in a namespace, including background jobs, exported
+SQL reports and rollback images, before enabling a writer to emit non-legacy money
+scales. Apply the Store migrations before those writers start: PostgreSQL schema
+version 2, SQLite version 7 and Cloudflare Durable Object schema version 3 add
+`cost_scale` alongside `cost_units`. Read the pair together; summing raw units across
+scales is invalid. These Stores align money in application code using bigint.
+
+Only an operation with a frozen `settlementPolicy` accepts a non-legacy money scale.
+Billing imports with that scale must match such an operation. Explicit scale 4 is
+canonicalized to the legacy two-key Money shape, including replay identity and wire
+output. Namespaces that never opt in keep the legacy shape. A namespace that opts in
+can return scaled aggregates to every reader, not only to the writer that opted in.
+
+Rollback to 0.11.0 or older readers is unsafe once non-legacy-scale rows exist.
+The column migration alone does not make an old reader understand those rows. Keep
+an upgraded rollback build, or restore a pre-adoption database snapshot under an
+owner-approved recovery plan. This extension does not negotiate reader capabilities.

@@ -1,4 +1,4 @@
-import type { Operation, Receipt, ReserveInput } from "@usagekit/core";
+import type { Operation, Receipt, ReserveInput, Quantity } from "@usagekit/core";
 import { canonical, InvalidInput } from "./state.js";
 
 export function validateSettlementPolicy(i: ReserveInput): void {
@@ -24,6 +24,7 @@ export function validSettlementLink(
   op: Operation,
   receipt: Receipt,
   target: Operation | null,
+  hasDependents = false,
 ): boolean {
   const previous = op.receipts.at(-1);
   if (
@@ -39,6 +40,7 @@ export function validSettlementLink(
     return false;
   if (receipt.canonicalOperationId === undefined) return true;
   if (
+    hasDependents ||
     !op.settlementPolicy ||
     !target?.settlementPolicy ||
     target.state !== "settled" ||
@@ -95,4 +97,25 @@ export function settlementState(
     op.estimate.some((q) => !r.measurements.some((m) => m.unit === q.unit))
     ? "pending"
     : "settled";
+}
+
+/** A missing bounded unit retains its reserved estimate as consumption, never as money. */
+export function settledQuantity(op: Operation, unit: string): Quantity | undefined {
+  const receipt = [...op.receipts]
+    .reverse()
+    .find((r) => !op.receipts.some((n) => n.supersedes === r.id));
+  if (receipt?.canonicalOperationId) return undefined;
+  return (
+    receipt?.measurements.find((m) => m.unit === unit)?.quantity ??
+    op.estimate.find((q) => q.unit === unit)
+  );
+}
+
+export function validateMoneyPolicy(op: Operation, receipt: Receipt): void {
+  if (
+    !op.settlementPolicy &&
+    receipt.cost.money?.scale !== undefined &&
+    receipt.cost.money.scale !== 4
+  )
+    throw new InvalidInput("receipt.cost", "non-legacy money scale requires settlementPolicy");
 }

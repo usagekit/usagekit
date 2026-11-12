@@ -1,5 +1,10 @@
-import { validateSettlementPolicy, validSettlementLink, settlementState } from "./settlement.js";
-import { moneyScale } from "@usagekit/core";
+import {
+  validateSettlementPolicy,
+  validSettlementLink,
+  settlementState,
+  validateMoneyPolicy,
+} from "./settlement.js";
+import { moneyScale, normalizeLegacyMoney } from "@usagekit/core";
 import type { AdmissionPolicy } from "@usagekit/core";
 import { admission, recordAlerts, reachedBySettlement } from "./admission.js";
 import type { ReserveInput, ReserveResult, Operation } from "@usagekit/core";
@@ -200,6 +205,7 @@ export function settle(
   i: SettleInput | CorrectionInput,
   correction = false,
 ): SettleResult {
+  i = normalizeLegacyMoney(i);
   validateReceipt(i.receipt);
   const op = find(s, i);
   const reject = (
@@ -211,6 +217,7 @@ export function settle(
       | "receipt_conflict",
   ): SettleResult => ({ outcome: "rejected", reason, operation: copy(op) });
   if (!op) return reject("invalid_state");
+  validateMoneyPolicy(op, i.receipt);
   const ck = canonical([i.namespace, i.operationId, i.commandId]),
     identity = canonical({ kind: correction ? "correct" : "settle", input: i }),
     previous = s.commands.get(ck);
@@ -233,7 +240,25 @@ export function settle(
   const canonicalOp = i.receipt.canonicalOperationId
     ? find(s, { ...i, operationId: i.receipt.canonicalOperationId })
     : null;
-  if (!validSettlementLink(op, i.receipt, canonicalOp)) return reject("receipt_conflict");
+  if (
+    !validSettlementLink(
+      op,
+      i.receipt,
+      canonicalOp,
+      i.receipt.canonicalOperationId !== undefined &&
+        (s.hasCanonicalDependents?.(op) ??
+          [...s.operations.values()].some(
+            (other) =>
+              other.scope.namespace === op.scope.namespace &&
+              other.state === "settled" &&
+              [...other.receipts]
+                .reverse()
+                .find((r) => !other.receipts.some((n) => n.supersedes === r.id))
+                ?.canonicalOperationId === op.operationId,
+          )),
+    )
+  )
+    return reject("receipt_conflict");
   const receipt = copy(i.receipt);
   if (target) receipt.supersedes = target;
   op.receipts = [...op.receipts, receipt];

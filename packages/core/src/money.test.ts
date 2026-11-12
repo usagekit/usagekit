@@ -44,3 +44,11 @@ test("explicit precision aligns exact arithmetic without changing legacy shapes"
     expect(() => fromDecimalString("1", { scale })).toThrow("money.scale");
   expect(() => fromDecimalString("0.000000131", { scale: 8 })).toThrow("cents");
 });
+
+test("explicit legacy precision has the same constructor and arithmetic shape", () => {
+  const legacy = fromDecimalString("0.0001");
+  const explicit = fromDecimalString("0.0001", { scale: 4 });
+  expect(explicit).toEqual(legacy);
+  expect(add({ ...legacy, scale: 4 }, legacy)).toEqual({ units: 2n, currency: "USD" });
+  expect(sub({ ...legacy, scale: 4 }, legacy)).toEqual({ units: 0n, currency: "USD" });
+});

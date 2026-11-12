@@ -1,3 +1,5 @@
+import { normalizeLegacyMoney } from "./money.js";
+
 /** Restore integers only in recognizable Meter DTOs. Generic metadata fields retain their strings.
  * This performs conversion, not validation. HTTP validates strict wire schemas before calling it.
  */
@@ -12,7 +14,7 @@ export function decodeMeterJson(text: string): unknown {
       v.currency === "USD" &&
       decimal(v.units)
     )
-      return { ...v, units: BigInt(v.units) };
+      return normalizeLegacyMoney({ ...v, units: BigInt(v.units) });
     if (
       keys.length === 3 &&
       typeof v.unit === "string" &&

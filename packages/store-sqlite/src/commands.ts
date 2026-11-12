@@ -1,5 +1,11 @@
-import { validateSettlementPolicy, validSettlementLink, settlementState } from "@usagekit/store";
+import {
+  validateSettlementPolicy,
+  validSettlementLink,
+  settlementState,
+  validateMoneyPolicy,
+} from "@usagekit/store";
 import type Database from "better-sqlite3";
+import { normalizeLegacyMoney } from "@usagekit/core";
 import type { Store, Clock } from "@usagekit/store";
 import { InvalidInput } from "@usagekit/store";
 import type {
@@ -96,6 +102,7 @@ export function commands(
     return active(op) ? null : "lease_expired";
   };
   const settle = (i: SettleInput | CorrectionInput, correction = false): SettleResult => {
+    i = normalizeLegacyMoney(i);
     validateReceipt(i.receipt);
     const found = find(db, i),
       op = found?.op ?? null;
@@ -103,6 +110,7 @@ export function commands(
       reason: Extract<SettleResult, { outcome: "rejected" }>["reason"],
     ): SettleResult => ({ outcome: "rejected", reason, operation: op });
     if (!op) return reject("invalid_state");
+    validateMoneyPolicy(op, i.receipt);
     const previous = replay(i),
       kind = correction ? "correct" : "settle";
     if (previous) {
@@ -132,7 +140,15 @@ export function commands(
     const canonicalOp = i.receipt.canonicalOperationId
       ? (find(db, { ...i, operationId: i.receipt.canonicalOperationId })?.op ?? null)
       : null;
-    if (!validSettlementLink(op, i.receipt, canonicalOp)) return reject("receipt_conflict");
+    const hasDependents =
+      i.receipt.canonicalOperationId !== undefined &&
+      !!db
+        .prepare(
+          "SELECT 1 FROM receipts r JOIN operations o USING(operation_pk) WHERE o.namespace=? AND o.state='settled' AND json_extract(r.receipt_json,'$.canonicalOperationId')=? AND NOT EXISTS(SELECT 1 FROM receipts n WHERE n.operation_pk=r.operation_pk AND n.supersedes=r.receipt_id) LIMIT 1",
+        )
+        .get(i.namespace, i.operationId);
+    if (!validSettlementLink(op, i.receipt, canonicalOp, hasDependents))
+      return reject("receipt_conflict");
     const before = structuredClone(op),
       receipt: Receipt = {
         ...structuredClone(i.receipt),

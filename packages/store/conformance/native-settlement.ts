@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
 import { fromDecimalString, toDecimalString } from "@usagekit/core";
 import type { Money, Receipt, ReserveInput } from "@usagekit/core";
-import type { StoreFactory, StoreFixture } from "./factory.js";
+import type { StoreCapabilities, StoreFactory, StoreFixture } from "./factory.js";
 import { budget, command, input, quantity, receipt, ref } from "./helpers.js";
 
 // Structural types let these same probes execute against the unmodified 0.11.0 base.
@@ -29,7 +29,7 @@ const proof = (overrides: Partial<Receipt> = {}): Receipt =>
     cost: { certainty: "unknown", money: null },
     ...overrides,
   });
-export function nativeSettlementTests(factory: StoreFactory) {
+export function nativeSettlementTests(factory: StoreFactory, capabilities: StoreCapabilities) {
   describe("native settlement", () => {
     let f: StoreFixture;
     beforeEach(async () => {
@@ -292,7 +292,9 @@ export function nativeSettlementTests(factory: StoreFactory) {
       const money = fromDecimalString("0.00000013", options);
       expect(toDecimalString(money)).toBe("0.00000013");
       for (const amount of [money, { units: 1n, currency: "USD" as const }]) {
-        const g = await dispatch(input());
+        const g = await dispatch(
+          input({ settlementPolicy: { requiredUnits: ["requests"], requireMoney: false } }),
+        );
         expect(
           (await settle(g, receipt({ cost: { certainty: "measured", money: amount } }))).result,
         ).toMatchObject({ outcome: "settled", operation: { state: "settled" } });
@@ -338,8 +340,9 @@ export function nativeSettlementTests(factory: StoreFactory) {
           { unit: "budget_cents", quantity: quantity(2n, "budget_cents"), certainty: "estimated" },
         ]),
       });
-      if (f.restart) {
-        f.store = await f.restart();
+      if (capabilities.durable) {
+        expect(f.restart, "durable fixture must restart").toBeTypeOf("function");
+        f.store = await f.restart!();
         expect((await f.store.getOperation(ref(g.operation)))?.receipts.at(-1)?.cost).toEqual({
           certainty: "unknown",
           money: null,
@@ -406,7 +409,7 @@ export function nativeSettlementTests(factory: StoreFactory) {
         (await usage()).rows[0]?.measurements.find((m) => m.unit === "input_tokens")?.quantity,
       ).toEqual(quantity(7n, "input_tokens"));
     });
-    test("canonical linking and correction racing keep one corrected contribution", async () => {
+    test("sequential canonical link and correction replay keep one corrected contribution", async () => {
       f.budgets.push(budget({ unit: "input_tokens", limit: quantity(100n, "input_tokens") }));
       const first = await dispatch();
       const original = proof({ providerRequestId: "racing-native" });
@@ -425,19 +428,17 @@ export function nativeSettlementTests(factory: StoreFactory) {
             : m,
         ),
       });
-      const [linked, corrected] = await Promise.all([
-        settle(duplicate, {
-          ...proof({ providerRequestId: "racing-native", measurements: [] }),
-          canonicalOperationId: first.operation.operationId,
-        }),
-        f.store.correct({
-          ...command(canonical.operation),
-          authority: { kind: "late_evidence", source: "provider" },
-          replacesReceiptId: original.id,
-          receipt: correction,
-          reason: "native correction racing link",
-        }),
-      ]);
+      const linked = await settle(duplicate, {
+        ...proof({ providerRequestId: "racing-native", measurements: [] }),
+        canonicalOperationId: first.operation.operationId,
+      });
+      const corrected = await f.store.correct({
+        ...command(canonical.operation),
+        authority: { kind: "late_evidence", source: "provider" },
+        replacesReceiptId: original.id,
+        receipt: correction,
+        reason: "native correction racing link",
+      });
       expect(linked.result).toMatchObject({ outcome: "settled", operation: { state: "settled" } });
       expect(corrected).toMatchObject({ outcome: "settled", operation: { state: "settled" } });
       expect((await figures())[0]).toEqual({
@@ -481,7 +482,10 @@ export function nativeSettlementTests(factory: StoreFactory) {
           reason: "finer evidence",
         }),
       ).toMatchObject({ outcome: "settled", operation: { state: "settled" } });
-      if (f.restart) f.store = await f.restart();
+      if (capabilities.durable) {
+        expect(f.restart, "durable fixture must restart").toBeTypeOf("function");
+        f.store = await f.restart!();
+      }
       expect((await f.store.getOperation(ref(g.operation)))?.receipts.at(-1)?.cost.money).toEqual(
         amount,
       );

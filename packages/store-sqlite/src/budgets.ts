@@ -11,7 +11,7 @@ import type {
   AllowanceExceeded,
   Quantity,
 } from "@usagekit/core";
-import { validateBudget, reachedAlerts, alertKey } from "@usagekit/store";
+import { settledQuantity, validateBudget, reachedAlerts, alertKey } from "@usagekit/store";
 import { decode, encode, integer } from "./serialize.js";
 import { canonical, plus, greater, effective } from "./util.js";
 /** Rows written before allow existed may carry the deprecated alias; the core type does not. */
@@ -216,10 +216,7 @@ export function updateUsage(
     const b = budgetAt(db, after.scope.namespace, epoch);
     const zero = { unit: b.unit, value: 0n, scale: 0 };
     const contribution = (op: Operation | null) => ({
-      used:
-        op?.state === "settled"
-          ? (effective(op)?.measurements.find((m) => m.unit === b.unit)?.quantity ?? zero)
-          : zero,
+      used: op?.state === "settled" ? (settledQuantity(op, b.unit) ?? zero) : zero,
       reserved:
         op && op.state !== "released" && op.state !== "settled"
           ? (op.estimate.find((q) => q.unit === b.unit) ?? zero)

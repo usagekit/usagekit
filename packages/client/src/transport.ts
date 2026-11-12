@@ -1,4 +1,4 @@
-import { decodeMeterJson } from "@usagekit/core";
+import { decodeMeterJson, normalizeLegacyMoney } from "@usagekit/core";
 import type { WireInputs, RouteName } from "@usagekit/http";
 export class RemoteUnavailable extends Error {
   constructor(readonly requestId: string) {
@@ -16,7 +16,7 @@ export class RemoteHttpError extends Error {
   }
 }
 export const encode = (v: unknown) =>
-  JSON.stringify(v, (_, x) => (typeof x === "bigint" ? x.toString() : x));
+  JSON.stringify(normalizeLegacyMoney(v), (_, x) => (typeof x === "bigint" ? x.toString() : x));
 export const decode = decodeMeterJson;
 /** Route paths, mirrored from the handler's route table (the client imports only types from it). */
 const paths: Record<Exclude<RouteName, "operation">, string> = {

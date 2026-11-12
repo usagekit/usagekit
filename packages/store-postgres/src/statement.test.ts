@@ -17,3 +17,39 @@ test.each(["public;DROP SCHEMA public", 'x"', "a".repeat(64), "pg_temp.x", ""])(
     expect(() => schemaIdentifier(value)).toThrow("Invalid metering schema");
   },
 );
+
+test("numeric storage refusals remain typed through pg and Prisma executors", async () => {
+  const { createSql } = await import("./sql.js");
+  for (const error of [
+    { code: "22003" },
+    { code: "P2010", meta: { code: "22003" } },
+    { code: "P2010", meta: { driverAdapterError: { cause: { originalCode: "22003" } } } },
+  ]) {
+    const sql = createSql(
+      {
+        query: async () => {
+          throw error;
+        },
+        execute: async () => {
+          throw error;
+        },
+      },
+      { statements: 0, changes: 0n, rowsRead: 0 },
+    );
+    await expect(sql.query(SQL.sql`SELECT 1`)).rejects.toThrow("InvalidInput: quantity");
+    await expect(sql.execute(SQL.sql`SELECT 1`)).rejects.toThrow("InvalidInput: quantity");
+  }
+  const error = new Error("unrelated failure");
+  const sql = createSql(
+    {
+      query: async () => {
+        throw error;
+      },
+      execute: async () => {
+        throw error;
+      },
+    },
+    { statements: 0, changes: 0n, rowsRead: 0 },
+  );
+  await expect(sql.query(SQL.sql`SELECT 1`)).rejects.toBe(error);
+});

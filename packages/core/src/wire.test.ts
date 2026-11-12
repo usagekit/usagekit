@@ -61,3 +61,11 @@ test("explicit money scale survives wire decoding without coercing unrelated obj
     other: 8,
   });
 });
+
+test("explicit legacy scale normalizes while decoding the wire", () => {
+  expect(
+    decodeMeterJson(
+      '{"cost":{"certainty":"measured","money":{"units":"1","currency":"USD","scale":4}}}',
+    ),
+  ).toEqual({ cost: { certainty: "measured", money: { units: 1n, currency: "USD" } } });
+});

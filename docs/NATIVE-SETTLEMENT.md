@@ -32,7 +32,15 @@ command replay and expired leases never grant a replacement provider call.
 `budget_cents` is an advisory measurement. Keep its certainty `estimated`; it is
 never a required native unit and never supplies `Cost`. An applicable budget uses
 that quantity in its own unit, including after settlement and correction. It is an
-advisory budget valuation, not confirmed provider spend. The application remains
+advisory budget valuation, not confirmed provider spend.
+
+For a settled, non-linked operation, if the final receipt has no quantity for a
+budgeted unit, the original reserved estimate for that unit counts as consumed.
+This conservative fallback also applies to alerts and later corrections. A measured
+zero is a real zero. Linked duplicates consume nothing. The fallback is budget
+accounting only; it never manufactures a measurement or confirmed monetary cost.
+For example, two calls reserving 5 `budget_cents` each exhaust a budget of 10 even
+when both settle with only native token measurements. The application remains
 responsible for validating provider evidence and any additional unobserved exposure.
 
 ## Close duplicate accounting
@@ -52,7 +60,9 @@ target is a `receipt_conflict`; wait for canonical evidence and retry accounting
 The duplicate settles and releases its reservations. Aggregation omits it entirely;
 its retained receipt does not invent zero usage or zero money. Corrections cannot
 remove or retarget a canonical link, or change an established native request ID.
-The canonical operation remains the sole correction authority for amounts.
+The canonical operation remains the sole correction authority for amounts. Once any
+operation links to it, it cannot itself be corrected into a link; this is a typed
+`receipt_conflict` and prevents chains.
 
 This is explicit linkage, not automatic discovery. The host must supply the link
 for duplicates; `providerRequestId` alone does not deduplicate unrelated operation IDs.
@@ -61,7 +71,10 @@ for duplicates; `providerRequestId` alone does not deduplicate unrelated operati
 
 `Money` adds optional `scale`: cents = `units * 10^-scale`. An omitted scale remains
 4, and old constructors, formatting, arithmetic and receipt shapes are unchanged.
-Explicit scales are integers 0 through 18. No money arithmetic uses floating point.
+Explicit scales are integers 0 through 18. Scale 4 is normalized to omission in
+storage, replay identity and wire output. Other scales require a settlement policy
+on the operation; a billing import with such a scale must match a policy operation.
+No money arithmetic uses floating point.
 
 ```ts
 const money = fromDecimalString("0.00000013", { scale: 8 });
@@ -78,8 +91,18 @@ that fits in one receipt. Aggregated totals can exceed that per-receipt bound.
 Quantity measurements for money must use the same explicit scale. The library does
 not derive `Cost` from a measurement or a budget estimate. Billing reconciliation
 adds optional `differenceScale`, with omitted scale still meaning 4. `differenceUnits`
-is the signed difference at that scale. Receipt JSON retains scale without a schema
-migration; PostgreSQL, SQLite, Cloudflare, wire transport and views preserve it.
+is the signed difference at that scale. PostgreSQL migration 2, SQLite migration 7
+and Cloudflare migration 3 persist `cost_scale` beside `cost_units`, backfilling
+legacy rows with 4 and retaining any already stored JSON scale. Readers must read
+both columns. Money totals and reconciliation differences are aligned with bigint
+in application code, never summed as unqualified SQL `cost_units`. Reconciliation
+journals persist decimal strings in JSON/JSONB, so aligned values beyond signed
+64-bit range remain exact. Bounded quantity projections refuse overflow atomically
+with `InvalidInput`: SQLite/Cloudflare check their signed 64-bit quantity bound,
+and PostgreSQL translates numeric storage overflow from pg and Prisma.
+Each individual receipt still has a typed refusal for
+units outside the signed 64-bit storage bound. See the mandatory
+[reader-before-writer upgrade order](CONSUMING.md#upgrade-order-for-the-unreleased-native-settlement-extension).
 
 Consumers must use money helpers instead of treating every `units` field as fixed
 1e-4 cents. Upgrading to 0.11.0 alone provides token/money budget dispatch but does

@@ -7,7 +7,7 @@ import type {
   Quantity,
 } from "@usagekit/core";
 import { resolveWindow, sourcesOf } from "@usagekit/core";
-import { validateBudget } from "@usagekit/store";
+import { settledQuantity, validateBudget } from "@usagekit/store";
 import { canonical, decode, effective, encode, plus } from "./codec.js";
 import { lock, SQL, type Sql } from "./sql.js";
 
@@ -98,10 +98,7 @@ export async function status(sql: Sql, budget: Budget, now: Date): Promise<Budge
 export function contribution(op: Operation | null, unit: string) {
   const zero: Quantity = { value: 0n, scale: 0, unit };
   return {
-    used:
-      op?.state === "settled"
-        ? (effective(op)?.measurements.find((m) => m.unit === unit)?.quantity ?? zero)
-        : zero,
+    used: op?.state === "settled" ? (settledQuantity(op, unit) ?? zero) : zero,
     reserved:
       op && op.state !== "settled" && op.state !== "released"
         ? (op.estimate.find((q) => q.unit === unit) ?? zero)

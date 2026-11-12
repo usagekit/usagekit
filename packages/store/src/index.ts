@@ -97,4 +97,6 @@ export {
   validateSettlementPolicy,
   validSettlementLink,
   settlementState,
+  settledQuantity,
+  validateMoneyPolicy,
 } from "./memory/settlement.js";

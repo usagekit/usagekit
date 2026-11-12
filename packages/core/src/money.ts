@@ -20,7 +20,7 @@ export function fromDecimalString(
     units:
       (BigInt(whole!) * 10n ** BigInt(scale) + BigInt(fraction.padEnd(scale, "0") || "0")) *
       (cents.startsWith("-") ? -1n : 1n),
-    ...(options.scale === undefined ? {} : { scale }),
+    ...(scale === 4 ? {} : { scale }),
   };
 }
 export function toDecimalString(m: Money): string {
@@ -42,7 +42,7 @@ export function add(a: Money, b: Money): Money {
   return {
     currency: "USD",
     units: p.a + p.b,
-    ...(a.scale === undefined && b.scale === undefined ? {} : { scale: p.scale }),
+    ...(p.scale === 4 ? {} : { scale: p.scale }),
   };
 }
 export function sub(a: Money, b: Money): Money {
@@ -50,7 +50,7 @@ export function sub(a: Money, b: Money): Money {
   return {
     currency: "USD",
     units: p.a - p.b,
-    ...(a.scale === undefined && b.scale === undefined ? {} : { scale: p.scale }),
+    ...(p.scale === 4 ? {} : { scale: p.scale }),
   };
 }
 export function compare(a: Money, b: Money): -1 | 0 | 1 {
@@ -59,3 +59,17 @@ export function compare(a: Money, b: Money): -1 | 0 | 1 {
 }
 /** Exact cents text, retaining the declared precision (four digits for legacy values). */
 export const formatMoney: (m: Money) => string = toDecimalString;
+
+/** Canonicalize explicit legacy money scales throughout a DTO without mutating the caller. */
+export function normalizeLegacyMoney<T>(value: T): T {
+  if (Array.isArray(value)) return value.map(normalizeLegacyMoney) as T;
+  if (!value || typeof value !== "object" || Object.getPrototypeOf(value) !== Object.prototype)
+    return value;
+  const object = value as Record<string, unknown>;
+  const legacy = object.currency === "USD" && object.scale === 4 && "units" in object;
+  return Object.fromEntries(
+    Object.entries(object)
+      .filter(([key]) => !(legacy && key === "scale"))
+      .map(([key, item]) => [key, normalizeLegacyMoney(item)]),
+  ) as T;
+}

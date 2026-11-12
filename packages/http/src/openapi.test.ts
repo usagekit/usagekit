@@ -26,3 +26,57 @@ test("every published OpenAPI enum has unique values", () => {
   visit(document, "published");
   expect(duplicates).toEqual([]);
 });
+
+test("C6 OpenAPI and runtime agree on money scale and policy boundaries", async () => {
+  const { Ajv } = await import("ajv");
+  const v = await import("valibot");
+  const { schemas, responses, Money } = await import("./schemas/index.js");
+  const doc = generateOpenApi() as any;
+  const reserveSchema =
+    doc.paths["/v1/operations/reserve"].post.requestBody.content["application/json"].schema;
+  const ajv = new Ajv({ strict: false, validateFormats: false });
+  const policySchema = reserveSchema.properties.settlementPolicy;
+  const policy = ajv.compile(policySchema);
+  for (const requiredUnits of [
+    [],
+    ["requests"],
+    Array.from({ length: 64 }, (_, n) => "unit" + n),
+    Array.from({ length: 65 }, (_, n) => "unit" + n),
+    ["requests", "requests"],
+    ["budget_cents"],
+    [" "],
+    ["a b"],
+  ]) {
+    const value = { requiredUnits, requireMoney: false };
+    const runtime = v.safeParse((schemas.reserve as any).entries.settlementPolicy, value).success;
+    const expected =
+      requiredUnits.length > 0 &&
+      requiredUnits.length <= 64 &&
+      new Set(requiredUnits).size === requiredUnits.length &&
+      requiredUnits.every((u) => u.trim() && u !== "budget_cents");
+    expect(runtime, JSON.stringify(value)).toBe(expected);
+    expect(policy(value), JSON.stringify(value)).toBe(expected);
+  }
+  const moneySchema =
+    doc.paths["/v1/operations/settle"].post.requestBody.content["application/json"].schema
+      .properties.receipt.properties.cost.anyOf[1].properties.money;
+  const checkMoney = ajv.compile(moneySchema);
+  const reconciliationSchema = doc.paths["/v1/billing/import"].post.responses["200"].content[
+    "application/json"
+  ].schema.anyOf.find((s: any) => s.properties?.record)?.properties.record.properties
+    .reconciliations.items;
+  const checkDifference = ajv.compile(reconciliationSchema.properties.differenceScale);
+  for (const scale of [-1, 0, 4, 18, 19, 2.5]) {
+    const expected = Number.isInteger(scale) && scale >= 0 && scale <= 18;
+    expect(checkMoney({ units: "1", currency: "USD", scale })).toBe(expected);
+    expect(v.safeParse(Money, { units: "1", currency: "USD", scale }).success).toBe(expected);
+    expect(checkDifference(scale)).toBe(expected);
+    expect(
+      v.safeParse(
+        (responses.importBilling as any).options.find((s: any) => s.entries?.record).entries.record
+          .entries.reconciliations.item.entries.differenceScale,
+        scale,
+      ).success,
+    ).toBe(expected);
+  }
+});

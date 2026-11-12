@@ -50,7 +50,8 @@
                                     "pattern": "^-?\\d+$"
                                   },
                                   "scale": {
-                                    "type": "number",
+                                    "type": "integer",
+                                    "minimum": 0,
                                     "maximum": 18
                                   },
                                   "unit": {
@@ -249,7 +250,8 @@
                                                 "pattern": "^-?\\d+$"
                                               },
                                               "scale": {
-                                                "type": "number",
+                                                "type": "integer",
+                                                "minimum": 0,
                                                 "maximum": 18
                                               },
                                               "unit": {
@@ -350,7 +352,8 @@
                                             "pattern": "^-?\\d+$"
                                           },
                                           "scale": {
-                                            "type": "number",
+                                            "type": "integer",
+                                            "minimum": 0,
                                             "maximum": 18
                                           },
                                           "unit": {
@@ -373,7 +376,7 @@
                                                   "additionalProperties": false,
                                                   "properties": {
                                                     "percent": {
-                                                      "type": "number",
+                                                      "type": "integer",
                                                       "minimum": 1,
                                                       "maximum": 100
                                                     }
@@ -389,7 +392,8 @@
                                                       "pattern": "^-?\\d+$"
                                                     },
                                                     "scale": {
-                                                      "type": "number",
+                                                      "type": "integer",
+                                                      "minimum": 0,
                                                       "maximum": 18
                                                     },
                                                     "unit": {
@@ -457,7 +461,8 @@
                                             "pattern": "^-?\\d+$"
                                           },
                                           "scale": {
-                                            "type": "number",
+                                            "type": "integer",
+                                            "minimum": 0,
                                             "maximum": 18
                                           },
                                           "unit": {
@@ -483,7 +488,8 @@
                                             "pattern": "^-?\\d+$"
                                           },
                                           "scale": {
-                                            "type": "number",
+                                            "type": "integer",
+                                            "minimum": 0,
                                             "maximum": 18
                                           },
                                           "unit": {
@@ -509,7 +515,8 @@
                                             "pattern": "^-?\\d+$"
                                           },
                                           "scale": {
-                                            "type": "number",
+                                            "type": "integer",
+                                            "minimum": 0,
                                             "maximum": 18
                                           },
                                           "unit": {
@@ -609,10 +616,12 @@
                       "type": "array",
                       "items": {
                         "type": "string",
-                        "minLength": 1
+                        "minLength": 1,
+                        "pattern": "^(?!budget_cents$)[\\s\\S]*\\S[\\s\\S]*$"
                       },
                       "minItems": 1,
-                      "maxItems": 64
+                      "maxItems": 64,
+                      "uniqueItems": true
                     },
                     "requireMoney": {
                       "type": "boolean"
@@ -722,7 +731,8 @@
                         "pattern": "^-?\\d+$"
                       },
                       "scale": {
-                        "type": "number",
+                        "type": "integer",
+                        "minimum": 0,
                         "maximum": 18
                       },
                       "unit": {
@@ -1032,7 +1042,8 @@
                                                 "const": "USD"
                                               },
                                               "scale": {
-                                                "type": "number",
+                                                "type": "integer",
+                                                "minimum": 0,
                                                 "maximum": 18
                                               }
                                             },
@@ -1055,7 +1066,8 @@
                                         "const": "USD"
                                       },
                                       "scale": {
-                                        "type": "number",
+                                        "type": "integer",
+                                        "minimum": 0,
                                         "maximum": 18
                                       }
                                     },
@@ -1073,7 +1085,8 @@
                                     ]
                                   },
                                   "differenceScale": {
-                                    "type": "number",
+                                    "type": "integer",
+                                    "minimum": 0,
                                     "maximum": 18
                                   },
                                   "unknownOperations": {
@@ -1125,7 +1138,7 @@
                                         "additionalProperties": false,
                                         "properties": {
                                           "percent": {
-                                            "type": "number",
+                                            "type": "integer",
                                             "minimum": 1,
                                             "maximum": 100
                                           }
@@ -1141,7 +1154,8 @@
                                             "pattern": "^-?\\d+$"
                                           },
                                           "scale": {
-                                            "type": "number",
+                                            "type": "integer",
+                                            "minimum": 0,
                                             "maximum": 18
                                           },
                                           "unit": {
@@ -1162,7 +1176,8 @@
                                         "pattern": "^-?\\d+$"
                                       },
                                       "scale": {
-                                        "type": "number",
+                                        "type": "integer",
+                                        "minimum": 0,
                                         "maximum": 18
                                       },
                                       "unit": {
@@ -1181,7 +1196,8 @@
                                         "pattern": "^-?\\d+$"
                                       },
                                       "scale": {
-                                        "type": "number",
+                                        "type": "integer",
+                                        "minimum": 0,
                                         "maximum": 18
                                       },
                                       "unit": {
@@ -1466,7 +1482,8 @@
                               "const": "USD"
                             },
                             "scale": {
-                              "type": "number",
+                              "type": "integer",
+                              "minimum": 0,
                               "maximum": 18
                             }
                           },
@@ -1782,7 +1799,8 @@
                                                       "const": "USD"
                                                     },
                                                     "scale": {
-                                                      "type": "number",
+                                                      "type": "integer",
+                                                      "minimum": 0,
                                                       "maximum": 18
                                                     }
                                                   },
@@ -1805,7 +1823,8 @@
                                               "const": "USD"
                                             },
                                             "scale": {
-                                              "type": "number",
+                                              "type": "integer",
+                                              "minimum": 0,
                                               "maximum": 18
                                             }
                                           },
@@ -1823,7 +1842,8 @@
                                           ]
                                         },
                                         "differenceScale": {
-                                          "type": "number",
+                                          "type": "integer",
+                                          "minimum": 0,
                                           "maximum": 18
                                         },
                                         "unknownOperations": {
@@ -1875,7 +1895,7 @@
                                               "additionalProperties": false,
                                               "properties": {
                                                 "percent": {
-                                                  "type": "number",
+                                                  "type": "integer",
                                                   "minimum": 1,
                                                   "maximum": 100
                                                 }
@@ -1891,7 +1911,8 @@
                                                   "pattern": "^-?\\d+$"
                                                 },
                                                 "scale": {
-                                                  "type": "number",
+                                                  "type": "integer",
+                                                  "minimum": 0,
                                                   "maximum": 18
                                                 },
                                                 "unit": {
@@ -1912,7 +1933,8 @@
                                               "pattern": "^-?\\d+$"
                                             },
                                             "scale": {
-                                              "type": "number",
+                                              "type": "integer",
+                                              "minimum": 0,
                                               "maximum": 18
                                             },
                                             "unit": {
@@ -1931,7 +1953,8 @@
                                               "pattern": "^-?\\d+$"
                                             },
                                             "scale": {
-                                              "type": "number",
+                                              "type": "integer",
+                                              "minimum": 0,
                                               "maximum": 18
                                             },
                                             "unit": {
@@ -2073,7 +2096,7 @@
                   "type": "boolean"
                 },
                 "limit": {
-                  "type": "number",
+                  "type": "integer",
                   "minimum": 1,
                   "maximum": 1000
                 }
@@ -2172,7 +2195,7 @@
                     "minLength": 1
                   },
                   "limit": {
-                    "type": "number",
+                    "type": "integer",
                     "minimum": 1,
                     "maximum": 1000
                   }
@@ -2221,10 +2244,12 @@
                                   "type": "array",
                                   "items": {
                                     "type": "string",
-                                    "minLength": 1
+                                    "minLength": 1,
+                                    "pattern": "^(?!budget_cents$)[\\s\\S]*\\S[\\s\\S]*$"
                                   },
                                   "minItems": 1,
-                                  "maxItems": 64
+                                  "maxItems": 64,
+                                  "uniqueItems": true
                                 },
                                 "requireMoney": {
                                   "type": "boolean"
@@ -2237,7 +2262,7 @@
                               "minLength": 1
                             },
                             "reservationTtlMs": {
-                              "type": "number",
+                              "type": "integer",
                               "minimum": 1,
                               "maximum": 86400000
                             },
@@ -2352,7 +2377,8 @@
                                     "pattern": "^-?\\d+$"
                                   },
                                   "scale": {
-                                    "type": "number",
+                                    "type": "integer",
+                                    "minimum": 0,
                                     "maximum": 18
                                   },
                                   "unit": {
@@ -2509,7 +2535,8 @@
                                                   "pattern": "^-?\\d+$"
                                                 },
                                                 "scale": {
-                                                  "type": "number",
+                                                  "type": "integer",
+                                                  "minimum": 0,
                                                   "maximum": 18
                                                 },
                                                 "unit": {
@@ -2559,7 +2586,8 @@
                                                 "const": "USD"
                                               },
                                               "scale": {
-                                                "type": "number",
+                                                "type": "integer",
+                                                "minimum": 0,
                                                 "maximum": 18
                                               }
                                             },
@@ -2834,7 +2862,8 @@
                                             "pattern": "^-?\\d+$"
                                           },
                                           "scale": {
-                                            "type": "number",
+                                            "type": "integer",
+                                            "minimum": 0,
                                             "maximum": 18
                                           },
                                           "unit": {
@@ -2935,7 +2964,8 @@
                                         "pattern": "^-?\\d+$"
                                       },
                                       "scale": {
-                                        "type": "number",
+                                        "type": "integer",
+                                        "minimum": 0,
                                         "maximum": 18
                                       },
                                       "unit": {
@@ -2958,7 +2988,7 @@
                                               "additionalProperties": false,
                                               "properties": {
                                                 "percent": {
-                                                  "type": "number",
+                                                  "type": "integer",
                                                   "minimum": 1,
                                                   "maximum": 100
                                                 }
@@ -2974,7 +3004,8 @@
                                                   "pattern": "^-?\\d+$"
                                                 },
                                                 "scale": {
-                                                  "type": "number",
+                                                  "type": "integer",
+                                                  "minimum": 0,
                                                   "maximum": 18
                                                 },
                                                 "unit": {
@@ -3015,7 +3046,8 @@
                                     "pattern": "^-?\\d+$"
                                   },
                                   "scale": {
-                                    "type": "number",
+                                    "type": "integer",
+                                    "minimum": 0,
                                     "maximum": 18
                                   },
                                   "unit": {
@@ -3034,7 +3066,8 @@
                                     "pattern": "^-?\\d+$"
                                   },
                                   "scale": {
-                                    "type": "number",
+                                    "type": "integer",
+                                    "minimum": 0,
                                     "maximum": 18
                                   },
                                   "unit": {
@@ -3092,7 +3125,7 @@
                                     "additionalProperties": false,
                                     "properties": {
                                       "percent": {
-                                        "type": "number",
+                                        "type": "integer",
                                         "minimum": 1,
                                         "maximum": 100
                                       }
@@ -3108,7 +3141,8 @@
                                         "pattern": "^-?\\d+$"
                                       },
                                       "scale": {
-                                        "type": "number",
+                                        "type": "integer",
+                                        "minimum": 0,
                                         "maximum": 18
                                       },
                                       "unit": {
@@ -3129,7 +3163,8 @@
                                     "pattern": "^-?\\d+$"
                                   },
                                   "scale": {
-                                    "type": "number",
+                                    "type": "integer",
+                                    "minimum": 0,
                                     "maximum": 18
                                   },
                                   "unit": {
@@ -3148,7 +3183,8 @@
                                     "pattern": "^-?\\d+$"
                                   },
                                   "scale": {
-                                    "type": "number",
+                                    "type": "integer",
+                                    "minimum": 0,
                                     "maximum": 18
                                   },
                                   "unit": {
@@ -3350,7 +3386,8 @@
                                           "pattern": "^-?\\d+$"
                                         },
                                         "scale": {
-                                          "type": "number",
+                                          "type": "integer",
+                                          "minimum": 0,
                                           "maximum": 18
                                         },
                                         "unit": {
@@ -3451,7 +3488,8 @@
                                       "pattern": "^-?\\d+$"
                                     },
                                     "scale": {
-                                      "type": "number",
+                                      "type": "integer",
+                                      "minimum": 0,
                                       "maximum": 18
                                     },
                                     "unit": {
@@ -3474,7 +3512,7 @@
                                             "additionalProperties": false,
                                             "properties": {
                                               "percent": {
-                                                "type": "number",
+                                                "type": "integer",
                                                 "minimum": 1,
                                                 "maximum": 100
                                               }
@@ -3490,7 +3528,8 @@
                                                 "pattern": "^-?\\d+$"
                                               },
                                               "scale": {
-                                                "type": "number",
+                                                "type": "integer",
+                                                "minimum": 0,
                                                 "maximum": 18
                                               },
                                               "unit": {
@@ -3531,7 +3570,8 @@
                                   "pattern": "^-?\\d+$"
                                 },
                                 "scale": {
-                                  "type": "number",
+                                  "type": "integer",
+                                  "minimum": 0,
                                   "maximum": 18
                                 },
                                 "unit": {
@@ -3550,7 +3590,8 @@
                                   "pattern": "^-?\\d+$"
                                 },
                                 "scale": {
-                                  "type": "number",
+                                  "type": "integer",
+                                  "minimum": 0,
                                   "maximum": 18
                                 },
                                 "unit": {
@@ -3619,10 +3660,12 @@
                                   "type": "array",
                                   "items": {
                                     "type": "string",
-                                    "minLength": 1
+                                    "minLength": 1,
+                                    "pattern": "^(?!budget_cents$)[\\s\\S]*\\S[\\s\\S]*$"
                                   },
                                   "minItems": 1,
-                                  "maxItems": 64
+                                  "maxItems": 64,
+                                  "uniqueItems": true
                                 },
                                 "requireMoney": {
                                   "type": "boolean"
@@ -3635,7 +3678,7 @@
                               "minLength": 1
                             },
                             "reservationTtlMs": {
-                              "type": "number",
+                              "type": "integer",
                               "minimum": 1,
                               "maximum": 86400000
                             },
@@ -3750,7 +3793,8 @@
                                     "pattern": "^-?\\d+$"
                                   },
                                   "scale": {
-                                    "type": "number",
+                                    "type": "integer",
+                                    "minimum": 0,
                                     "maximum": 18
                                   },
                                   "unit": {
@@ -3907,7 +3951,8 @@
                                                   "pattern": "^-?\\d+$"
                                                 },
                                                 "scale": {
-                                                  "type": "number",
+                                                  "type": "integer",
+                                                  "minimum": 0,
                                                   "maximum": 18
                                                 },
                                                 "unit": {
@@ -3957,7 +4002,8 @@
                                                 "const": "USD"
                                               },
                                               "scale": {
-                                                "type": "number",
+                                                "type": "integer",
+                                                "minimum": 0,
                                                 "maximum": 18
                                               }
                                             },
@@ -4137,10 +4183,12 @@
                         "type": "array",
                         "items": {
                           "type": "string",
-                          "minLength": 1
+                          "minLength": 1,
+                          "pattern": "^(?!budget_cents$)[\\s\\S]*\\S[\\s\\S]*$"
                         },
                         "minItems": 1,
-                        "maxItems": 64
+                        "maxItems": 64,
+                        "uniqueItems": true
                       },
                       "requireMoney": {
                         "type": "boolean"
@@ -4153,7 +4201,7 @@
                     "minLength": 1
                   },
                   "reservationTtlMs": {
-                    "type": "number",
+                    "type": "integer",
                     "minimum": 1,
                     "maximum": 86400000
                   },
@@ -4259,7 +4307,8 @@
                           "pattern": "^-?\\d+$"
                         },
                         "scale": {
-                          "type": "number",
+                          "type": "integer",
+                          "minimum": 0,
                           "maximum": 18
                         },
                         "unit": {
@@ -4347,10 +4396,12 @@
                                   "type": "array",
                                   "items": {
                                     "type": "string",
-                                    "minLength": 1
+                                    "minLength": 1,
+                                    "pattern": "^(?!budget_cents$)[\\s\\S]*\\S[\\s\\S]*$"
                                   },
                                   "minItems": 1,
-                                  "maxItems": 64
+                                  "maxItems": 64,
+                                  "uniqueItems": true
                                 },
                                 "requireMoney": {
                                   "type": "boolean"
@@ -4363,7 +4414,7 @@
                               "minLength": 1
                             },
                             "reservationTtlMs": {
-                              "type": "number",
+                              "type": "integer",
                               "minimum": 1,
                               "maximum": 86400000
                             },
@@ -4478,7 +4529,8 @@
                                     "pattern": "^-?\\d+$"
                                   },
                                   "scale": {
-                                    "type": "number",
+                                    "type": "integer",
+                                    "minimum": 0,
                                     "maximum": 18
                                   },
                                   "unit": {
@@ -4635,7 +4687,8 @@
                                                   "pattern": "^-?\\d+$"
                                                 },
                                                 "scale": {
-                                                  "type": "number",
+                                                  "type": "integer",
+                                                  "minimum": 0,
                                                   "maximum": 18
                                                 },
                                                 "unit": {
@@ -4685,7 +4738,8 @@
                                                 "const": "USD"
                                               },
                                               "scale": {
-                                                "type": "number",
+                                                "type": "integer",
+                                                "minimum": 0,
                                                 "maximum": 18
                                               }
                                             },
@@ -4831,10 +4885,12 @@
                                       "type": "array",
                                       "items": {
                                         "type": "string",
-                                        "minLength": 1
+                                        "minLength": 1,
+                                        "pattern": "^(?!budget_cents$)[\\s\\S]*\\S[\\s\\S]*$"
                                       },
                                       "minItems": 1,
-                                      "maxItems": 64
+                                      "maxItems": 64,
+                                      "uniqueItems": true
                                     },
                                     "requireMoney": {
                                       "type": "boolean"
@@ -4847,7 +4903,7 @@
                                   "minLength": 1
                                 },
                                 "reservationTtlMs": {
-                                  "type": "number",
+                                  "type": "integer",
                                   "minimum": 1,
                                   "maximum": 86400000
                                 },
@@ -4962,7 +5018,8 @@
                                         "pattern": "^-?\\d+$"
                                       },
                                       "scale": {
-                                        "type": "number",
+                                        "type": "integer",
+                                        "minimum": 0,
                                         "maximum": 18
                                       },
                                       "unit": {
@@ -5119,7 +5176,8 @@
                                                       "pattern": "^-?\\d+$"
                                                     },
                                                     "scale": {
-                                                      "type": "number",
+                                                      "type": "integer",
+                                                      "minimum": 0,
                                                       "maximum": 18
                                                     },
                                                     "unit": {
@@ -5169,7 +5227,8 @@
                                                     "const": "USD"
                                                   },
                                                   "scale": {
-                                                    "type": "number",
+                                                    "type": "integer",
+                                                    "minimum": 0,
                                                     "maximum": 18
                                                   }
                                                 },
@@ -5360,7 +5419,7 @@
                     "minLength": 1
                   },
                   "leaseTtlMs": {
-                    "type": "number",
+                    "type": "integer",
                     "minimum": 1,
                     "maximum": 86400000
                   }
@@ -5506,7 +5565,7 @@
                     "minLength": 1
                   },
                   "leaseTtlMs": {
-                    "type": "number",
+                    "type": "integer",
                     "minimum": 1,
                     "maximum": 86400000
                   }
@@ -5559,10 +5618,12 @@
                                   "type": "array",
                                   "items": {
                                     "type": "string",
-                                    "minLength": 1
+                                    "minLength": 1,
+                                    "pattern": "^(?!budget_cents$)[\\s\\S]*\\S[\\s\\S]*$"
                                   },
                                   "minItems": 1,
-                                  "maxItems": 64
+                                  "maxItems": 64,
+                                  "uniqueItems": true
                                 },
                                 "requireMoney": {
                                   "type": "boolean"
@@ -5575,7 +5636,7 @@
                               "minLength": 1
                             },
                             "reservationTtlMs": {
-                              "type": "number",
+                              "type": "integer",
                               "minimum": 1,
                               "maximum": 86400000
                             },
@@ -5690,7 +5751,8 @@
                                     "pattern": "^-?\\d+$"
                                   },
                                   "scale": {
-                                    "type": "number",
+                                    "type": "integer",
+                                    "minimum": 0,
                                     "maximum": 18
                                   },
                                   "unit": {
@@ -5847,7 +5909,8 @@
                                                   "pattern": "^-?\\d+$"
                                                 },
                                                 "scale": {
-                                                  "type": "number",
+                                                  "type": "integer",
+                                                  "minimum": 0,
                                                   "maximum": 18
                                                 },
                                                 "unit": {
@@ -5897,7 +5960,8 @@
                                                 "const": "USD"
                                               },
                                               "scale": {
-                                                "type": "number",
+                                                "type": "integer",
+                                                "minimum": 0,
                                                 "maximum": 18
                                               }
                                             },
@@ -6043,10 +6107,12 @@
                                       "type": "array",
                                       "items": {
                                         "type": "string",
-                                        "minLength": 1
+                                        "minLength": 1,
+                                        "pattern": "^(?!budget_cents$)[\\s\\S]*\\S[\\s\\S]*$"
                                       },
                                       "minItems": 1,
-                                      "maxItems": 64
+                                      "maxItems": 64,
+                                      "uniqueItems": true
                                     },
                                     "requireMoney": {
                                       "type": "boolean"
@@ -6059,7 +6125,7 @@
                                   "minLength": 1
                                 },
                                 "reservationTtlMs": {
-                                  "type": "number",
+                                  "type": "integer",
                                   "minimum": 1,
                                   "maximum": 86400000
                                 },
@@ -6174,7 +6240,8 @@
                                         "pattern": "^-?\\d+$"
                                       },
                                       "scale": {
-                                        "type": "number",
+                                        "type": "integer",
+                                        "minimum": 0,
                                         "maximum": 18
                                       },
                                       "unit": {
@@ -6331,7 +6398,8 @@
                                                       "pattern": "^-?\\d+$"
                                                     },
                                                     "scale": {
-                                                      "type": "number",
+                                                      "type": "integer",
+                                                      "minimum": 0,
                                                       "maximum": 18
                                                     },
                                                     "unit": {
@@ -6381,7 +6449,8 @@
                                                     "const": "USD"
                                                   },
                                                   "scale": {
-                                                    "type": "number",
+                                                    "type": "integer",
+                                                    "minimum": 0,
                                                     "maximum": 18
                                                   }
                                                 },
@@ -6562,7 +6631,7 @@
                     "minLength": 1
                   },
                   "leaseTtlMs": {
-                    "type": "number",
+                    "type": "integer",
                     "minimum": 1,
                     "maximum": 86400000
                   }
@@ -6618,10 +6687,12 @@
                                   "type": "array",
                                   "items": {
                                     "type": "string",
-                                    "minLength": 1
+                                    "minLength": 1,
+                                    "pattern": "^(?!budget_cents$)[\\s\\S]*\\S[\\s\\S]*$"
                                   },
                                   "minItems": 1,
-                                  "maxItems": 64
+                                  "maxItems": 64,
+                                  "uniqueItems": true
                                 },
                                 "requireMoney": {
                                   "type": "boolean"
@@ -6634,7 +6705,7 @@
                               "minLength": 1
                             },
                             "reservationTtlMs": {
-                              "type": "number",
+                              "type": "integer",
                               "minimum": 1,
                               "maximum": 86400000
                             },
@@ -6749,7 +6820,8 @@
                                     "pattern": "^-?\\d+$"
                                   },
                                   "scale": {
-                                    "type": "number",
+                                    "type": "integer",
+                                    "minimum": 0,
                                     "maximum": 18
                                   },
                                   "unit": {
@@ -6906,7 +6978,8 @@
                                                   "pattern": "^-?\\d+$"
                                                 },
                                                 "scale": {
-                                                  "type": "number",
+                                                  "type": "integer",
+                                                  "minimum": 0,
                                                   "maximum": 18
                                                 },
                                                 "unit": {
@@ -6956,7 +7029,8 @@
                                                 "const": "USD"
                                               },
                                               "scale": {
-                                                "type": "number",
+                                                "type": "integer",
+                                                "minimum": 0,
                                                 "maximum": 18
                                               }
                                             },
@@ -7083,7 +7157,7 @@
                                     "additionalProperties": false,
                                     "properties": {
                                       "percent": {
-                                        "type": "number",
+                                        "type": "integer",
                                         "minimum": 1,
                                         "maximum": 100
                                       }
@@ -7099,7 +7173,8 @@
                                         "pattern": "^-?\\d+$"
                                       },
                                       "scale": {
-                                        "type": "number",
+                                        "type": "integer",
+                                        "minimum": 0,
                                         "maximum": 18
                                       },
                                       "unit": {
@@ -7120,7 +7195,8 @@
                                     "pattern": "^-?\\d+$"
                                   },
                                   "scale": {
-                                    "type": "number",
+                                    "type": "integer",
+                                    "minimum": 0,
                                     "maximum": 18
                                   },
                                   "unit": {
@@ -7139,7 +7215,8 @@
                                     "pattern": "^-?\\d+$"
                                   },
                                   "scale": {
-                                    "type": "number",
+                                    "type": "integer",
+                                    "minimum": 0,
                                     "maximum": 18
                                   },
                                   "unit": {
@@ -7193,10 +7270,12 @@
                                       "type": "array",
                                       "items": {
                                         "type": "string",
-                                        "minLength": 1
+                                        "minLength": 1,
+                                        "pattern": "^(?!budget_cents$)[\\s\\S]*\\S[\\s\\S]*$"
                                       },
                                       "minItems": 1,
-                                      "maxItems": 64
+                                      "maxItems": 64,
+                                      "uniqueItems": true
                                     },
                                     "requireMoney": {
                                       "type": "boolean"
@@ -7209,7 +7288,7 @@
                                   "minLength": 1
                                 },
                                 "reservationTtlMs": {
-                                  "type": "number",
+                                  "type": "integer",
                                   "minimum": 1,
                                   "maximum": 86400000
                                 },
@@ -7324,7 +7403,8 @@
                                         "pattern": "^-?\\d+$"
                                       },
                                       "scale": {
-                                        "type": "number",
+                                        "type": "integer",
+                                        "minimum": 0,
                                         "maximum": 18
                                       },
                                       "unit": {
@@ -7481,7 +7561,8 @@
                                                       "pattern": "^-?\\d+$"
                                                     },
                                                     "scale": {
-                                                      "type": "number",
+                                                      "type": "integer",
+                                                      "minimum": 0,
                                                       "maximum": 18
                                                     },
                                                     "unit": {
@@ -7531,7 +7612,8 @@
                                                     "const": "USD"
                                                   },
                                                   "scale": {
-                                                    "type": "number",
+                                                    "type": "integer",
+                                                    "minimum": 0,
                                                     "maximum": 18
                                                   }
                                                 },
@@ -7810,7 +7892,8 @@
                                       "pattern": "^-?\\d+$"
                                     },
                                     "scale": {
-                                      "type": "number",
+                                      "type": "integer",
+                                      "minimum": 0,
                                       "maximum": 18
                                     },
                                     "unit": {
@@ -7860,7 +7943,8 @@
                                     "const": "USD"
                                   },
                                   "scale": {
-                                    "type": "number",
+                                    "type": "integer",
+                                    "minimum": 0,
                                     "maximum": 18
                                   }
                                 },
@@ -7966,10 +8050,12 @@
                                   "type": "array",
                                   "items": {
                                     "type": "string",
-                                    "minLength": 1
+                                    "minLength": 1,
+                                    "pattern": "^(?!budget_cents$)[\\s\\S]*\\S[\\s\\S]*$"
                                   },
                                   "minItems": 1,
-                                  "maxItems": 64
+                                  "maxItems": 64,
+                                  "uniqueItems": true
                                 },
                                 "requireMoney": {
                                   "type": "boolean"
@@ -7982,7 +8068,7 @@
                               "minLength": 1
                             },
                             "reservationTtlMs": {
-                              "type": "number",
+                              "type": "integer",
                               "minimum": 1,
                               "maximum": 86400000
                             },
@@ -8097,7 +8183,8 @@
                                     "pattern": "^-?\\d+$"
                                   },
                                   "scale": {
-                                    "type": "number",
+                                    "type": "integer",
+                                    "minimum": 0,
                                     "maximum": 18
                                   },
                                   "unit": {
@@ -8254,7 +8341,8 @@
                                                   "pattern": "^-?\\d+$"
                                                 },
                                                 "scale": {
-                                                  "type": "number",
+                                                  "type": "integer",
+                                                  "minimum": 0,
                                                   "maximum": 18
                                                 },
                                                 "unit": {
@@ -8304,7 +8392,8 @@
                                                 "const": "USD"
                                               },
                                               "scale": {
-                                                "type": "number",
+                                                "type": "integer",
+                                                "minimum": 0,
                                                 "maximum": 18
                                               }
                                             },
@@ -8431,7 +8520,7 @@
                                     "additionalProperties": false,
                                     "properties": {
                                       "percent": {
-                                        "type": "number",
+                                        "type": "integer",
                                         "minimum": 1,
                                         "maximum": 100
                                       }
@@ -8447,7 +8536,8 @@
                                         "pattern": "^-?\\d+$"
                                       },
                                       "scale": {
-                                        "type": "number",
+                                        "type": "integer",
+                                        "minimum": 0,
                                         "maximum": 18
                                       },
                                       "unit": {
@@ -8468,7 +8558,8 @@
                                     "pattern": "^-?\\d+$"
                                   },
                                   "scale": {
-                                    "type": "number",
+                                    "type": "integer",
+                                    "minimum": 0,
                                     "maximum": 18
                                   },
                                   "unit": {
@@ -8487,7 +8578,8 @@
                                     "pattern": "^-?\\d+$"
                                   },
                                   "scale": {
-                                    "type": "number",
+                                    "type": "integer",
+                                    "minimum": 0,
                                     "maximum": 18
                                   },
                                   "unit": {
@@ -8541,10 +8633,12 @@
                                       "type": "array",
                                       "items": {
                                         "type": "string",
-                                        "minLength": 1
+                                        "minLength": 1,
+                                        "pattern": "^(?!budget_cents$)[\\s\\S]*\\S[\\s\\S]*$"
                                       },
                                       "minItems": 1,
-                                      "maxItems": 64
+                                      "maxItems": 64,
+                                      "uniqueItems": true
                                     },
                                     "requireMoney": {
                                       "type": "boolean"
@@ -8557,7 +8651,7 @@
                                   "minLength": 1
                                 },
                                 "reservationTtlMs": {
-                                  "type": "number",
+                                  "type": "integer",
                                   "minimum": 1,
                                   "maximum": 86400000
                                 },
@@ -8672,7 +8766,8 @@
                                         "pattern": "^-?\\d+$"
                                       },
                                       "scale": {
-                                        "type": "number",
+                                        "type": "integer",
+                                        "minimum": 0,
                                         "maximum": 18
                                       },
                                       "unit": {
@@ -8829,7 +8924,8 @@
                                                       "pattern": "^-?\\d+$"
                                                     },
                                                     "scale": {
-                                                      "type": "number",
+                                                      "type": "integer",
+                                                      "minimum": 0,
                                                       "maximum": 18
                                                     },
                                                     "unit": {
@@ -8879,7 +8975,8 @@
                                                     "const": "USD"
                                                   },
                                                   "scale": {
-                                                    "type": "number",
+                                                    "type": "integer",
+                                                    "minimum": 0,
                                                     "maximum": 18
                                                   }
                                                 },
@@ -9158,7 +9255,8 @@
                                       "pattern": "^-?\\d+$"
                                     },
                                     "scale": {
-                                      "type": "number",
+                                      "type": "integer",
+                                      "minimum": 0,
                                       "maximum": 18
                                     },
                                     "unit": {
@@ -9208,7 +9306,8 @@
                                     "const": "USD"
                                   },
                                   "scale": {
-                                    "type": "number",
+                                    "type": "integer",
+                                    "minimum": 0,
                                     "maximum": 18
                                   }
                                 },
@@ -9324,10 +9423,12 @@
                                   "type": "array",
                                   "items": {
                                     "type": "string",
-                                    "minLength": 1
+                                    "minLength": 1,
+                                    "pattern": "^(?!budget_cents$)[\\s\\S]*\\S[\\s\\S]*$"
                                   },
                                   "minItems": 1,
-                                  "maxItems": 64
+                                  "maxItems": 64,
+                                  "uniqueItems": true
                                 },
                                 "requireMoney": {
                                   "type": "boolean"
@@ -9340,7 +9441,7 @@
                               "minLength": 1
                             },
                             "reservationTtlMs": {
-                              "type": "number",
+                              "type": "integer",
                               "minimum": 1,
                               "maximum": 86400000
                             },
@@ -9455,7 +9556,8 @@
                                     "pattern": "^-?\\d+$"
                                   },
                                   "scale": {
-                                    "type": "number",
+                                    "type": "integer",
+                                    "minimum": 0,
                                     "maximum": 18
                                   },
                                   "unit": {
@@ -9612,7 +9714,8 @@
                                                   "pattern": "^-?\\d+$"
                                                 },
                                                 "scale": {
-                                                  "type": "number",
+                                                  "type": "integer",
+                                                  "minimum": 0,
                                                   "maximum": 18
                                                 },
                                                 "unit": {
@@ -9662,7 +9765,8 @@
                                                 "const": "USD"
                                               },
                                               "scale": {
-                                                "type": "number",
+                                                "type": "integer",
+                                                "minimum": 0,
                                                 "maximum": 18
                                               }
                                             },
@@ -9791,10 +9895,12 @@
                                       "type": "array",
                                       "items": {
                                         "type": "string",
-                                        "minLength": 1
+                                        "minLength": 1,
+                                        "pattern": "^(?!budget_cents$)[\\s\\S]*\\S[\\s\\S]*$"
                                       },
                                       "minItems": 1,
-                                      "maxItems": 64
+                                      "maxItems": 64,
+                                      "uniqueItems": true
                                     },
                                     "requireMoney": {
                                       "type": "boolean"
@@ -9807,7 +9913,7 @@
                                   "minLength": 1
                                 },
                                 "reservationTtlMs": {
-                                  "type": "number",
+                                  "type": "integer",
                                   "minimum": 1,
                                   "maximum": 86400000
                                 },
@@ -9922,7 +10028,8 @@
                                         "pattern": "^-?\\d+$"
                                       },
                                       "scale": {
-                                        "type": "number",
+                                        "type": "integer",
+                                        "minimum": 0,
                                         "maximum": 18
                                       },
                                       "unit": {
@@ -10079,7 +10186,8 @@
                                                       "pattern": "^-?\\d+$"
                                                     },
                                                     "scale": {
-                                                      "type": "number",
+                                                      "type": "integer",
+                                                      "minimum": 0,
                                                       "maximum": 18
                                                     },
                                                     "unit": {
@@ -10129,7 +10237,8 @@
                                                     "const": "USD"
                                                   },
                                                   "scale": {
-                                                    "type": "number",
+                                                    "type": "integer",
+                                                    "minimum": 0,
                                                     "maximum": 18
                                                   }
                                                 },
@@ -10547,10 +10656,12 @@
                                       "type": "array",
                                       "items": {
                                         "type": "string",
-                                        "minLength": 1
+                                        "minLength": 1,
+                                        "pattern": "^(?!budget_cents$)[\\s\\S]*\\S[\\s\\S]*$"
                                       },
                                       "minItems": 1,
-                                      "maxItems": 64
+                                      "maxItems": 64,
+                                      "uniqueItems": true
                                     },
                                     "requireMoney": {
                                       "type": "boolean"
@@ -10563,7 +10674,7 @@
                                   "minLength": 1
                                 },
                                 "reservationTtlMs": {
-                                  "type": "number",
+                                  "type": "integer",
                                   "minimum": 1,
                                   "maximum": 86400000
                                 },
@@ -10678,7 +10789,8 @@
                                         "pattern": "^-?\\d+$"
                                       },
                                       "scale": {
-                                        "type": "number",
+                                        "type": "integer",
+                                        "minimum": 0,
                                         "maximum": 18
                                       },
                                       "unit": {
@@ -10835,7 +10947,8 @@
                                                       "pattern": "^-?\\d+$"
                                                     },
                                                     "scale": {
-                                                      "type": "number",
+                                                      "type": "integer",
+                                                      "minimum": 0,
                                                       "maximum": 18
                                                     },
                                                     "unit": {
@@ -10885,7 +10998,8 @@
                                                     "const": "USD"
                                                   },
                                                   "scale": {
-                                                    "type": "number",
+                                                    "type": "integer",
+                                                    "minimum": 0,
                                                     "maximum": 18
                                                   }
                                                 },
@@ -11159,7 +11273,8 @@
                                                   "pattern": "^-?\\d+$"
                                                 },
                                                 "scale": {
-                                                  "type": "number",
+                                                  "type": "integer",
+                                                  "minimum": 0,
                                                   "maximum": 18
                                                 },
                                                 "unit": {
@@ -11209,7 +11324,8 @@
                                                 "const": "USD"
                                               },
                                               "scale": {
-                                                "type": "number",
+                                                "type": "integer",
+                                                "minimum": 0,
                                                 "maximum": 18
                                               }
                                             },
@@ -11436,7 +11552,7 @@
                   "minLength": 1
                 },
                 "limit": {
-                  "type": "number",
+                  "type": "integer",
                   "minimum": 1,
                   "maximum": 1000
                 }
@@ -11525,7 +11641,8 @@
                                                   "pattern": "^-?\\d+$"
                                                 },
                                                 "scale": {
-                                                  "type": "number",
+                                                  "type": "integer",
+                                                  "minimum": 0,
                                                   "maximum": 18
                                                 },
                                                 "unit": {
@@ -11575,7 +11692,8 @@
                                                 "const": "USD"
                                               },
                                               "scale": {
-                                                "type": "number",
+                                                "type": "integer",
+                                                "minimum": 0,
                                                 "maximum": 18
                                               }
                                             },
@@ -11798,7 +11916,7 @@
                     "minLength": 1
                   },
                   "limit": {
-                    "type": "number",
+                    "type": "integer",
                     "minimum": 1,
                     "maximum": 1000
                   }
@@ -11849,10 +11967,12 @@
                                         "type": "array",
                                         "items": {
                                           "type": "string",
-                                          "minLength": 1
+                                          "minLength": 1,
+                                          "pattern": "^(?!budget_cents$)[\\s\\S]*\\S[\\s\\S]*$"
                                         },
                                         "minItems": 1,
-                                        "maxItems": 64
+                                        "maxItems": 64,
+                                        "uniqueItems": true
                                       },
                                       "requireMoney": {
                                         "type": "boolean"
@@ -11865,7 +11985,7 @@
                                     "minLength": 1
                                   },
                                   "reservationTtlMs": {
-                                    "type": "number",
+                                    "type": "integer",
                                     "minimum": 1,
                                     "maximum": 86400000
                                   },
@@ -11980,7 +12100,8 @@
                                           "pattern": "^-?\\d+$"
                                         },
                                         "scale": {
-                                          "type": "number",
+                                          "type": "integer",
+                                          "minimum": 0,
                                           "maximum": 18
                                         },
                                         "unit": {
@@ -12137,7 +12258,8 @@
                                                         "pattern": "^-?\\d+$"
                                                       },
                                                       "scale": {
-                                                        "type": "number",
+                                                        "type": "integer",
+                                                        "minimum": 0,
                                                         "maximum": 18
                                                       },
                                                       "unit": {
@@ -12187,7 +12309,8 @@
                                                       "const": "USD"
                                                     },
                                                     "scale": {
-                                                      "type": "number",
+                                                      "type": "integer",
+                                                      "minimum": 0,
                                                       "maximum": 18
                                                     }
                                                   },
@@ -12466,7 +12589,7 @@
                   "minLength": 1
                 },
                 "limit": {
-                  "type": "number",
+                  "type": "integer",
                   "minimum": 1,
                   "maximum": 1000
                 }
@@ -12664,7 +12787,8 @@
                                         "pattern": "^-?\\d+$"
                                       },
                                       "scale": {
-                                        "type": "number",
+                                        "type": "integer",
+                                        "minimum": 0,
                                         "maximum": 18
                                       },
                                       "unit": {
@@ -12765,7 +12889,8 @@
                                     "pattern": "^-?\\d+$"
                                   },
                                   "scale": {
-                                    "type": "number",
+                                    "type": "integer",
+                                    "minimum": 0,
                                     "maximum": 18
                                   },
                                   "unit": {
@@ -12788,7 +12913,7 @@
                                           "additionalProperties": false,
                                           "properties": {
                                             "percent": {
-                                              "type": "number",
+                                              "type": "integer",
                                               "minimum": 1,
                                               "maximum": 100
                                             }
@@ -12804,7 +12929,8 @@
                                               "pattern": "^-?\\d+$"
                                             },
                                             "scale": {
-                                              "type": "number",
+                                              "type": "integer",
+                                              "minimum": 0,
                                               "maximum": 18
                                             },
                                             "unit": {
@@ -13240,7 +13366,7 @@
                   }
                 },
                 "limit": {
-                  "type": "number",
+                  "type": "integer",
                   "minimum": 1,
                   "maximum": 1000
                 }
@@ -13442,7 +13568,8 @@
                                             "pattern": "^-?\\d+$"
                                           },
                                           "scale": {
-                                            "type": "number",
+                                            "type": "integer",
+                                            "minimum": 0,
                                             "maximum": 18
                                           },
                                           "unit": {
@@ -13543,7 +13670,8 @@
                                         "pattern": "^-?\\d+$"
                                       },
                                       "scale": {
-                                        "type": "number",
+                                        "type": "integer",
+                                        "minimum": 0,
                                         "maximum": 18
                                       },
                                       "unit": {
@@ -13566,7 +13694,7 @@
                                               "additionalProperties": false,
                                               "properties": {
                                                 "percent": {
-                                                  "type": "number",
+                                                  "type": "integer",
                                                   "minimum": 1,
                                                   "maximum": 100
                                                 }
@@ -13582,7 +13710,8 @@
                                                   "pattern": "^-?\\d+$"
                                                 },
                                                 "scale": {
-                                                  "type": "number",
+                                                  "type": "integer",
+                                                  "minimum": 0,
                                                   "maximum": 18
                                                 },
                                                 "unit": {
@@ -13650,7 +13779,8 @@
                                         "pattern": "^-?\\d+$"
                                       },
                                       "scale": {
-                                        "type": "number",
+                                        "type": "integer",
+                                        "minimum": 0,
                                         "maximum": 18
                                       },
                                       "unit": {
@@ -13676,7 +13806,8 @@
                                         "pattern": "^-?\\d+$"
                                       },
                                       "scale": {
-                                        "type": "number",
+                                        "type": "integer",
+                                        "minimum": 0,
                                         "maximum": 18
                                       },
                                       "unit": {
@@ -13702,7 +13833,8 @@
                                         "pattern": "^-?\\d+$"
                                       },
                                       "scale": {
-                                        "type": "number",
+                                        "type": "integer",
+                                        "minimum": 0,
                                         "maximum": 18
                                       },
                                       "unit": {

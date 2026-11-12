@@ -95,10 +95,20 @@ export const Receipt = obj({
   cached: v.boolean(),
   failed: v.boolean(),
 });
+export const uniqueRequiredUnits = v.check(
+  (units: string[]) => new Set(units).size === units.length,
+  "unique required units",
+);
+const nativeUnit = v.pipe(text, v.regex(/^(?!budget_cents$)[\s\S]*\S[\s\S]*$/));
 const reserveFields = {
   settlementPolicy: v.optional(
     obj({
-      requiredUnits: v.pipe(v.array(text), v.minLength(1), v.maxLength(64)),
+      requiredUnits: v.pipe(
+        v.array(nativeUnit),
+        v.minLength(1),
+        v.maxLength(64),
+        uniqueRequiredUnits,
+      ),
       requireMoney: v.boolean(),
     }),
   ),

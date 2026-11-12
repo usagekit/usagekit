@@ -14,6 +14,7 @@ type Row = {
   state: Operation["state"];
   body: unknown;
   cost_units: bigint | string | null;
+  cost_scale: number;
   cost_certainty: Receipt["cost"]["certainty"];
   unit: string | null;
   value: { toString(): string } | null;
@@ -66,7 +67,7 @@ export function usageReader(clock: Clock, secret: string) {
       clauses.push(SQL.sql`o.input->'platformPools' @> ${JSON.stringify([q.scope.poolId])}::jsonb`);
     if (q.connection) clauses.push(SQL.sql`o.input->'scope'->>'connection'=${q.connection}`);
     const records =
-      await sql.query<Row>(SQL.sql`SELECT o.operation_pk,o.input,e.state,r.body,r.cost_units,r.cost_certainty,m.unit,m.value,m.scale,m.certainty
+      await sql.query<Row>(SQL.sql`SELECT o.operation_pk,o.input,e.state,r.body,r.cost_units,r.cost_scale,r.cost_certainty,m.unit,m.value,m.scale,m.certainty
       FROM metering_event e JOIN metering_operation o USING(operation_pk)
       JOIN metering_receipt r ON r.receipt_pk=e.receipt_pk LEFT JOIN metering_measurement m ON m.receipt_pk=r.receipt_pk
       WHERE ${SQL.join(clauses, " AND ")} ORDER BY e.event_id,m.unit`);
@@ -86,9 +87,7 @@ export function usageReader(clock: Clock, secret: string) {
                 money: {
                   currency: "USD",
                   units: BigInt(row.cost_units ?? 0n),
-                  ...(receipt.cost.money?.scale === undefined
-                    ? {}
-                    : { scale: receipt.cost.money.scale }),
+                  ...(row.cost_scale === 4 ? {} : { scale: row.cost_scale }),
                 },
               };
         op = {

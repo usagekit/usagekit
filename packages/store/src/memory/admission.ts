@@ -1,3 +1,4 @@
+import { settledQuantity } from "./settlement.js";
 import { defaultBudgetOrder, surfaceMatches } from "@usagekit/core";
 import type { AdmissionPolicy } from "@usagekit/core";
 import { resolveWindow } from "@usagekit/core";
@@ -129,11 +130,8 @@ export function usage(s: State, b: Budget, epoch: string): { used: Quantity; res
     )
       continue;
     if (op.state === "settled") {
-      const receipt = effective(op);
-      const m = receipt?.canonicalOperationId
-        ? undefined
-        : receipt?.measurements.find((m) => m.unit === b.unit);
-      if (m?.quantity) used = plus(used, m.quantity);
+      const q = settledQuantity(op, b.unit);
+      if (q) used = plus(used, q);
     } else if (op.state !== "released") {
       const q = op.estimate.find((q) => q.unit === b.unit);
       if (q) reserved = plus(reserved, q);

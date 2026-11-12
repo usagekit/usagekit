@@ -112,9 +112,7 @@ export function usageReader(db: Database, clock: Clock, ttl: number) {
                       money: {
                         currency: "USD",
                         units: r.cost_units,
-                        ...(metadata.cost?.money?.scale === undefined
-                          ? {}
-                          : { scale: metadata.cost!.money!.scale }),
+                        ...(Number(r.cost_scale) === 4 ? {} : { scale: Number(r.cost_scale) }),
                       },
                     },
             };

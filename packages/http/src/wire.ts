@@ -1,7 +1,7 @@
-import { decodeMeterJson } from "@usagekit/core";
+import { decodeMeterJson, normalizeLegacyMoney } from "@usagekit/core";
 /** Only DTO integer fields become bigint. Decimal strings remain exact on the wire. */
 export const encodeWire = (value: unknown): string =>
-  JSON.stringify(value, (_, v) => (typeof v === "bigint" ? v.toString() : v));
+  JSON.stringify(normalizeLegacyMoney(value), (_, v) => (typeof v === "bigint" ? v.toString() : v));
 export const decodeWire = decodeMeterJson;
 export function decodeQuery(q: string): unknown {
   if (!/^[A-Za-z0-9_-]+$/.test(q)) throw new Error("Invalid query");
