@@ -1,8 +1,7 @@
 # Native usage settlement
 
-This additive contract is an unreleased extension after 0.11.0. The seven published
-packages require an owner-approved lockstep minor release before external adoption.
-No package version is changed by this task.
+This additive contract is part of the 0.12.0 source candidate. The seven packages
+move in lockstep; use reviewed local tarballs until the release is published.
 
 ## Freeze what must be known
 
@@ -106,7 +105,7 @@ with `InvalidInput`: SQLite/Cloudflare check their signed 64-bit quantity bound,
 and PostgreSQL translates numeric storage overflow from pg and Prisma.
 Each individual receipt still has a typed refusal for
 units outside the signed 64-bit storage bound. See the mandatory
-[reader-before-writer upgrade order](CONSUMING.md#upgrade-order-for-the-unreleased-native-settlement-extension).
+[reader-before-writer upgrade order](CONSUMING.md#upgrade-order-for-0120-native-settlement).
 
 Consumers must use money helpers instead of treating every `units` field as fixed
 1e-4 cents. Upgrading to 0.11.0 alone provides token/money budget dispatch but does

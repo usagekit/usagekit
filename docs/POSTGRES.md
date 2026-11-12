@@ -1,7 +1,7 @@
 # Postgres Store
 
-`@usagekit/store-postgres` is published at 0.8.0 in the seven-package cohort and moves to 0.9.0
-in lockstep, without functional changes from 0.6.0. It implements
+`@usagekit/store-postgres` belongs to the published seven-package 0.11.0 cohort.
+The 0.12.0 source candidate adds native settlement and requires schema version 2. It implements
 the complete Store contract, including billing imports, using normalized Postgres tables.
 Install the published exact version anonymously, or use the reviewed candidate tarballs
 when validating an unreleased checkout. See [consuming packages](CONSUMING.md) for the
@@ -25,7 +25,7 @@ calls are harmless. A modified or unsupported version fails configuration. Schem
 are validated before any SQL executes. The runtime role needs access to the migrated
 tables and sequences; grant DDL only to the migration role.
 
-The unreleased native settlement extension requires schema version 2 for every user,
+The 0.12.0 native settlement extension requires schema version 2 for every user,
 including operations without a settlement policy. Stop writers, save a pre-upgrade
 snapshot, run `migratePostgresStore` with the upgraded package, then start upgraded
 writers. `createPostgresStore` and `createTransactionBoundStore` check the exact schema
@@ -34,7 +34,10 @@ older or newer version throws the exported `PostgresSchemaVersionError`, with nu
 `actualVersion` (0 when absent) and `requiredVersion` properties. Its message names
 `migratePostgresStore`. A newer schema needs its matching package; the migrator cannot
 downgrade it. Returning to 0.11.0 requires restoring the pre-upgrade snapshot, even if
-no finer-scale rows have been written. See the [upgrade order](CONSUMING.md#upgrade-order-for-the-unreleased-native-settlement-extension).
+no finer-scale rows have been written. A migrated database cannot be used by 0.11.0.
+SQLite and D1 migrate on open. Finer money scales require an operation with a frozen
+`settlementPolicy`; canonical links require the same defined `scope.connection` on
+both operations. See the [upgrade order](CONSUMING.md#upgrade-order-for-0120-native-settlement).
 
 The schema check costs two queries: `to_regclass` and a scan of the small version
 table. It runs once per `createPostgresStore` instance (including the pooled
