@@ -50,3 +50,14 @@ test("billing reconciliation restores signed differences and unknown counts with
     decodeMeterJson(JSON.stringify({ ...entry, differenceUnits: null, unknownOperations: "2" })),
   ).toMatchObject({ differenceUnits: null, unknownOperations: 2n });
 });
+
+test("explicit money scale survives wire decoding without coercing unrelated objects", () => {
+  expect(decodeMeterJson('{"money":{"currency":"USD","units":"13","scale":8}}')).toEqual({
+    money: { currency: "USD", units: 13n, scale: 8 },
+  });
+  expect(decodeMeterJson('{"currency":"USD","units":"13","other":8}')).toEqual({
+    currency: "USD",
+    units: "13",
+    other: 8,
+  });
+});

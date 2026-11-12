@@ -7,8 +7,8 @@ import type {
 
 export type ValidationFailure = { outcome: "invalid"; field: string; reason: string };
 
-/** Exact USD units: 1 unit = 1/10000 cent. */
-export type Money = { units: bigint; currency: "USD" };
+/** Exact USD cents = units * 10^-scale. Omitted scale means 4, preserving legacy units. */
+export type Money = { units: bigint; currency: "USD"; scale?: number };
 
 /** Amount = value * 10^-scale. Scale is a nonnegative integer. */
 export type Quantity = { value: bigint; scale: number; unit: string };
@@ -136,6 +136,11 @@ export type Receipt = {
   measurements: readonly Measurement[];
   cost: Cost;
   providerRequestId?: string;
+  /** Duplicate accounting only: settled canonical operation in the same native request scope.
+   * Requires a settlement policy, matching providerRequestId, no measurements and unknown cost.
+   * The host identifies duplicates and supplies this reference; the Store verifies it atomically.
+   */
+  canonicalOperationId?: string;
   providerPriceVersion?: string;
   evidenceRef?: string;
   occurredAt: string;
@@ -143,6 +148,11 @@ export type Receipt = {
   cached: boolean;
   failed: boolean;
 };
+
+/** Frozen before dispatch. Required quantities must be measured, including explicit zero.
+ * Optional money and other dimensions never hold native usage open. budget_cents is advisory.
+ */
+export type SettlementPolicy = { requiredUnits: readonly string[]; requireMoney: boolean };
 
 /**
  * Store selects all applying budgets atomically inside reserve; Meter's pre-resolution
@@ -160,6 +170,8 @@ export type Receipt = {
  * principal owns the operation; its pool and host-enforced session limit both apply.
  */
 export type ReserveInput = {
+  /** Omit for legacy settlement rules. Immutable as part of reservation identity. */
+  settlementPolicy?: SettlementPolicy;
   /** Durable dispatch identity. Reuse with different semantics is a conflict. */
   operationId: string;
   /** Undispatched lifetime, 1..86400000 ms; defaults to five minutes. Replay never extends it.

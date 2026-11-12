@@ -5,7 +5,11 @@ const integer = v.pipe(v.number(), v.integer(), v.minValue(0));
 const decimal = v.pipe(v.string(), v.regex(/^-?\d+$/));
 const timestamp = v.pipe(v.string(), v.isoTimestamp(), v.endsWith("Z"));
 const obj = v.strictObject;
-export const Money = obj({ units: decimal, currency: v.literal("USD") });
+export const Money = obj({
+  units: decimal,
+  currency: v.literal("USD"),
+  scale: v.optional(v.pipe(integer, v.maxValue(18))),
+});
 export const Quantity = obj({ value: decimal, scale: v.pipe(integer, v.maxValue(18)), unit: text });
 const credential = obj({ kind: text, id: text });
 export const Scope = obj({
@@ -83,6 +87,7 @@ export const Receipt = obj({
   measurements: v.array(Measurement),
   cost: Cost,
   providerRequestId: v.optional(text),
+  canonicalOperationId: v.optional(text),
   providerPriceVersion: v.optional(text),
   evidenceRef: v.optional(v.string()),
   occurredAt: timestamp,
@@ -91,6 +96,12 @@ export const Receipt = obj({
   failed: v.boolean(),
 });
 const reserveFields = {
+  settlementPolicy: v.optional(
+    obj({
+      requiredUnits: v.pipe(v.array(text), v.minLength(1), v.maxLength(64)),
+      requireMoney: v.boolean(),
+    }),
+  ),
   operationId: text,
   reservationTtlMs: v.optional(v.pipe(integer, v.minValue(1), v.maxValue(86400000))),
   scope: Scope,
@@ -237,6 +248,7 @@ const ReconciliationEntry = obj({
   ledgerTotal: Cost,
   evidenceTotal: Money,
   differenceUnits: v.nullable(decimal),
+  differenceScale: v.optional(v.pipe(integer, v.maxValue(18))),
   unknownOperations: v.pipe(v.string(), v.regex(/^\d+$/)),
   evidenceRef: text,
 });

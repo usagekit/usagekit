@@ -1,3 +1,4 @@
+import { moneyScale } from "@usagekit/core";
 import type { Cost, Money, Quantity } from "@usagekit/core";
 
 /**
@@ -24,32 +25,41 @@ function count(value: number | bigint): bigint {
     throw new Error("InvalidInput: tokens");
   return BigInt(value);
 }
-function rate(price: Money): bigint {
+function rate(price: Money, scale: number): bigint {
   if (typeof price?.units !== "bigint" || price.units < 0n || price.currency !== "USD")
     throw new Error("InvalidInput: prices");
-  return price.units;
+  return price.units * 10n ** BigInt(scale - moneyScale(price));
 }
-/** Exact cost of the counts, rounded up to one money unit (1/10000 cent). */
+/** Exact cost of the counts, rounded up to one unit at the finest declared price scale (legacy: 1/10000 cent). */
 export function priceTokens(counts: TokenCounts, prices: TokenPrices): Money {
-  const input = rate(prices.input);
+  const scale = Math.max(
+    ...[prices.input, prices.output, prices.cacheRead, prices.cacheWrite]
+      .filter((p): p is Money => p != null)
+      .map(moneyScale),
+  );
+  const input = rate(prices.input, scale);
   const exact =
     count(counts.input) * input +
-    count(counts.output) * rate(prices.output) +
-    count(counts.cacheRead ?? 0) * (prices.cacheRead ? rate(prices.cacheRead) : input) +
-    count(counts.cacheWrite ?? 0) * (prices.cacheWrite ? rate(prices.cacheWrite) : input);
-  return { units: (exact + million - 1n) / million, currency: "USD" };
+    count(counts.output) * rate(prices.output, scale) +
+    count(counts.cacheRead ?? 0) * (prices.cacheRead ? rate(prices.cacheRead, scale) : input) +
+    count(counts.cacheWrite ?? 0) * (prices.cacheWrite ? rate(prices.cacheWrite, scale) : input);
+  return {
+    units: (exact + million - 1n) / million,
+    currency: "USD",
+    ...(Object.values(prices).some((p) => p?.scale !== undefined) ? { scale } : {}),
+  };
 }
 export type TokenQuantityOptions = {
   prices?: TokenPrices;
   /** Budget unit of the token total; defaults to "tokens". */
   tokensUnit?: string;
-  /** Budget unit of the priced amount, in cents with four decimals. Requires prices. */
+  /** Budget unit of the priced amount, in cents at the price scale. Requires prices. */
   moneyUnit?: string;
 };
 /**
  * Quantities for a reserve estimate or a settlement, in the host's budget units. The cost is
  * `estimated` because it comes from the host's price table, not from a provider invoice.
- * Without prices the cost is unknown and the operation that settles with it stays pending.
+ * Without prices the cost is unknown. The operation stays pending unless its settlement policy allows optional money.
  */
 export function tokenQuantities(
   counts: TokenCounts,
@@ -71,6 +81,6 @@ export function tokenQuantities(
   if (!options.prices) return { usage, cost: { certainty: "unknown", money: null } };
   const money = priceTokens(counts, options.prices);
   if (options.moneyUnit !== undefined)
-    usage.push({ unit: options.moneyUnit, value: money.units, scale: 4 });
+    usage.push({ unit: options.moneyUnit, value: money.units, scale: moneyScale(money) });
   return { usage, cost: { certainty: "estimated", money } };
 }

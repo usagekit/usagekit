@@ -34,10 +34,13 @@ export function receipts(db: Database, pk: string): Receipt[] {
   for (const row of rows) {
     let receipt = result.get(row.receipt_pk);
     if (!receipt) {
+      const metadata = decode<
+        Omit<Receipt, "id" | "measurements" | "cost" | "occurredAt" | "recordedAt"> & {
+          cost?: Receipt["cost"];
+        }
+      >(row.receipt_json);
       receipt = {
-        ...decode<Omit<Receipt, "id" | "measurements" | "cost" | "occurredAt" | "recordedAt">>(
-          row.receipt_json,
-        ),
+        ...metadata,
         id: row.receipt_id,
         occurredAt: row.occurred_at,
         recordedAt: row.recorded_at,
@@ -45,7 +48,16 @@ export function receipts(db: Database, pk: string): Receipt[] {
         cost:
           row.cost_certainty === "unknown"
             ? { certainty: "unknown", money: null }
-            : { certainty: row.cost_certainty, money: { units: row.cost_units, currency: "USD" } },
+            : {
+                certainty: row.cost_certainty,
+                money: {
+                  units: row.cost_units,
+                  currency: "USD",
+                  ...(metadata.cost?.money?.scale === undefined
+                    ? {}
+                    : { scale: metadata.cost!.money!.scale }),
+                },
+              },
         ...(row.supersedes ? { supersedes: row.supersedes } : {}),
       };
       result.set(row.receipt_pk, receipt);
@@ -101,7 +113,7 @@ export function appendReceipt(db: Database, op: Operation, r: Receipt): void {
     pk,
     r.id,
     r.supersedes ?? null,
-    encode(metadata),
+    encode({ ...metadata, ...(r.cost.money?.scale === undefined ? {} : { cost: r.cost }) }),
     r.occurredAt,
     r.recordedAt,
     integer(r.cost.money?.units ?? null),

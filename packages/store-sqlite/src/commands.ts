@@ -1,3 +1,4 @@
+import { validateSettlementPolicy, validSettlementLink, settlementState } from "@usagekit/store";
 import type Database from "better-sqlite3";
 import type { Store, Clock } from "@usagekit/store";
 import { InvalidInput } from "@usagekit/store";
@@ -128,18 +129,17 @@ export function commands(
       (i.receipt.supersedes && i.receipt.supersedes !== target)
     )
       return reject("receipt_conflict");
+    const canonicalOp = i.receipt.canonicalOperationId
+      ? (find(db, { ...i, operationId: i.receipt.canonicalOperationId })?.op ?? null)
+      : null;
+    if (!validSettlementLink(op, i.receipt, canonicalOp)) return reject("receipt_conflict");
     const before = structuredClone(op),
       receipt: Receipt = {
         ...structuredClone(i.receipt),
         ...(target ? { supersedes: target } : {}),
       };
     op.receipts = [...op.receipts, receipt];
-    op.state =
-      receipt.cost.certainty === "unknown" ||
-      receipt.measurements.some((m) => m.certainty === "unknown") ||
-      op.estimate.some((q) => !receipt.measurements.some((m) => m.unit === q.unit))
-        ? "pending"
-        : "settled";
+    op.state = settlementState(op, receipt);
     op.lease = null;
     touch(op);
     appendReceipt(db, op, receipt);
@@ -196,6 +196,7 @@ export function commands(
       write(() => expire(i)) as { outcome: "expired"; count: number; hasMore: boolean },
     reserve: async (raw, p) =>
       write(() => {
+        validateSettlementPolicy(raw);
         validTtl(raw.reservationTtlMs ?? 300000, "reservationTtlMs");
         raw.estimate.forEach(validateQuantity);
         if (new Set(raw.estimate.map((q) => q.unit)).size !== raw.estimate.length)

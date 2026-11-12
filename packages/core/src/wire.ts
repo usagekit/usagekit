@@ -7,7 +7,11 @@ export function decodeMeterJson(text: string): unknown {
     if (!value || typeof value !== "object" || Array.isArray(value)) return value;
     const v = value as Record<string, unknown>,
       keys = Object.keys(v);
-    if (keys.length === 2 && v.currency === "USD" && decimal(v.units))
+    if (
+      (keys.length === 2 || (keys.length === 3 && typeof v.scale === "number")) &&
+      v.currency === "USD" &&
+      decimal(v.units)
+    )
       return { ...v, units: BigInt(v.units) };
     if (
       keys.length === 3 &&

@@ -129,7 +129,10 @@ export function usage(s: State, b: Budget, epoch: string): { used: Quantity; res
     )
       continue;
     if (op.state === "settled") {
-      const m = effective(op)?.measurements.find((m) => m.unit === b.unit);
+      const receipt = effective(op);
+      const m = receipt?.canonicalOperationId
+        ? undefined
+        : receipt?.measurements.find((m) => m.unit === b.unit);
       if (m?.quantity) used = plus(used, m.quantity);
     } else if (op.state !== "released") {
       const q = op.estimate.find((q) => q.unit === b.unit);

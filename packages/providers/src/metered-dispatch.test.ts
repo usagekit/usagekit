@@ -778,3 +778,20 @@ describe("abandoned dispatches", () => {
   });
 });
 const scopeAll = { kind: "namespace" as const, namespace: "app" };
+
+it("native policy settles without optional estimated units or money", async () => {
+  const f = setup([]);
+  const request = f.admission("native");
+  request.operation.settlementPolicy = { requiredUnits: ["tokens"], requireMoney: false };
+  const admitted = await f.dispatcher.admit(request);
+  if (admitted.outcome !== "admitted") throw new Error("native fixture");
+  expect(
+    await admitted.dispatch.settle({
+      usage: [q("tokens", 10n)],
+      cost: { certainty: "unknown", money: null },
+    }),
+  ).toMatchObject({
+    outcome: "settled",
+    operation: { state: "settled", receipts: [{ cost: { certainty: "unknown", money: null } }] },
+  });
+});

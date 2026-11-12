@@ -53,6 +53,11 @@ export function commands(tx: Transactions, clock: Clock, hook?: () => void): Com
         await lock(sql, `metering:operation:${key(input.namespace, input.operationId)}`);
         const s = newState(clock);
         await load(sql, s, input.namespace, input.operationId);
+        if ("receipt" in input) {
+          const canonicalId = (input as { receipt: { canonicalOperationId?: string } }).receipt
+            .canonicalOperationId;
+          if (canonicalId) await load(sql, s, input.namespace, canonicalId);
+        }
         if ("commandId" in input) await loadReplay(sql, s, input as OperationCommand);
         await lockAccounting(sql, s);
         await projectUsage(sql, s, snapshot(s).operations);

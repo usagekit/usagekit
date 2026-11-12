@@ -27,6 +27,8 @@ export PATH="$PWD/node_modules/.bin:$PATH"
 usagekit serve
 ```
 
+The unreleased additive [native settlement contract](docs/NATIVE-SETTLEMENT.md) lets hosts freeze required usage dimensions independently of optional money.
+
 See [local server operation](docs/LOCAL-SERVER.md) for tokens, the vault, budgets, scripts and restart recovery.
 See [billing imports](docs/BILLING-IMPORTS.md) for P8 evidence, revisions and reconciliation.
 Consumers upgrading custom Stores or Meters must follow the [0.5.0 migration guide](docs/MIGRATING-0.5.md).

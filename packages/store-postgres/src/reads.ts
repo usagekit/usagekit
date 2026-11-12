@@ -83,7 +83,13 @@ export function usageReader(clock: Clock, secret: string) {
             ? { certainty: "unknown", money: null }
             : {
                 certainty: row.cost_certainty,
-                money: { currency: "USD", units: BigInt(row.cost_units ?? 0n) },
+                money: {
+                  currency: "USD",
+                  units: BigInt(row.cost_units ?? 0n),
+                  ...(receipt.cost.money?.scale === undefined
+                    ? {}
+                    : { scale: receipt.cost.money.scale }),
+                },
               };
         op = {
           ...decode<ReserveInput>(row.input),

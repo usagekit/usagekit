@@ -601,6 +601,25 @@
               "type": "object",
               "additionalProperties": false,
               "properties": {
+                "settlementPolicy": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "requiredUnits": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "minItems": 1,
+                      "maxItems": 64
+                    },
+                    "requireMoney": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": ["requiredUnits", "requireMoney"]
+                },
                 "scope": {
                   "type": "object",
                   "additionalProperties": false,
@@ -1011,6 +1030,10 @@
                                               },
                                               "currency": {
                                                 "const": "USD"
+                                              },
+                                              "scale": {
+                                                "type": "number",
+                                                "maximum": 18
                                               }
                                             },
                                             "required": ["units", "currency"]
@@ -1030,6 +1053,10 @@
                                       },
                                       "currency": {
                                         "const": "USD"
+                                      },
+                                      "scale": {
+                                        "type": "number",
+                                        "maximum": 18
                                       }
                                     },
                                     "required": ["units", "currency"]
@@ -1044,6 +1071,10 @@
                                         "type": "null"
                                       }
                                     ]
+                                  },
+                                  "differenceScale": {
+                                    "type": "number",
+                                    "maximum": 18
                                   },
                                   "unknownOperations": {
                                     "type": "string",
@@ -1433,6 +1464,10 @@
                             },
                             "currency": {
                               "const": "USD"
+                            },
+                            "scale": {
+                              "type": "number",
+                              "maximum": 18
                             }
                           },
                           "required": ["units", "currency"]
@@ -1745,6 +1780,10 @@
                                                     },
                                                     "currency": {
                                                       "const": "USD"
+                                                    },
+                                                    "scale": {
+                                                      "type": "number",
+                                                      "maximum": 18
                                                     }
                                                   },
                                                   "required": ["units", "currency"]
@@ -1764,6 +1803,10 @@
                                             },
                                             "currency": {
                                               "const": "USD"
+                                            },
+                                            "scale": {
+                                              "type": "number",
+                                              "maximum": 18
                                             }
                                           },
                                           "required": ["units", "currency"]
@@ -1778,6 +1821,10 @@
                                               "type": "null"
                                             }
                                           ]
+                                        },
+                                        "differenceScale": {
+                                          "type": "number",
+                                          "maximum": 18
                                         },
                                         "unknownOperations": {
                                           "type": "string",
@@ -2166,6 +2213,25 @@
                           "type": "object",
                           "additionalProperties": false,
                           "properties": {
+                            "settlementPolicy": {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "properties": {
+                                "requiredUnits": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "minItems": 1,
+                                  "maxItems": 64
+                                },
+                                "requireMoney": {
+                                  "type": "boolean"
+                                }
+                              },
+                              "required": ["requiredUnits", "requireMoney"]
+                            },
                             "operationId": {
                               "type": "string",
                               "minLength": 1
@@ -2491,6 +2557,10 @@
                                               },
                                               "currency": {
                                                 "const": "USD"
+                                              },
+                                              "scale": {
+                                                "type": "number",
+                                                "maximum": 18
                                               }
                                             },
                                             "required": ["units", "currency"]
@@ -2501,6 +2571,10 @@
                                     ]
                                   },
                                   "providerRequestId": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "canonicalOperationId": {
                                     "type": "string",
                                     "minLength": 1
                                   },
@@ -3537,6 +3611,25 @@
                           "type": "object",
                           "additionalProperties": false,
                           "properties": {
+                            "settlementPolicy": {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "properties": {
+                                "requiredUnits": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "minItems": 1,
+                                  "maxItems": 64
+                                },
+                                "requireMoney": {
+                                  "type": "boolean"
+                                }
+                              },
+                              "required": ["requiredUnits", "requireMoney"]
+                            },
                             "operationId": {
                               "type": "string",
                               "minLength": 1
@@ -3862,6 +3955,10 @@
                                               },
                                               "currency": {
                                                 "const": "USD"
+                                              },
+                                              "scale": {
+                                                "type": "number",
+                                                "maximum": 18
                                               }
                                             },
                                             "required": ["units", "currency"]
@@ -3872,6 +3969,10 @@
                                     ]
                                   },
                                   "providerRequestId": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "canonicalOperationId": {
                                     "type": "string",
                                     "minLength": 1
                                   },
@@ -4028,6 +4129,25 @@
                 "type": "object",
                 "additionalProperties": false,
                 "properties": {
+                  "settlementPolicy": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "requiredUnits": {
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "minItems": 1,
+                        "maxItems": 64
+                      },
+                      "requireMoney": {
+                        "type": "boolean"
+                      }
+                    },
+                    "required": ["requiredUnits", "requireMoney"]
+                  },
                   "operationId": {
                     "type": "string",
                     "minLength": 1
@@ -4219,6 +4339,25 @@
                           "type": "object",
                           "additionalProperties": false,
                           "properties": {
+                            "settlementPolicy": {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "properties": {
+                                "requiredUnits": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "minItems": 1,
+                                  "maxItems": 64
+                                },
+                                "requireMoney": {
+                                  "type": "boolean"
+                                }
+                              },
+                              "required": ["requiredUnits", "requireMoney"]
+                            },
                             "operationId": {
                               "type": "string",
                               "minLength": 1
@@ -4544,6 +4683,10 @@
                                               },
                                               "currency": {
                                                 "const": "USD"
+                                              },
+                                              "scale": {
+                                                "type": "number",
+                                                "maximum": 18
                                               }
                                             },
                                             "required": ["units", "currency"]
@@ -4554,6 +4697,10 @@
                                     ]
                                   },
                                   "providerRequestId": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "canonicalOperationId": {
                                     "type": "string",
                                     "minLength": 1
                                   },
@@ -4676,6 +4823,25 @@
                               "type": "object",
                               "additionalProperties": false,
                               "properties": {
+                                "settlementPolicy": {
+                                  "type": "object",
+                                  "additionalProperties": false,
+                                  "properties": {
+                                    "requiredUnits": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "string",
+                                        "minLength": 1
+                                      },
+                                      "minItems": 1,
+                                      "maxItems": 64
+                                    },
+                                    "requireMoney": {
+                                      "type": "boolean"
+                                    }
+                                  },
+                                  "required": ["requiredUnits", "requireMoney"]
+                                },
                                 "operationId": {
                                   "type": "string",
                                   "minLength": 1
@@ -5001,6 +5167,10 @@
                                                   },
                                                   "currency": {
                                                     "const": "USD"
+                                                  },
+                                                  "scale": {
+                                                    "type": "number",
+                                                    "maximum": 18
                                                   }
                                                 },
                                                 "required": ["units", "currency"]
@@ -5011,6 +5181,10 @@
                                         ]
                                       },
                                       "providerRequestId": {
+                                        "type": "string",
+                                        "minLength": 1
+                                      },
+                                      "canonicalOperationId": {
                                         "type": "string",
                                         "minLength": 1
                                       },
@@ -5377,6 +5551,25 @@
                           "type": "object",
                           "additionalProperties": false,
                           "properties": {
+                            "settlementPolicy": {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "properties": {
+                                "requiredUnits": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "minItems": 1,
+                                  "maxItems": 64
+                                },
+                                "requireMoney": {
+                                  "type": "boolean"
+                                }
+                              },
+                              "required": ["requiredUnits", "requireMoney"]
+                            },
                             "operationId": {
                               "type": "string",
                               "minLength": 1
@@ -5702,6 +5895,10 @@
                                               },
                                               "currency": {
                                                 "const": "USD"
+                                              },
+                                              "scale": {
+                                                "type": "number",
+                                                "maximum": 18
                                               }
                                             },
                                             "required": ["units", "currency"]
@@ -5712,6 +5909,10 @@
                                     ]
                                   },
                                   "providerRequestId": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "canonicalOperationId": {
                                     "type": "string",
                                     "minLength": 1
                                   },
@@ -5834,6 +6035,25 @@
                               "type": "object",
                               "additionalProperties": false,
                               "properties": {
+                                "settlementPolicy": {
+                                  "type": "object",
+                                  "additionalProperties": false,
+                                  "properties": {
+                                    "requiredUnits": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "string",
+                                        "minLength": 1
+                                      },
+                                      "minItems": 1,
+                                      "maxItems": 64
+                                    },
+                                    "requireMoney": {
+                                      "type": "boolean"
+                                    }
+                                  },
+                                  "required": ["requiredUnits", "requireMoney"]
+                                },
                                 "operationId": {
                                   "type": "string",
                                   "minLength": 1
@@ -6159,6 +6379,10 @@
                                                   },
                                                   "currency": {
                                                     "const": "USD"
+                                                  },
+                                                  "scale": {
+                                                    "type": "number",
+                                                    "maximum": 18
                                                   }
                                                 },
                                                 "required": ["units", "currency"]
@@ -6169,6 +6393,10 @@
                                         ]
                                       },
                                       "providerRequestId": {
+                                        "type": "string",
+                                        "minLength": 1
+                                      },
+                                      "canonicalOperationId": {
                                         "type": "string",
                                         "minLength": 1
                                       },
@@ -6382,6 +6610,25 @@
                           "type": "object",
                           "additionalProperties": false,
                           "properties": {
+                            "settlementPolicy": {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "properties": {
+                                "requiredUnits": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "minItems": 1,
+                                  "maxItems": 64
+                                },
+                                "requireMoney": {
+                                  "type": "boolean"
+                                }
+                              },
+                              "required": ["requiredUnits", "requireMoney"]
+                            },
                             "operationId": {
                               "type": "string",
                               "minLength": 1
@@ -6707,6 +6954,10 @@
                                               },
                                               "currency": {
                                                 "const": "USD"
+                                              },
+                                              "scale": {
+                                                "type": "number",
+                                                "maximum": 18
                                               }
                                             },
                                             "required": ["units", "currency"]
@@ -6717,6 +6968,10 @@
                                     ]
                                   },
                                   "providerRequestId": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "canonicalOperationId": {
                                     "type": "string",
                                     "minLength": 1
                                   },
@@ -6930,6 +7185,25 @@
                               "type": "object",
                               "additionalProperties": false,
                               "properties": {
+                                "settlementPolicy": {
+                                  "type": "object",
+                                  "additionalProperties": false,
+                                  "properties": {
+                                    "requiredUnits": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "string",
+                                        "minLength": 1
+                                      },
+                                      "minItems": 1,
+                                      "maxItems": 64
+                                    },
+                                    "requireMoney": {
+                                      "type": "boolean"
+                                    }
+                                  },
+                                  "required": ["requiredUnits", "requireMoney"]
+                                },
                                 "operationId": {
                                   "type": "string",
                                   "minLength": 1
@@ -7255,6 +7529,10 @@
                                                   },
                                                   "currency": {
                                                     "const": "USD"
+                                                  },
+                                                  "scale": {
+                                                    "type": "number",
+                                                    "maximum": 18
                                                   }
                                                 },
                                                 "required": ["units", "currency"]
@@ -7265,6 +7543,10 @@
                                         ]
                                       },
                                       "providerRequestId": {
+                                        "type": "string",
+                                        "minLength": 1
+                                      },
+                                      "canonicalOperationId": {
                                         "type": "string",
                                         "minLength": 1
                                       },
@@ -7576,6 +7858,10 @@
                                   },
                                   "currency": {
                                     "const": "USD"
+                                  },
+                                  "scale": {
+                                    "type": "number",
+                                    "maximum": 18
                                   }
                                 },
                                 "required": ["units", "currency"]
@@ -7586,6 +7872,10 @@
                         ]
                       },
                       "providerRequestId": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "canonicalOperationId": {
                         "type": "string",
                         "minLength": 1
                       },
@@ -7668,6 +7958,25 @@
                           "type": "object",
                           "additionalProperties": false,
                           "properties": {
+                            "settlementPolicy": {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "properties": {
+                                "requiredUnits": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "minItems": 1,
+                                  "maxItems": 64
+                                },
+                                "requireMoney": {
+                                  "type": "boolean"
+                                }
+                              },
+                              "required": ["requiredUnits", "requireMoney"]
+                            },
                             "operationId": {
                               "type": "string",
                               "minLength": 1
@@ -7993,6 +8302,10 @@
                                               },
                                               "currency": {
                                                 "const": "USD"
+                                              },
+                                              "scale": {
+                                                "type": "number",
+                                                "maximum": 18
                                               }
                                             },
                                             "required": ["units", "currency"]
@@ -8003,6 +8316,10 @@
                                     ]
                                   },
                                   "providerRequestId": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "canonicalOperationId": {
                                     "type": "string",
                                     "minLength": 1
                                   },
@@ -8216,6 +8533,25 @@
                               "type": "object",
                               "additionalProperties": false,
                               "properties": {
+                                "settlementPolicy": {
+                                  "type": "object",
+                                  "additionalProperties": false,
+                                  "properties": {
+                                    "requiredUnits": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "string",
+                                        "minLength": 1
+                                      },
+                                      "minItems": 1,
+                                      "maxItems": 64
+                                    },
+                                    "requireMoney": {
+                                      "type": "boolean"
+                                    }
+                                  },
+                                  "required": ["requiredUnits", "requireMoney"]
+                                },
                                 "operationId": {
                                   "type": "string",
                                   "minLength": 1
@@ -8541,6 +8877,10 @@
                                                   },
                                                   "currency": {
                                                     "const": "USD"
+                                                  },
+                                                  "scale": {
+                                                    "type": "number",
+                                                    "maximum": 18
                                                   }
                                                 },
                                                 "required": ["units", "currency"]
@@ -8551,6 +8891,10 @@
                                         ]
                                       },
                                       "providerRequestId": {
+                                        "type": "string",
+                                        "minLength": 1
+                                      },
+                                      "canonicalOperationId": {
                                         "type": "string",
                                         "minLength": 1
                                       },
@@ -8862,6 +9206,10 @@
                                   },
                                   "currency": {
                                     "const": "USD"
+                                  },
+                                  "scale": {
+                                    "type": "number",
+                                    "maximum": 18
                                   }
                                 },
                                 "required": ["units", "currency"]
@@ -8872,6 +9220,10 @@
                         ]
                       },
                       "providerRequestId": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "canonicalOperationId": {
                         "type": "string",
                         "minLength": 1
                       },
@@ -8964,6 +9316,25 @@
                           "type": "object",
                           "additionalProperties": false,
                           "properties": {
+                            "settlementPolicy": {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "properties": {
+                                "requiredUnits": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "minItems": 1,
+                                  "maxItems": 64
+                                },
+                                "requireMoney": {
+                                  "type": "boolean"
+                                }
+                              },
+                              "required": ["requiredUnits", "requireMoney"]
+                            },
                             "operationId": {
                               "type": "string",
                               "minLength": 1
@@ -9289,6 +9660,10 @@
                                               },
                                               "currency": {
                                                 "const": "USD"
+                                              },
+                                              "scale": {
+                                                "type": "number",
+                                                "maximum": 18
                                               }
                                             },
                                             "required": ["units", "currency"]
@@ -9299,6 +9674,10 @@
                                     ]
                                   },
                                   "providerRequestId": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "canonicalOperationId": {
                                     "type": "string",
                                     "minLength": 1
                                   },
@@ -9404,6 +9783,25 @@
                               "type": "object",
                               "additionalProperties": false,
                               "properties": {
+                                "settlementPolicy": {
+                                  "type": "object",
+                                  "additionalProperties": false,
+                                  "properties": {
+                                    "requiredUnits": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "string",
+                                        "minLength": 1
+                                      },
+                                      "minItems": 1,
+                                      "maxItems": 64
+                                    },
+                                    "requireMoney": {
+                                      "type": "boolean"
+                                    }
+                                  },
+                                  "required": ["requiredUnits", "requireMoney"]
+                                },
                                 "operationId": {
                                   "type": "string",
                                   "minLength": 1
@@ -9729,6 +10127,10 @@
                                                   },
                                                   "currency": {
                                                     "const": "USD"
+                                                  },
+                                                  "scale": {
+                                                    "type": "number",
+                                                    "maximum": 18
                                                   }
                                                 },
                                                 "required": ["units", "currency"]
@@ -9739,6 +10141,10 @@
                                         ]
                                       },
                                       "providerRequestId": {
+                                        "type": "string",
+                                        "minLength": 1
+                                      },
+                                      "canonicalOperationId": {
                                         "type": "string",
                                         "minLength": 1
                                       },
@@ -10133,6 +10539,25 @@
                               "type": "object",
                               "additionalProperties": false,
                               "properties": {
+                                "settlementPolicy": {
+                                  "type": "object",
+                                  "additionalProperties": false,
+                                  "properties": {
+                                    "requiredUnits": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "string",
+                                        "minLength": 1
+                                      },
+                                      "minItems": 1,
+                                      "maxItems": 64
+                                    },
+                                    "requireMoney": {
+                                      "type": "boolean"
+                                    }
+                                  },
+                                  "required": ["requiredUnits", "requireMoney"]
+                                },
                                 "operationId": {
                                   "type": "string",
                                   "minLength": 1
@@ -10458,6 +10883,10 @@
                                                   },
                                                   "currency": {
                                                     "const": "USD"
+                                                  },
+                                                  "scale": {
+                                                    "type": "number",
+                                                    "maximum": 18
                                                   }
                                                 },
                                                 "required": ["units", "currency"]
@@ -10468,6 +10897,10 @@
                                         ]
                                       },
                                       "providerRequestId": {
+                                        "type": "string",
+                                        "minLength": 1
+                                      },
+                                      "canonicalOperationId": {
                                         "type": "string",
                                         "minLength": 1
                                       },
@@ -10774,6 +11207,10 @@
                                               },
                                               "currency": {
                                                 "const": "USD"
+                                              },
+                                              "scale": {
+                                                "type": "number",
+                                                "maximum": 18
                                               }
                                             },
                                             "required": ["units", "currency"]
@@ -11136,6 +11573,10 @@
                                               },
                                               "currency": {
                                                 "const": "USD"
+                                              },
+                                              "scale": {
+                                                "type": "number",
+                                                "maximum": 18
                                               }
                                             },
                                             "required": ["units", "currency"]
@@ -11400,6 +11841,25 @@
                                 "type": "object",
                                 "additionalProperties": false,
                                 "properties": {
+                                  "settlementPolicy": {
+                                    "type": "object",
+                                    "additionalProperties": false,
+                                    "properties": {
+                                      "requiredUnits": {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "string",
+                                          "minLength": 1
+                                        },
+                                        "minItems": 1,
+                                        "maxItems": 64
+                                      },
+                                      "requireMoney": {
+                                        "type": "boolean"
+                                      }
+                                    },
+                                    "required": ["requiredUnits", "requireMoney"]
+                                  },
                                   "operationId": {
                                     "type": "string",
                                     "minLength": 1
@@ -11725,6 +12185,10 @@
                                                     },
                                                     "currency": {
                                                       "const": "USD"
+                                                    },
+                                                    "scale": {
+                                                      "type": "number",
+                                                      "maximum": 18
                                                     }
                                                   },
                                                   "required": ["units", "currency"]
@@ -11735,6 +12199,10 @@
                                           ]
                                         },
                                         "providerRequestId": {
+                                          "type": "string",
+                                          "minLength": 1
+                                        },
+                                        "canonicalOperationId": {
                                           "type": "string",
                                           "minLength": 1
                                         },

@@ -1,6 +1,6 @@
 import { hash } from "./crypto.js";
 export { hash } from "./crypto.js";
-import { normalizeTags } from "@usagekit/core";
+import { moneyScale, normalizeTags } from "@usagekit/core";
 import type { Quantity, ReserveInput, Receipt, Operation } from "@usagekit/core";
 import { InvalidInput } from "@usagekit/store";
 import { integer } from "./serialize.js";
@@ -88,6 +88,13 @@ export function validateReceipt(r: Receipt): void {
         r.cost.money.currency !== "USD"
   )
     throw new InvalidInput("receipt.cost");
+  if (r.cost.money) {
+    try {
+      moneyScale(r.cost.money);
+    } catch {
+      throw new InvalidInput("receipt.cost");
+    }
+  }
   for (const m of r.measurements) {
     if (m.certainty === "unknown") {
       if (m.quantity !== null || !m.unit) throw new InvalidInput("measurement");

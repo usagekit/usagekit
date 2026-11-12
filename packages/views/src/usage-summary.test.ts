@@ -420,3 +420,24 @@ describe("complete usage summaries", () => {
     expect(next.watermark).not.toBe(result.watermark);
   });
 });
+
+test("summary combines declared money scales without rounding", () => {
+  const result = usageSummaryFromPages(
+    [
+      page([
+        row({
+          costOwner: "first",
+          cost: { certainty: "measured", money: { currency: "USD", units: 13n, scale: 8 } },
+        }),
+        row({
+          costOwner: "second",
+          cost: { certainty: "measured", money: { currency: "USD", units: 1n } },
+        }),
+      ]),
+    ],
+    ["requests"],
+  );
+  expect(result).toMatchObject({
+    cost: { text: "0.00010013", unit: "cents", certainty: "measured" },
+  });
+});

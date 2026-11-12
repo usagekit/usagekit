@@ -1,8 +1,9 @@
-import { addQuantity } from "@usagekit/core";
+import { addMoney, addQuantity } from "@usagekit/core";
 import type {
   Certainty,
   FundingSource,
   Quantity,
+  Money,
   UsagePage,
   UsageQuery,
   UsageRow,
@@ -77,17 +78,17 @@ function measurementTotal(rows: readonly UsageRow[], unit: string): Figure {
 function costTotal(rows: readonly UsageRow[]): Amount {
   if (rows.some((row) => row.cost.certainty === "unknown"))
     return costAmount({ certainty: "unknown", money: null });
-  let units = 0n;
+  let money: Money = { units: 0n, currency: "USD" };
   const certainties: Certainty[] = [];
   for (const row of rows) {
     if (row.cost.certainty === "unknown") continue;
-    units += row.cost.money.units;
+    money = addMoney(money, row.cost.money);
     certainties.push(row.cost.certainty);
   }
   const certainty = weakest(certainties);
   return certainty === "unknown"
     ? costAmount({ certainty, money: null })
-    : costAmount({ certainty, money: { currency: "USD", units } });
+    : costAmount({ certainty, money });
 }
 
 /**
