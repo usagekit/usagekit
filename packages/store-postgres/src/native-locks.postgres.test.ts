@@ -1,7 +1,7 @@
 import { expect, test } from "vitest";
 import { createNodePostgresDriver, createPostgresStore } from "./index.js";
 import type { ParameterizedQuery, PostgresDriver } from "./index.js";
-import { command, fixture, receipt, request } from "./test-fixture.js";
+import { bound, command, fixture, receipt, request } from "./test-fixture.js";
 import { key } from "./codec.js";
 
 const barrier = () => {
@@ -11,6 +11,102 @@ const barrier = () => {
   });
   return { reached, release };
 };
+
+test("D3 mirrored cross-connection links never lock the target's budgets", async () => {
+  const f = await fixture();
+  const resume = barrier();
+  const pending: Promise<unknown>[] = [];
+  try {
+    const grants = [];
+    for (const connection of ["x", "y"]) {
+      await f.store.putBudget({
+        ...bound(),
+        id: connection,
+        scope: { kind: "connection", namespace: "test", connection },
+      });
+      const r = await f.store.reserve({
+        ...request(connection),
+        scope: { namespace: "test", principal: "u1", connection },
+        settlementPolicy: { requiredUnits: ["requests"], requireMoney: false },
+      });
+      if (r.outcome !== "reserved") throw new Error("reserve fixture");
+      const g = await f.store.markDispatchIntent({
+        ...command(r.operation),
+        holder: "test",
+        leaseTtlMs: 1000,
+      });
+      if (!("granted" in g) || !g.granted) throw new Error("dispatch fixture");
+      const original = { ...receipt(), providerRequestId: "same" };
+      const settled = await f.store.settle({
+        ...command(g.operation),
+        authority: { kind: "lease", leaseId: g.lease.leaseId },
+        receipt: original,
+      });
+      if (settled.outcome !== "settled") throw new Error("settlement fixture");
+      grants.push({ operation: settled.operation, receiptId: original.id });
+    }
+    const base = createNodePostgresDriver(f.client());
+    const locks: string[][] = [[], []];
+    const loaded = [barrier(), barrier()];
+    const stores = [];
+    for (const [index, target] of ["y", "x"].entries())
+      stores.push(
+        await createPostgresStore({
+          schema: f.schema,
+          clock: f.clock,
+          driver: {
+            transaction: (readOnly, body) =>
+              base.transaction(readOnly, async (sql) =>
+                body({
+                  execute: (q) => sql.execute(q),
+                  async query<T>(q: ParameterizedQuery) {
+                    for (const value of q.values)
+                      if (typeof value === "string" && value.startsWith("metering:budget:"))
+                        locks[index]!.push(value);
+                    const result = await sql.query<T>(q);
+                    if (
+                      q.text.includes("SELECT body FROM metering_receipt") &&
+                      q.values[0] === key("test", target)
+                    ) {
+                      loaded[index]!.release();
+                      await resume.reached;
+                    }
+                    return result;
+                  },
+                }),
+              ),
+          },
+        }),
+      );
+    for (const [index, g] of grants.entries())
+      pending.push(
+        stores[index]!.correct({
+          ...command(g.operation),
+          authority: { kind: "late_evidence", source: "test" },
+          replacesReceiptId: g.receiptId,
+          reason: "canonical link",
+          receipt: {
+            ...receipt(),
+            canonicalOperationId: index === 0 ? "y" : "x",
+            providerRequestId: "same",
+            measurements: [],
+            cost: { certainty: "unknown", money: null },
+          },
+        }),
+      );
+    await Promise.all(loaded.map((b) => b.reached));
+    resume.release();
+    expect(await Promise.all(pending)).toEqual([
+      expect.objectContaining({ outcome: "rejected", reason: "receipt_conflict" }),
+      expect.objectContaining({ outcome: "rejected", reason: "receipt_conflict" }),
+    ]);
+    expect(locks).toEqual([[`metering:budget:["test","x"]`], [`metering:budget:["test","y"]`]]);
+  } finally {
+    resume.release();
+    await Promise.allSettled(pending);
+    await f.close();
+  }
+});
 
 // Explicit SQL barriers observe lock acquisition, never infer interleaving from Promise.all.
 for (const first of ["correction", "link"] as const)

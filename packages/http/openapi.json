@@ -617,7 +617,10 @@
                       "items": {
                         "type": "string",
                         "minLength": 1,
-                        "pattern": "^(?!budget_cents$)[\\s\\S]*\\S[\\s\\S]*$"
+                        "pattern": "^[\\s\\S]*\\S[\\s\\S]*$",
+                        "not": {
+                          "const": "budget_cents"
+                        }
                       },
                       "minItems": 1,
                       "maxItems": 64,
@@ -2245,7 +2248,10 @@
                                   "items": {
                                     "type": "string",
                                     "minLength": 1,
-                                    "pattern": "^(?!budget_cents$)[\\s\\S]*\\S[\\s\\S]*$"
+                                    "pattern": "^[\\s\\S]*\\S[\\s\\S]*$",
+                                    "not": {
+                                      "const": "budget_cents"
+                                    }
                                   },
                                   "minItems": 1,
                                   "maxItems": 64,
@@ -3661,7 +3667,10 @@
                                   "items": {
                                     "type": "string",
                                     "minLength": 1,
-                                    "pattern": "^(?!budget_cents$)[\\s\\S]*\\S[\\s\\S]*$"
+                                    "pattern": "^[\\s\\S]*\\S[\\s\\S]*$",
+                                    "not": {
+                                      "const": "budget_cents"
+                                    }
                                   },
                                   "minItems": 1,
                                   "maxItems": 64,
@@ -4184,7 +4193,10 @@
                         "items": {
                           "type": "string",
                           "minLength": 1,
-                          "pattern": "^(?!budget_cents$)[\\s\\S]*\\S[\\s\\S]*$"
+                          "pattern": "^[\\s\\S]*\\S[\\s\\S]*$",
+                          "not": {
+                            "const": "budget_cents"
+                          }
                         },
                         "minItems": 1,
                         "maxItems": 64,
@@ -4397,7 +4409,10 @@
                                   "items": {
                                     "type": "string",
                                     "minLength": 1,
-                                    "pattern": "^(?!budget_cents$)[\\s\\S]*\\S[\\s\\S]*$"
+                                    "pattern": "^[\\s\\S]*\\S[\\s\\S]*$",
+                                    "not": {
+                                      "const": "budget_cents"
+                                    }
                                   },
                                   "minItems": 1,
                                   "maxItems": 64,
@@ -4886,7 +4901,10 @@
                                       "items": {
                                         "type": "string",
                                         "minLength": 1,
-                                        "pattern": "^(?!budget_cents$)[\\s\\S]*\\S[\\s\\S]*$"
+                                        "pattern": "^[\\s\\S]*\\S[\\s\\S]*$",
+                                        "not": {
+                                          "const": "budget_cents"
+                                        }
                                       },
                                       "minItems": 1,
                                       "maxItems": 64,
@@ -5619,7 +5637,10 @@
                                   "items": {
                                     "type": "string",
                                     "minLength": 1,
-                                    "pattern": "^(?!budget_cents$)[\\s\\S]*\\S[\\s\\S]*$"
+                                    "pattern": "^[\\s\\S]*\\S[\\s\\S]*$",
+                                    "not": {
+                                      "const": "budget_cents"
+                                    }
                                   },
                                   "minItems": 1,
                                   "maxItems": 64,
@@ -6108,7 +6129,10 @@
                                       "items": {
                                         "type": "string",
                                         "minLength": 1,
-                                        "pattern": "^(?!budget_cents$)[\\s\\S]*\\S[\\s\\S]*$"
+                                        "pattern": "^[\\s\\S]*\\S[\\s\\S]*$",
+                                        "not": {
+                                          "const": "budget_cents"
+                                        }
                                       },
                                       "minItems": 1,
                                       "maxItems": 64,
@@ -6688,7 +6712,10 @@
                                   "items": {
                                     "type": "string",
                                     "minLength": 1,
-                                    "pattern": "^(?!budget_cents$)[\\s\\S]*\\S[\\s\\S]*$"
+                                    "pattern": "^[\\s\\S]*\\S[\\s\\S]*$",
+                                    "not": {
+                                      "const": "budget_cents"
+                                    }
                                   },
                                   "minItems": 1,
                                   "maxItems": 64,
@@ -7271,7 +7298,10 @@
                                       "items": {
                                         "type": "string",
                                         "minLength": 1,
-                                        "pattern": "^(?!budget_cents$)[\\s\\S]*\\S[\\s\\S]*$"
+                                        "pattern": "^[\\s\\S]*\\S[\\s\\S]*$",
+                                        "not": {
+                                          "const": "budget_cents"
+                                        }
                                       },
                                       "minItems": 1,
                                       "maxItems": 64,
@@ -8051,7 +8081,10 @@
                                   "items": {
                                     "type": "string",
                                     "minLength": 1,
-                                    "pattern": "^(?!budget_cents$)[\\s\\S]*\\S[\\s\\S]*$"
+                                    "pattern": "^[\\s\\S]*\\S[\\s\\S]*$",
+                                    "not": {
+                                      "const": "budget_cents"
+                                    }
                                   },
                                   "minItems": 1,
                                   "maxItems": 64,
@@ -8634,7 +8667,10 @@
                                       "items": {
                                         "type": "string",
                                         "minLength": 1,
-                                        "pattern": "^(?!budget_cents$)[\\s\\S]*\\S[\\s\\S]*$"
+                                        "pattern": "^[\\s\\S]*\\S[\\s\\S]*$",
+                                        "not": {
+                                          "const": "budget_cents"
+                                        }
                                       },
                                       "minItems": 1,
                                       "maxItems": 64,
@@ -9424,7 +9460,10 @@
                                   "items": {
                                     "type": "string",
                                     "minLength": 1,
-                                    "pattern": "^(?!budget_cents$)[\\s\\S]*\\S[\\s\\S]*$"
+                                    "pattern": "^[\\s\\S]*\\S[\\s\\S]*$",
+                                    "not": {
+                                      "const": "budget_cents"
+                                    }
                                   },
                                   "minItems": 1,
                                   "maxItems": 64,
@@ -9896,7 +9935,10 @@
                                       "items": {
                                         "type": "string",
                                         "minLength": 1,
-                                        "pattern": "^(?!budget_cents$)[\\s\\S]*\\S[\\s\\S]*$"
+                                        "pattern": "^[\\s\\S]*\\S[\\s\\S]*$",
+                                        "not": {
+                                          "const": "budget_cents"
+                                        }
                                       },
                                       "minItems": 1,
                                       "maxItems": 64,
@@ -10657,7 +10699,10 @@
                                       "items": {
                                         "type": "string",
                                         "minLength": 1,
-                                        "pattern": "^(?!budget_cents$)[\\s\\S]*\\S[\\s\\S]*$"
+                                        "pattern": "^[\\s\\S]*\\S[\\s\\S]*$",
+                                        "not": {
+                                          "const": "budget_cents"
+                                        }
                                       },
                                       "minItems": 1,
                                       "maxItems": 64,
@@ -11968,7 +12013,10 @@
                                         "items": {
                                           "type": "string",
                                           "minLength": 1,
-                                          "pattern": "^(?!budget_cents$)[\\s\\S]*\\S[\\s\\S]*$"
+                                          "pattern": "^[\\s\\S]*\\S[\\s\\S]*$",
+                                          "not": {
+                                            "const": "budget_cents"
+                                          }
                                         },
                                         "minItems": 1,
                                         "maxItems": 64,

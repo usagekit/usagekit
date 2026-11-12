@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import type { Pool } from "pg";
 import { createNodePostgresDriver, type PostgresDriver } from "./driver.js";
-import { schemaStatements, moneyScaleStatements } from "./schema.js";
+import { schemaMigrations } from "./schema.js";
 import { schemaIdentifier } from "./statement.js";
 
 type Options = ({ pool: Pool; driver?: never } | { driver: PostgresDriver; pool?: never }) & {
@@ -13,7 +13,7 @@ export async function migratePostgresStore(options: Options): Promise<void> {
   const schema = options.schema ?? "public",
     identifier = schemaIdentifier(schema);
   const driver = options.driver ?? createNodePostgresDriver(options.pool);
-  const migrations = [schemaStatements, moneyScaleStatements].map((statements, index) => ({
+  const migrations = schemaMigrations.map((statements, index) => ({
     version: index + 1,
     statements,
     checksum: createHash("sha256").update(statements.join("\n")).digest("hex"),

@@ -1,4 +1,10 @@
-import { schemas, responses, routes, uniqueRequiredUnits } from "./schemas/index.js";
+import {
+  schemas,
+  responses,
+  routes,
+  uniqueRequiredUnits,
+  nativeUnitNotBudget,
+} from "./schemas/index.js";
 /** Translate the Valibot schema graph, including strict object and decimal validation. */
 function jsonSchema(s: any): Record<string, unknown> {
   if (s.pipe) {
@@ -6,6 +12,7 @@ function jsonSchema(s: any): Record<string, unknown> {
     const out = jsonSchema(base);
     for (const a of actions) {
       if (a === uniqueRequiredUnits) out.uniqueItems = true;
+      if (a === nativeUnitNotBudget) out.not = { const: "budget_cents" };
       if (a.type === "regex") out.pattern = a.requirement.source;
       if (a.type === "integer") out.type = "integer";
       if (a.type === "min_value") out.minimum = a.requirement;

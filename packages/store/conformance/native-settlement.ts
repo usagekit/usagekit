@@ -4,7 +4,9 @@ import type { Money, Receipt, ReserveInput } from "@usagekit/core";
 import type { StoreCapabilities, StoreFactory, StoreFixture } from "./factory.js";
 import { budget, command, input, quantity, receipt, ref } from "./helpers.js";
 
-// Structural types let these same probes execute against the unmodified 0.11.0 base.
+// Native-policy probes exercise the current implementation. Only the policy-free
+// snapshot below is a compatibility golden: its serialized results were compared
+// byte-for-byte with the unmodified c6865b2 memory Store (MP-METER t3 scratch report).
 type NativeInput = ReserveInput & {
   settlementPolicy: { requiredUnits: readonly string[]; requireMoney: boolean };
 };
@@ -516,6 +518,42 @@ export function nativeSettlementTests(factory: StoreFactory, capabilities: Store
           .at(-1)
           ?.measurements.find((m) => m.unit === "budget_cents")?.certainty,
       ).toBe("estimated");
+    });
+    test("billing revisions preserve native measurements and budget consumption", async () => {
+      for (const unit of ["input_tokens", "budget_cents"])
+        f.budgets.push(budget({ id: unit, unit, limit: quantity(100n, unit) }));
+      const g = await dispatch();
+      const original = proof({ providerRequestId: "billing-native" });
+      expect((await settle(g, original)).result.outcome).toBe("settled");
+      const before = await figures();
+      expect(before.map(({ unit, used }) => [unit, used?.value]).sort()).toEqual([
+        ["budget_cents", 2n],
+        ["input_tokens", 7n],
+      ]);
+      let previous: string | null = null;
+      for (const hash of ["a", "b"]) {
+        const result = await f.store.importBilling({
+          scope: input().scope,
+          provider: "search",
+          fileHash: hash.repeat(64),
+          window: { from: "2026-09-01T00:00:00Z", to: "2026-10-01T00:00:00Z" },
+          expectedPreviousImportId: previous,
+          attribution: { fundingSource: "byok", costOwner: "u1" },
+          lines: [
+            {
+              providerRequestId: "billing-native",
+              occurredAt: original.occurredAt,
+              cost: { units: hash === "a" ? 3n : 4n, currency: "USD" },
+            },
+          ],
+        });
+        if (result.outcome !== "imported") throw new Error("billing fixture: " + result.outcome);
+        previous = result.record.id;
+        const op = await f.store.getOperation(ref(g.operation));
+        expect(op?.state).toBe("settled");
+        expect(op?.receipts.at(-1)?.measurements).toEqual(original.measurements);
+        expect(await figures()).toEqual(before);
+      }
     });
     test("legacy policy-free behavior matches the base golden", async () => {
       const results = [];

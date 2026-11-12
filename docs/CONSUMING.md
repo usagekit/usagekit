@@ -634,12 +634,26 @@ above. See the [provider contract](PROVIDERS.md#8-executable-wrapper-and-local-p
 
 ### Upgrade order for the unreleased native settlement extension
 
+This release requires a database upgrade for **every PostgreSQL user**, even if no
+operation uses `settlementPolicy`. Stop all writers, take a pre-upgrade database
+snapshot, run `migratePostgresStore` from the upgraded package with the migration
+role, then start the upgraded application and background jobs. PostgreSQL migrations
+remain explicit. Both `createPostgresStore` and `createTransactionBoundStore` verify
+the exact required version before writing any Store metadata and throw
+`PostgresSchemaVersionError` for an older, absent or newer schema. The error exposes
+`actualVersion` and `requiredVersion` and names `migratePostgresStore`; a newer schema
+requires its matching package, not a downgrade migration. See [Postgres](POSTGRES.md).
+
+For SQLite and Cloudflare Durable Object storage, stop writers and take a pre-upgrade
+snapshot before opening storage with the upgraded package: opening automatically
+migrates it. Start only upgraded writers afterward. PostgreSQL schema version 2,
+SQLite version 7 and Cloudflare Durable Object schema version 3 add `cost_scale`
+alongside `cost_units`. Read the pair together; summing raw units across scales is
+invalid. These Stores align money in application code using bigint.
+
 Upgrade every reader and client in a namespace, including background jobs, exported
 SQL reports and rollback images, before enabling a writer to emit non-legacy money
-scales. Apply the Store migrations before those writers start: PostgreSQL schema
-version 2, SQLite version 7 and Cloudflare Durable Object schema version 3 add
-`cost_scale` alongside `cost_units`. Read the pair together; summing raw units across
-scales is invalid. These Stores align money in application code using bigint.
+scales.
 
 Only an operation with a frozen `settlementPolicy` accepts a non-legacy money scale.
 Billing imports with that scale must match such an operation. Explicit scale 4 is
@@ -647,7 +661,12 @@ canonicalized to the legacy two-key Money shape, including replay identity and w
 output. Namespaces that never opt in keep the legacy shape. A namespace that opts in
 can return scaled aggregates to every reader, not only to the writer that opted in.
 
-Rollback to 0.11.0 or older readers is unsafe once non-legacy-scale rows exist.
-The column migration alone does not make an old reader understand those rows. Keep
-an upgraded rollback build, or restore a pre-adoption database snapshot under an
-owner-approved recovery plan. This extension does not negotiate reader capabilities.
+Any database migrated to PostgreSQL schema 2, SQLite 7 or Cloudflare Durable Object
+schema 3 requires the upgraded package, even with no finer-scale rows or no receipts
+at all. The 0.11.0 SQLite and Cloudflare open paths reject these newer schema versions;
+the 0.11.0 PostgreSQL migrator rejects the additional migration row. Its old receipt
+writes also lack the new column handling. Reverting the package alone is unsupported.
+To return to 0.11.0, stop writers and restore a **pre-upgrade database snapshot** before
+starting the old package, accounting for any writes since that snapshot under the
+owner's recovery plan. Otherwise keep an upgraded rollback build. This extension
+does not negotiate reader capabilities.

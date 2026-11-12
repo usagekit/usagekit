@@ -99,7 +99,11 @@ export const uniqueRequiredUnits = v.check(
   (units: string[]) => new Set(units).size === units.length,
   "unique required units",
 );
-const nativeUnit = v.pipe(text, v.regex(/^(?!budget_cents$)[\s\S]*\S[\s\S]*$/));
+export const nativeUnitNotBudget = v.check(
+  (unit: string) => unit !== "budget_cents",
+  "budget_cents is not a native unit",
+);
+const nativeUnit = v.pipe(text, v.regex(/^[\s\S]*\S[\s\S]*$/), nativeUnitNotBudget);
 const reserveFields = {
   settlementPolicy: v.optional(
     obj({

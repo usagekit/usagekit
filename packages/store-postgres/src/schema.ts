@@ -156,3 +156,5 @@ export const moneyScaleStatements = [
   `UPDATE metering_receipt SET cost_scale=COALESCE((body->'cost'->'money'->>'scale')::integer,4)`,
   `UPDATE metering_receipt SET body=body #- '{cost,money,scale}' WHERE cost_scale=4`,
 ];
+
+export const schemaMigrations = [schemaStatements, moneyScaleStatements];

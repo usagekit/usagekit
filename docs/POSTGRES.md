@@ -25,6 +25,17 @@ calls are harmless. A modified or unsupported version fails configuration. Schem
 are validated before any SQL executes. The runtime role needs access to the migrated
 tables and sequences; grant DDL only to the migration role.
 
+The unreleased native settlement extension requires schema version 2 for every user,
+including operations without a settlement policy. Stop writers, save a pre-upgrade
+snapshot, run `migratePostgresStore` with the upgraded package, then start upgraded
+writers. `createPostgresStore` and `createTransactionBoundStore` check the exact schema
+version before any Store write, including cursor metadata initialization. An absent,
+older or newer version throws the exported `PostgresSchemaVersionError`, with numeric
+`actualVersion` (0 when absent) and `requiredVersion` properties. Its message names
+`migratePostgresStore`. A newer schema needs its matching package; the migrator cannot
+downgrade it. Returning to 0.11.0 requires restoring the pre-upgrade snapshot, even if
+no finer-scale rows have been written. See the [upgrade order](CONSUMING.md#upgrade-order-for-the-unreleased-native-settlement-extension).
+
 ## Prisma and existing host transactions
 
 ```ts
@@ -41,7 +52,8 @@ The Prisma integration uses its raw-query methods with separately bound position
 values. Date parameters retain their UTC offset even when a host connection uses a non-UTC
 TimeZone. It needs no generated host types or Prisma runtime in the published adapter. Hosts can
 manage equivalent tables through their existing migration system instead of invoking
-the standalone migrator. No private application tables or schema mappings are shipped.
+the standalone migrator, including the `metering_schema_version` migration records.
+No private application tables or schema mappings are shipped.
 
 For accounting that must commit with a host ledger, call `createTransactionBoundStore`
 with `prismaPostgresExecutor(transaction)` or `nodePostgresExecutor(client)`. The caller

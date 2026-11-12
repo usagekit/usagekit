@@ -36,6 +36,10 @@ test("C6 OpenAPI and runtime agree on money scale and policy boundaries", async 
     doc.paths["/v1/operations/reserve"].post.requestBody.content["application/json"].schema;
   const ajv = new Ajv({ strict: false, validateFormats: false });
   const policySchema = reserveSchema.properties.settlementPolicy;
+  expect(policySchema.properties.requiredUnits.items).toMatchObject({
+    pattern: "^[\\s\\S]*\\S[\\s\\S]*$",
+    not: { const: "budget_cents" },
+  });
   const policy = ajv.compile(policySchema);
   for (const requiredUnits of [
     [],
@@ -44,6 +48,10 @@ test("C6 OpenAPI and runtime agree on money scale and policy boundaries", async 
     Array.from({ length: 65 }, (_, n) => "unit" + n),
     ["requests", "requests"],
     ["budget_cents"],
+    ["budget_cents_extra"],
+    ["budget_cents\n"],
+    [""],
+    ["\n\t"],
     [" "],
     ["a b"],
   ]) {

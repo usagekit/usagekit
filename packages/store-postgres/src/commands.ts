@@ -58,7 +58,15 @@ export function commands(tx: Transactions, clock: Clock, hook?: () => void): Com
         if ("receipt" in input) {
           const canonicalId = (input as { receipt: { canonicalOperationId?: string } }).receipt
             .canonicalOperationId;
-          if (canonicalId) await load(sql, s, input.namespace, canonicalId);
+          if (canonicalId && canonicalId !== input.operationId) {
+            await load(sql, s, input.namespace, canonicalId);
+            const operation = s.operations.get(key(input.namespace, input.operationId));
+            const canonicalKey = key(input.namespace, canonicalId);
+            const canonical = s.operations.get(canonicalKey);
+            // Invalid cross-connection evidence must not expand the budget lock set.
+            if (canonical?.scope.connection !== operation?.scope.connection)
+              s.operations.delete(canonicalKey);
+          }
         }
         if ("commandId" in input) await loadReplay(sql, s, input as OperationCommand);
         await lockAccounting(sql, s);
