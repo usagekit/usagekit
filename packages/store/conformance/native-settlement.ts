@@ -4,9 +4,11 @@ import type { Money, Receipt, ReserveInput } from "@usagekit/core";
 import type { StoreCapabilities, StoreFactory, StoreFixture } from "./factory.js";
 import { budget, command, input, quantity, receipt, ref } from "./helpers.js";
 
-// Native-policy probes exercise the current implementation. Only the policy-free
-// snapshot below is a compatibility golden: its serialized results were compared
-// byte-for-byte with the unmodified c6865b2 memory Store (MP-METER t3 scratch report).
+import policyFreeGolden from "./policy-free-0.11.0.js";
+import { capturePolicyFree, serializePolicyFree } from "./policy-free.js";
+
+// Native-policy probes exercise the current implementation. The policy-free
+// golden is captured from release 0.11.0; see policy-free-golden.md.
 type NativeInput = ReserveInput & {
   settlementPolicy: { requiredUnits: readonly string[]; requireMoney: boolean };
 };
@@ -411,6 +413,46 @@ export function nativeSettlementTests(factory: StoreFactory, capabilities: Store
         (await usage()).rows[0]?.measurements.find((m) => m.unit === "input_tokens")?.quantity,
       ).toEqual(quantity(7n, "input_tokens"));
     });
+    test.each([
+      [undefined, "c1"],
+      ["c1", undefined],
+      [undefined, undefined],
+      ["", ""],
+    ])("E1 refuses canonical links with connections %s and %s", async (source, target) => {
+      const scope = (connection: string | undefined) => ({
+        namespace: "test",
+        principal: "u1",
+        ...(connection === undefined ? {} : { connection }),
+      });
+      const dispatchScope = async (connection: string | undefined) => {
+        try {
+          // Exercise defensive runtime handling of a missing required public field.
+          return await dispatch(native({ scope: scope(connection) as ReserveInput["scope"] }));
+        } catch (error) {
+          if (connection) throw error;
+          // Meter/HTTP may reject this malformed scope before it reaches the Store.
+          expect(error).toBeInstanceOf(Error);
+          expect((error as Error).message).toMatch(
+            /^InvalidInput: (body|scope(?:\.connection)?)(:|$)/,
+          );
+          return null;
+        }
+      };
+      const canonical = await dispatchScope(target);
+      if (!canonical) return;
+      await settle(canonical, proof({ providerRequestId: "connection-required" }));
+      const duplicate = await dispatchScope(source);
+      if (!duplicate) return;
+      expect(
+        (
+          await settle(duplicate, {
+            ...proof({ providerRequestId: "connection-required", measurements: [] }),
+            canonicalOperationId: canonical.operation.operationId,
+          })
+        ).result,
+      ).toMatchObject({ outcome: "rejected", reason: "receipt_conflict" });
+      expect((await f.store.getOperation(ref(duplicate.operation)))?.receipts).toEqual([]);
+    });
     test("sequential canonical link and correction replay keep one corrected contribution", async () => {
       f.budgets.push(budget({ unit: "input_tokens", limit: quantity(100n, "input_tokens") }));
       const first = await dispatch();
@@ -556,141 +598,8 @@ export function nativeSettlementTests(factory: StoreFactory, capabilities: Store
       }
     });
     test("legacy policy-free behavior matches the base golden", async () => {
-      const results = [];
-      for (const cost of [
-        { certainty: "unknown", money: null },
-        { certainty: "measured", money: { units: 1n, currency: "USD" } },
-      ] as const) {
-        const g = await dispatch(
-          input({ operationId: `legacy-${cost.certainty}`, estimateSource: "manual" }),
-        );
-        const result = (await settle(g, receipt({ id: "legacy-proof", cost }))).result;
-        if (result.outcome !== "settled") throw new Error("settle fixture");
-        results.push(result);
-      }
-      expect(results).toMatchInlineSnapshot(`
-        [
-          {
-            "alerts": [],
-            "operation": {
-              "budgetEpochs": [],
-              "costOwner": "u1",
-              "createdAt": "2026-09-23T12:00:00.000Z",
-              "estimate": [
-                {
-                  "scale": 0,
-                  "unit": "requests",
-                  "value": 1n,
-                },
-              ],
-              "estimateSource": "manual",
-              "fundingSource": "byok",
-              "lease": null,
-              "operation": "search",
-              "operationId": "legacy-unknown",
-              "provider": "search",
-              "receipts": [
-                {
-                  "cached": false,
-                  "cost": {
-                    "certainty": "unknown",
-                    "money": null,
-                  },
-                  "failed": false,
-                  "id": "legacy-proof",
-                  "measurements": [
-                    {
-                      "certainty": "measured",
-                      "quantity": {
-                        "scale": 0,
-                        "unit": "requests",
-                        "value": 1n,
-                      },
-                      "unit": "requests",
-                    },
-                  ],
-                  "occurredAt": "2026-09-23T12:00:00.000Z",
-                  "recordedAt": "2026-09-23T12:00:00.000Z",
-                },
-              ],
-              "reservationExpiresAt": "2026-09-23T12:05:00.000Z",
-              "scope": {
-                "connection": "c1",
-                "namespace": "test",
-                "principal": "u1",
-              },
-              "source": "app",
-              "state": "pending",
-              "surface": "app",
-              "updatedAt": "2026-09-23T12:00:00.000Z",
-              "version": 3,
-            },
-            "outcome": "settled",
-            "replayed": false,
-          },
-          {
-            "alerts": [],
-            "operation": {
-              "budgetEpochs": [],
-              "costOwner": "u1",
-              "createdAt": "2026-09-23T12:00:00.000Z",
-              "estimate": [
-                {
-                  "scale": 0,
-                  "unit": "requests",
-                  "value": 1n,
-                },
-              ],
-              "estimateSource": "manual",
-              "fundingSource": "byok",
-              "lease": null,
-              "operation": "search",
-              "operationId": "legacy-measured",
-              "provider": "search",
-              "receipts": [
-                {
-                  "cached": false,
-                  "cost": {
-                    "certainty": "measured",
-                    "money": {
-                      "currency": "USD",
-                      "units": 1n,
-                    },
-                  },
-                  "failed": false,
-                  "id": "legacy-proof",
-                  "measurements": [
-                    {
-                      "certainty": "measured",
-                      "quantity": {
-                        "scale": 0,
-                        "unit": "requests",
-                        "value": 1n,
-                      },
-                      "unit": "requests",
-                    },
-                  ],
-                  "occurredAt": "2026-09-23T12:00:00.000Z",
-                  "recordedAt": "2026-09-23T12:00:00.000Z",
-                },
-              ],
-              "reservationExpiresAt": "2026-09-23T12:05:00.000Z",
-              "scope": {
-                "connection": "c1",
-                "namespace": "test",
-                "principal": "u1",
-              },
-              "source": "app",
-              "state": "settled",
-              "surface": "app",
-              "updatedAt": "2026-09-23T12:00:00.000Z",
-              "version": 3,
-            },
-            "outcome": "settled",
-            "replayed": false,
-          },
-        ]
-      `);
+      const results = await capturePolicyFree(f.store);
+      expect(JSON.parse(serializePolicyFree(results))).toEqual(policyFreeGolden);
     });
   });
 }

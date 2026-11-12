@@ -1,4 +1,5 @@
 import { expect, test } from "vitest";
+import type { ReserveInput } from "@usagekit/core";
 import { createNodePostgresDriver, createPostgresStore } from "./index.js";
 import type { ParameterizedQuery, PostgresDriver } from "./index.js";
 import { bound, command, fixture, receipt, request } from "./test-fixture.js";
@@ -11,6 +12,199 @@ const barrier = () => {
   });
   return { reached, release };
 };
+
+test("E1 connection-less concurrent corrections cannot commit a canonical chain", async () => {
+  const f = await fixture();
+  const checked = [barrier(), barrier()];
+  const resume = [barrier(), barrier()];
+  const pending: Promise<unknown>[] = [];
+  try {
+    const settled = [];
+    for (const id of ["a", "b", "c"]) {
+      const r = await f.store.reserve({
+        ...request(id),
+        // Defensive runtime case: the public Scope type requires a connection.
+        scope: { namespace: "test", principal: "u1" } as ReserveInput["scope"],
+        settlementPolicy: { requiredUnits: ["requests"], requireMoney: false },
+      });
+      if (r.outcome !== "reserved") throw new Error("reserve fixture");
+      const g = await f.store.markDispatchIntent({
+        ...command(r.operation),
+        holder: "test",
+        leaseTtlMs: 1000,
+      });
+      if (!("granted" in g) || !g.granted) throw new Error("dispatch fixture");
+      const original = { ...receipt(), providerRequestId: "same-native-request" };
+      const result = await f.store.settle({
+        ...command(g.operation),
+        authority: { kind: "lease", leaseId: g.lease.leaseId },
+        receipt: original,
+      });
+      if (result.outcome !== "settled") throw new Error("settle fixture");
+      settled.push({ operation: result.operation, receiptId: original.id });
+    }
+    const base = createNodePostgresDriver(f.client());
+    for (const [index, target] of ["c", "a"].entries()) {
+      const store = await createPostgresStore({
+        schema: f.schema,
+        clock: f.clock,
+        driver: {
+          transaction: (readOnly, body) =>
+            base.transaction(readOnly, async (sql) =>
+              body({
+                execute: (q) => sql.execute(q),
+                async query<T>(q: ParameterizedQuery) {
+                  const result = await sql.query<T>(q);
+                  if (q.text.includes("SELECT 1 FROM metering_receipt r JOIN")) {
+                    // Both canonical snapshots and empty dependent sets precede either commit.
+                    expect(result).toEqual([]);
+                    checked[index]!.release();
+                    await resume[index]!.reached;
+                  }
+                  return result;
+                },
+              }),
+            ),
+        },
+      });
+      const original = settled[index]!;
+      pending.push(
+        store.correct({
+          ...command(original.operation),
+          authority: { kind: "late_evidence", source: "test" },
+          replacesReceiptId: original.receiptId,
+          reason: "canonical correction",
+          receipt: {
+            ...receipt(),
+            providerRequestId: "same-native-request",
+            canonicalOperationId: target,
+            measurements: [],
+            cost: { certainty: "unknown", money: null },
+          },
+        }),
+      );
+    }
+    await Promise.all(checked.map((b) => b.reached));
+    resume[0]!.release();
+    const first = await pending[0];
+    resume[1]!.release();
+    expect([first, await pending[1]]).toEqual([
+      expect.objectContaining({ outcome: "rejected", reason: "receipt_conflict" }),
+      expect.objectContaining({ outcome: "rejected", reason: "receipt_conflict" }),
+    ]);
+    for (const operationId of ["a", "b", "c"]) {
+      const operation = await f.store.getOperation({
+        namespace: "test",
+        principal: "u1",
+        operationId,
+      });
+      expect(operation?.receipts).toHaveLength(1);
+      expect(operation?.receipts[0]?.canonicalOperationId).toBeUndefined();
+    }
+  } finally {
+    resume.forEach((b) => b.release());
+    await Promise.allSettled(pending);
+    await f.close();
+  }
+});
+
+test("E2 command retries if a concurrent reserve was invisible when resolving locks", async () => {
+  const f = await fixture();
+  const inserted = barrier(),
+    resume = barrier(),
+    attempting = barrier();
+  const pending: Promise<unknown>[] = [];
+  let holderPid = 0,
+    waiterPid = 0;
+  const locks: string[] = [];
+  let invisible = false;
+  try {
+    const base = createNodePostgresDriver(f.client());
+    const instrumented = (holder: boolean): PostgresDriver => ({
+      transaction: (readOnly, body) =>
+        base.transaction(readOnly, async (sql) => {
+          const [pid] = await sql.query<{ pid: number }>({
+            text: "SELECT pg_backend_pid() AS pid",
+            values: [],
+          });
+          if (holder) holderPid = pid!.pid;
+          else waiterPid = pid!.pid;
+          return body({
+            async execute(q) {
+              const result = await sql.execute(q);
+              if (holder && q.text.includes("INSERT INTO metering_operation")) {
+                inserted.release();
+                await resume.reached;
+              }
+              return result;
+            },
+            async query<T>(q: ParameterizedQuery) {
+              if (!holder)
+                for (const v of q.values) {
+                  if (typeof v === "string" && v.startsWith("metering:")) locks.push(v);
+                  if (v === `metering:operation:${key("test", "invisible")}`) attempting.release();
+                }
+              const result = await sql.query<T>(q);
+              if (
+                !holder &&
+                q.text.includes("SELECT * FROM metering_operation") &&
+                result.length === 0
+              )
+                invisible = true;
+              return result;
+            },
+          });
+        }),
+    });
+    const holder = await createPostgresStore({
+      driver: instrumented(true),
+      schema: f.schema,
+      clock: f.clock,
+    });
+    const waiter = await createPostgresStore({
+      driver: instrumented(false),
+      schema: f.schema,
+      clock: f.clock,
+    });
+    const reserve = holder.reserve(request("invisible"));
+    pending.push(reserve);
+    await inserted.reached;
+    const input = {
+      namespace: "test",
+      principal: "u1",
+      operationId: "invisible",
+      expectedVersion: 1,
+      commandId: "invisible-intent",
+      holder: "test",
+      leaseTtlMs: 1000,
+    };
+    const intent = waiter.markDispatchIntent(input);
+    pending.push(intent);
+    await attempting.reached;
+    let blocked: number[] = [];
+    const deadline = Date.now() + 3000;
+    while (!blocked.includes(holderPid) && Date.now() < deadline) {
+      blocked = (await f.client().query("SELECT pg_blocking_pids($1) AS pids", [waiterPid])).rows[0]
+        .pids;
+      if (!blocked.includes(holderPid)) await new Promise((resolve) => setTimeout(resolve, 5));
+    }
+    expect(blocked).toContain(holderPid);
+    expect(invisible).toBe(true);
+    resume.release();
+    expect(await reserve).toMatchObject({ outcome: "reserved" });
+    expect(await intent).toMatchObject({
+      granted: false,
+      reason: "version_conflict",
+      operation: { state: "reserved", version: 1 },
+    });
+    expect(locks).toEqual([`metering:operation:${key("test", "invisible")}`]);
+    expect(await waiter.markDispatchIntent(input)).toMatchObject({ granted: true });
+  } finally {
+    resume.release();
+    await Promise.allSettled(pending);
+    await f.close();
+  }
+});
 
 test("D3 mirrored cross-connection links never lock the target's budgets", async () => {
   const f = await fixture();

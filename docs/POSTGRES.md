@@ -36,6 +36,17 @@ older or newer version throws the exported `PostgresSchemaVersionError`, with nu
 downgrade it. Returning to 0.11.0 requires restoring the pre-upgrade snapshot, even if
 no finer-scale rows have been written. See the [upgrade order](CONSUMING.md#upgrade-order-for-the-unreleased-native-settlement-extension).
 
+The schema check costs two queries: `to_regclass` and a scan of the small version
+table. It runs once per `createPostgresStore` instance (including the pooled
+constructor), and once per host transaction when using `createTransactionBoundStore`.
+These are additional to cursor metadata initialization. Results are not cached
+across host transactions.
+
+A non-contiguous migration history is an unsupported database state, reported as
+`PostgresSchemaVersionError` with `reason: "unsupported"`. Inspect and repair that
+history before proceeding; do not run the migrator blindly. Contiguous older and
+newer histories report `reason: "older"` and `reason: "newer"`, respectively.
+
 ## Prisma and existing host transactions
 
 ```ts
@@ -67,6 +78,11 @@ Writes atomically recheck operation versions, command identities, leases and all
 budget bounds. Shared bounds serialize across connections and processes. Receipts, budget
 projections, alerts, retained command results and billing imports commit together. Unknown
 charges retain exposure. Accounting replay never grants another provider dispatch.
+
+If an operation becomes visible only after a command waits for its lock, the command
+returns a retryable `version_conflict` without writing. Retry from the start so the
+connection lock is acquired first; a transaction-bound caller must retry in a new
+host transaction.
 
 Standalone reads run in repeatable-read, read-only transactions. Cursor signatures and
 watermarks survive process restarts; journal events serialize through commit to preserve

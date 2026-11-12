@@ -50,6 +50,10 @@ identity. For a duplicate, submit a receipt with the same `providerRequestId`,
 `canonicalOperationId` naming that operation, an empty measurements array, and
 unknown/null cost. Supply normal lease, recovery or authorized late-evidence authority.
 
+A canonical link represents a native provider request on a provider connection.
+Both operations must carry the same defined `scope.connection`. If either connection
+is absent, the Store refuses the link with `receipt_conflict`.
+
 The Store verifies that the target is already settled, unlinked, and matches the
 namespace, principal, connection, provider credential version, provider, operation,
 funding/owner, credit attribution and policy. This verification runs in the same

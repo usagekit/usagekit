@@ -43,6 +43,9 @@ export function validSettlementLink(
     hasDependents ||
     !op.settlementPolicy ||
     !target?.settlementPolicy ||
+    !op.scope.connection ||
+    !target.scope.connection ||
+    op.scope.connection !== target.scope.connection ||
     target.state !== "settled" ||
     target.operationId === op.operationId ||
     receipt.measurements.length !== 0 ||

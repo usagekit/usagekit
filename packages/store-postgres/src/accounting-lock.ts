@@ -15,7 +15,8 @@ export async function lockConnectionAccounting(
 
 export async function lockOperationAccounting(sql: Sql, ref: OperationRef) {
   const row = await operationRow(sql, ref.namespace, ref.operationId);
-  if (!row) return;
+  if (!row) return false;
   const input = decode<{ scope: Scope }>(row.input);
   await lockConnectionAccounting(sql, ref.namespace, input.scope.connection);
+  return true;
 }

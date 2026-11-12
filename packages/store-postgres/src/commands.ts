@@ -51,10 +51,14 @@ export function commands(tx: Transactions, clock: Clock, hook?: () => void): Com
     input = normalizeLegacyMoney(input);
     try {
       return await tx.write(async (sql) => {
-        await lockOperationAccounting(sql, input);
+        const resolved = await lockOperationAccounting(sql, input);
         await lock(sql, `metering:operation:${key(input.namespace, input.operationId)}`);
         const s = newState(clock);
         await load(sql, s, input.namespace, input.operationId);
+        // A concurrent reserve may commit while we wait for the operation lock.
+        // Retry from connection resolution; acquiring it now would invert lock order.
+        if (!resolved && s.operations.has(key(input.namespace, input.operationId)))
+          throw new VersionConflict();
         if ("receipt" in input) {
           const canonicalId = (input as { receipt: { canonicalOperationId?: string } }).receipt
             .canonicalOperationId;

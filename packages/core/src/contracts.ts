@@ -137,7 +137,8 @@ export type Receipt = {
   cost: Cost;
   providerRequestId?: string;
   /** Duplicate accounting only: settled canonical operation in the same native request scope.
-   * Requires a settlement policy, matching providerRequestId, no measurements and unknown cost.
+   * Requires the same defined provider connection on both operations, a settlement policy,
+   * matching providerRequestId, no measurements and unknown cost.
    * The host identifies duplicates and supplies this reference; the Store verifies it atomically.
    */
   canonicalOperationId?: string;
