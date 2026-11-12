@@ -47,6 +47,8 @@ export type ReconciliationEntry = {
   evidenceTotal: Money;
   /** evidenceTotal - ledgerTotal, or null when any observed cost is unknown. */
   differenceUnits: bigint | null;
+  /** Fractional-cent scale of differenceUnits; omitted means 4. */
+  differenceScale?: number;
   unknownOperations: bigint;
   evidenceRef: string;
 };

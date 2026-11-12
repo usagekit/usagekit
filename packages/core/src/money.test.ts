@@ -29,3 +29,26 @@ test("quantities normalize scale, compare and reject different units", () => {
   expect(() => q.add(a, { ...b, unit: "other" })).toThrow("UnitMismatch");
   expect(() => q.normalizeScale(a, 0)).toThrow();
 });
+
+test("explicit precision aligns exact arithmetic without changing legacy shapes", () => {
+  const fine = fromDecimalString("0.00000013", { scale: 8 });
+  const legacy = fromDecimalString("0.0001");
+  expect(fine).toEqual({ units: 13n, currency: "USD", scale: 8 });
+  expect(toDecimalString(add(fine, legacy))).toBe("0.00010013");
+  expect(toDecimalString(sub(legacy, fine))).toBe("0.00009987");
+  expect(compare(fine, legacy)).toBe(-1);
+  expect(compare(fromDecimalString("1", { scale: 0 }), fromDecimalString("1"))).toBe(0);
+  expect(toDecimalString(fromDecimalString("-2", { scale: 0, allowNegative: true }))).toBe("-2");
+  expect(add(legacy, legacy)).toEqual({ units: 2n, currency: "USD" });
+  for (const scale of [-1, 19, 1.2, NaN])
+    expect(() => fromDecimalString("1", { scale })).toThrow("money.scale");
+  expect(() => fromDecimalString("0.000000131", { scale: 8 })).toThrow("cents");
+});
+
+test("explicit legacy precision has the same constructor and arithmetic shape", () => {
+  const legacy = fromDecimalString("0.0001");
+  const explicit = fromDecimalString("0.0001", { scale: 4 });
+  expect(explicit).toEqual(legacy);
+  expect(add({ ...legacy, scale: 4 }, legacy)).toEqual({ units: 2n, currency: "USD" });
+  expect(sub({ ...legacy, scale: 4 }, legacy)).toEqual({ units: 0n, currency: "USD" });
+});

@@ -1,3 +1,10 @@
+import {
+  validateSettlementPolicy,
+  validSettlementLink,
+  settlementState,
+  validateMoneyPolicy,
+} from "./settlement.js";
+import { moneyScale, normalizeLegacyMoney } from "@usagekit/core";
 import type { AdmissionPolicy } from "@usagekit/core";
 import { admission, recordAlerts, reachedBySettlement } from "./admission.js";
 import type { ReserveInput, ReserveResult, Operation } from "@usagekit/core";
@@ -11,6 +18,7 @@ import {
 } from "./state.js";
 import type { State } from "./state.js";
 export function reserve(s: State, raw: ReserveInput, policy?: AdmissionPolicy): ReserveResult {
+  validateSettlementPolicy(raw);
   validTtl(raw.reservationTtlMs ?? 300000, "reservationTtlMs");
   raw.estimate.forEach(validateQuantity);
   if (new Set(raw.estimate.map((q) => q.unit)).size !== raw.estimate.length)
@@ -174,6 +182,13 @@ export function validateReceipt(r: Receipt): void {
         r.cost.money.currency !== "USD"
   )
     throw new InvalidInput("receipt.cost");
+  if (r.cost.money) {
+    try {
+      moneyScale(r.cost.money);
+    } catch {
+      throw new InvalidInput("receipt.cost");
+    }
+  }
   for (const m of r.measurements) {
     if (m.certainty === "unknown") {
       if (m.quantity !== null || !m.unit) throw new InvalidInput("measurement");
@@ -190,6 +205,7 @@ export function settle(
   i: SettleInput | CorrectionInput,
   correction = false,
 ): SettleResult {
+  i = normalizeLegacyMoney(i);
   validateReceipt(i.receipt);
   const op = find(s, i);
   const reject = (
@@ -201,6 +217,7 @@ export function settle(
       | "receipt_conflict",
   ): SettleResult => ({ outcome: "rejected", reason, operation: copy(op) });
   if (!op) return reject("invalid_state");
+  validateMoneyPolicy(op, i.receipt);
   const ck = canonical([i.namespace, i.operationId, i.commandId]),
     identity = canonical({ kind: correction ? "correct" : "settle", input: i }),
     previous = s.commands.get(ck);
@@ -220,15 +237,32 @@ export function settle(
     return reject("invalid_state");
   if (op.receipts.some((r) => r.id === i.receipt.id)) return reject("receipt_conflict");
   if (i.receipt.supersedes && i.receipt.supersedes !== target) return reject("receipt_conflict");
+  const canonicalOp = i.receipt.canonicalOperationId
+    ? find(s, { ...i, operationId: i.receipt.canonicalOperationId })
+    : null;
+  if (
+    !validSettlementLink(
+      op,
+      i.receipt,
+      canonicalOp,
+      i.receipt.canonicalOperationId !== undefined &&
+        (s.hasCanonicalDependents?.(op) ??
+          [...s.operations.values()].some(
+            (other) =>
+              other.scope.namespace === op.scope.namespace &&
+              other.state === "settled" &&
+              [...other.receipts]
+                .reverse()
+                .find((r) => !other.receipts.some((n) => n.supersedes === r.id))
+                ?.canonicalOperationId === op.operationId,
+          )),
+    )
+  )
+    return reject("receipt_conflict");
   const receipt = copy(i.receipt);
   if (target) receipt.supersedes = target;
   op.receipts = [...op.receipts, receipt];
-  op.state =
-    receipt.cost.certainty === "unknown" ||
-    receipt.measurements.some((m) => m.certainty === "unknown") ||
-    op.estimate.some((q) => !receipt.measurements.some((m) => m.unit === q.unit))
-      ? "pending"
-      : "settled";
+  op.state = settlementState(op, receipt);
   op.lease = null;
   touch(s, op);
   const alerts = recordAlerts(s, op.scope.namespace, reachedBySettlement(s, op));

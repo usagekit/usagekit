@@ -92,3 +92,16 @@ describe("token pricing", () => {
     );
   });
 });
+
+it("aligns explicitly scaled token prices and preserves the scale in budget quantities", () => {
+  const table: TokenPrices = { input: { currency: "USD", units: 1n, scale: 8 }, output: usd(1n) };
+  const result = tokenQuantities(
+    { input: 1_000_000, output: 1_000_000 },
+    { prices: table, moneyUnit: "budget_cents" },
+  );
+  expect(result.cost).toEqual({
+    certainty: "estimated",
+    money: { currency: "USD", units: 10001n, scale: 8 },
+  });
+  expect(result.usage[1]).toEqual({ unit: "budget_cents", value: 10001n, scale: 8 });
+});

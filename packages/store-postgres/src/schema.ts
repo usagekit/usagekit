@@ -150,3 +150,11 @@ $$`,
   `CREATE TRIGGER metering_import_immutable BEFORE UPDATE OR DELETE ON metering_import
   FOR EACH ROW EXECUTE FUNCTION metering_import_immutable()`,
 ];
+
+export const moneyScaleStatements = [
+  `ALTER TABLE metering_receipt ADD COLUMN cost_scale integer NOT NULL DEFAULT 4 CHECK (cost_scale BETWEEN 0 AND 18)`,
+  `UPDATE metering_receipt SET cost_scale=COALESCE((body->'cost'->'money'->>'scale')::integer,4)`,
+  `UPDATE metering_receipt SET body=body #- '{cost,money,scale}' WHERE cost_scale=4`,
+];
+
+export const schemaMigrations = [schemaStatements, moneyScaleStatements];

@@ -5,7 +5,7 @@ import type { AllowanceExceeded, BudgetAlertCrossed } from "@usagekit/core";
 import type { Budget, Operation, ReserveInput, OperationRef, Quantity } from "@usagekit/core";
 import type { Clock } from "../clock.js";
 import type { CountBucket } from "./counters.js";
-import { normalizeTags } from "@usagekit/core";
+import { normalizeTags, normalizeLegacyMoney } from "@usagekit/core";
 export class InvalidInput extends Error {
   constructor(
     readonly field: string,
@@ -14,7 +14,7 @@ export class InvalidInput extends Error {
     super(`InvalidInput: ${field}: ${reason}`);
   }
 }
-export const copy = <T>(value: T): T => structuredClone(value);
+export const copy = <T>(value: T): T => structuredClone(normalizeLegacyMoney(value));
 export function canonical(value: unknown): string {
   if (typeof value === "bigint") return `"bigint:${value}"`;
   if (Array.isArray(value)) return `[${value.map(canonical).join(",")}]`;
@@ -67,6 +67,7 @@ export function validateQuantity(q: Quantity): void {
     throw new InvalidInput("quantity", "money storage bound");
 }
 export type State = {
+  hasCanonicalDependents?: (op: Operation) => boolean;
   billingImports?: Map<string, import("../billing.js").StoredBillingImport>;
   billingFamilies?: Map<string, string>;
   /** Optional adapter projection, read in the same transaction as admission. */

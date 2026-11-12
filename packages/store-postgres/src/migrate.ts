@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import type { Pool } from "pg";
 import { createNodePostgresDriver, type PostgresDriver } from "./driver.js";
-import { schemaStatements } from "./schema.js";
+import { schemaMigrations } from "./schema.js";
 import { schemaIdentifier } from "./statement.js";
 
 type Options = ({ pool: Pool; driver?: never } | { driver: PostgresDriver; pool?: never }) & {
@@ -13,7 +13,11 @@ export async function migratePostgresStore(options: Options): Promise<void> {
   const schema = options.schema ?? "public",
     identifier = schemaIdentifier(schema);
   const driver = options.driver ?? createNodePostgresDriver(options.pool);
-  const checksum = createHash("sha256").update(schemaStatements.join("\n")).digest("hex");
+  const migrations = schemaMigrations.map((statements, index) => ({
+    version: index + 1,
+    statements,
+    checksum: createHash("sha256").update(statements.join("\n")).digest("hex"),
+  }));
   await driver.transaction(false, async (sql) => {
     await sql.query({
       text: "SELECT 1 AS acquired FROM pg_advisory_xact_lock(hashtextextended($1,0))",
@@ -30,15 +34,18 @@ export async function migratePostgresStore(options: Options): Promise<void> {
       text: "SELECT version,checksum FROM metering_schema_version ORDER BY version",
       values: [],
     });
-    if (rows.length) {
-      if (rows.length !== 1 || rows[0]?.version !== 1 || rows[0]?.checksum !== checksum)
-        throw new Error("Unsupported or modified Postgres Store schema version");
-      return;
+    if (
+      rows.some(
+        (row, index) => row.version !== index + 1 || migrations[index]?.checksum !== row.checksum,
+      )
+    )
+      throw new Error("Unsupported or modified Postgres Store schema version");
+    for (const migration of migrations.slice(rows.length)) {
+      for (const text of migration.statements) await sql.execute({ text, values: [] });
+      await sql.execute({
+        text: "INSERT INTO metering_schema_version(version,checksum) VALUES($1,$2)",
+        values: [migration.version, migration.checksum],
+      });
     }
-    for (const text of schemaStatements) await sql.execute({ text, values: [] });
-    await sql.execute({
-      text: "INSERT INTO metering_schema_version(version,checksum) VALUES(1,$1)",
-      values: [checksum],
-    });
   });
 }

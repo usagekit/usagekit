@@ -2,13 +2,13 @@ import { readFileSync } from "node:fs";
 import { randomBytes } from "node:crypto";
 import type Database from "better-sqlite3";
 import { hash } from "./util.js";
-export function migrate(db: Database.Database, target = 6): void {
+export function migrate(db: Database.Database, target = 7): void {
   db.transaction(() => {
     db.exec("CREATE TABLE IF NOT EXISTS migrations(version INTEGER PRIMARY KEY)");
     const versions = (
       db.prepare("SELECT version FROM migrations").all() as { version: number | bigint }[]
     ).map((r) => Number(r.version));
-    if (![1, 2, 3, 4, 5, 6].includes(target) || versions.some((v) => v > target))
+    if (![1, 2, 3, 4, 5, 6, 7].includes(target) || versions.some((v) => v > target))
       throw new Error("Downgrade or unsupported schema version");
     if (!versions.includes(1)) {
       db.exec(readFileSync(new URL("./schema.sql", import.meta.url), "utf8"));
@@ -67,6 +67,12 @@ export function migrate(db: Database.Database, target = 6): void {
       CREATE INDEX billing_import_scope ON billing_imports(namespace,principal,connection,window_from,window_to);
       CREATE INDEX operations_billing_scope ON operations(namespace,principal,json_extract(operation_json,'$.scope.connection'),json_extract(operation_json,'$.provider'));
       INSERT INTO migrations VALUES(6);`);
+    }
+    if (target >= 7 && !versions.includes(7)) {
+      db.exec(`ALTER TABLE receipts ADD COLUMN cost_scale INTEGER NOT NULL DEFAULT 4 CHECK (cost_scale BETWEEN 0 AND 18);
+      UPDATE receipts SET cost_scale=COALESCE(json_extract(receipt_json,'$.cost.money.scale'),4);
+      UPDATE receipts SET receipt_json=json_remove(receipt_json,'$.cost.money.scale') WHERE cost_scale=4;
+      INSERT INTO migrations VALUES(7);`);
     }
   }).immediate();
 }

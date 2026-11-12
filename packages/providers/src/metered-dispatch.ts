@@ -59,12 +59,13 @@ export type AdmitResult =
 
 export type DispatchSettlement = {
   /**
-   * Actual amounts. Every reserved unit must be present; a missing unit is never read as zero.
+   * Actual amounts. Without a settlement policy every reserved unit must be present.
+   * With a policy the Store decides completeness; a missing unit is never read as zero.
    * The `requests` unit the handle added at admission is the exception: it is recorded as one
    * request unless `usage` states its own `requests` amount.
    */
   usage: readonly Quantity[];
-  /** Provider cost from host-owned prices. An unknown cost keeps the operation pending. */
+  /** Provider cost from host-owned prices. An unknown cost stays pending unless the policy makes money optional. */
   cost: Cost;
   /** `measured` (default) for provider-reported totals, `estimated` when a step was interrupted. */
   certainty?: "measured" | "estimated";
@@ -84,7 +85,7 @@ export type SettleOutcome =
       /** Per reserved unit, how far actual usage exceeded the estimate. Empty when none did. */
       overshoot: readonly Quantity[];
     }
-  /** Recorded, but cost or a measurement is unknown: the whole reservation stays held. */
+  /** Recorded, but required evidence is incomplete: the whole reservation stays held. */
   | {
       outcome: "pending";
       replayed: boolean;
@@ -371,9 +372,10 @@ export function createMeteredDispatch(options: MeteredDispatchOptions): MeteredD
             detail: "duplicate unit",
             operation: null,
           };
-        for (const estimate of admitted.estimate)
-          if (!units.has(estimate.unit) && !(addedRequests && estimate.unit === requestsUnit))
-            return { outcome: "rejected", reason: "missing_usage_unit", unit: estimate.unit };
+        if (!admitted.settlementPolicy)
+          for (const estimate of admitted.estimate)
+            if (!units.has(estimate.unit) && !(addedRequests && estimate.unit === requestsUnit))
+              return { outcome: "rejected", reason: "missing_usage_unit", unit: estimate.unit };
         const certainty = input.certainty ?? "measured";
         const measurements: Measurement[] = input.usage.map((quantity) => ({
           unit: quantity.unit,

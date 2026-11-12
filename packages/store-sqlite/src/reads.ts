@@ -94,10 +94,13 @@ export function usageReader(db: Database.Database, clock: Clock, ttl: number) {
           const r = raw as any;
           let op = operations.get(r.operation_pk);
           if (!op) {
+            const metadata = decode<
+              Omit<Receipt, "id" | "measurements" | "cost" | "occurredAt" | "recordedAt"> & {
+                cost?: Receipt["cost"];
+              }
+            >(r.receipt_json);
             const receipt: Receipt = {
-              ...decode<
-                Omit<Receipt, "cost" | "measurements" | "id" | "occurredAt" | "recordedAt">
-              >(r.receipt_json),
+              ...metadata,
               id: r.receipt_id,
               occurredAt: r.occurred_at,
               recordedAt: r.recorded_at,
@@ -107,7 +110,11 @@ export function usageReader(db: Database.Database, clock: Clock, ttl: number) {
                   ? { certainty: "unknown", money: null }
                   : {
                       certainty: r.cost_certainty,
-                      money: { currency: "USD", units: r.cost_units },
+                      money: {
+                        currency: "USD",
+                        units: r.cost_units,
+                        ...(Number(r.cost_scale) === 4 ? {} : { scale: Number(r.cost_scale) }),
+                      },
                     },
             };
             op = {

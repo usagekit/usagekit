@@ -13,7 +13,7 @@ export type ViewState = "ok" | "forbidden" | "unavailable" | "empty";
 export type Problem =
   | { kind: "invalid"; field: string; reason: string }
   | { kind: "error"; message: string };
-/** Unit label of money amounts: formatMoney prints exact cents with four fractional digits. */
+/** Unit label of money amounts: formatMoney prints exact cents at the declared precision. */
 export const moneyUnit = "cents";
 
 export const quantityAmount = (q: Quantity, certainty: Certainty = "measured"): Amount => ({

@@ -21,6 +21,7 @@ test("migrations are idempotent and reject downgrade/newer schema", () => {
       { version: 4 },
       { version: 5 },
       { version: 6 },
+      { version: 7 },
     ]);
     for (const name of [
       "budget_alerts",

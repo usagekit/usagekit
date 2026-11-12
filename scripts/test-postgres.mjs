@@ -15,9 +15,19 @@ const run = (command, args, options = {}) => {
 };
 const tests = (url) => {
   generatePrismaFixture();
-  run(process.execPath, ["node_modules/vitest/vitest.mjs", "run", "--project", "store-postgres"], {
-    env: { ...process.env, USAGEKIT_POSTGRES_TEST_URL: url },
-  });
+  run(
+    process.execPath,
+    [
+      "node_modules/vitest/vitest.mjs",
+      "run",
+      "--project",
+      "store-postgres",
+      ...process.argv.slice(2),
+    ],
+    {
+      env: { ...process.env, USAGEKIT_POSTGRES_TEST_URL: url },
+    },
+  );
 };
 const verifyRestart = (url, restart = () => {}) => {
   const env = {

@@ -1,5 +1,6 @@
 import type { Operation, OperationCommand, OperationRef } from "@usagekit/core";
 import type { Clock, Store } from "@usagekit/store";
+import { normalizeLegacyMoney } from "@usagekit/core";
 import { InvalidInput } from "@usagekit/store";
 import type { State } from "@usagekit/store/reference";
 import * as reference from "@usagekit/store/reference";
@@ -47,14 +48,43 @@ export function commands(tx: Transactions, clock: Clock, hook?: () => void): Com
     run: (s: State) => T,
     conflict: (op: Operation | null) => T,
   ): Promise<T> => {
+    input = normalizeLegacyMoney(input);
     try {
       return await tx.write(async (sql) => {
-        await lockOperationAccounting(sql, input);
+        const resolved = await lockOperationAccounting(sql, input);
         await lock(sql, `metering:operation:${key(input.namespace, input.operationId)}`);
         const s = newState(clock);
         await load(sql, s, input.namespace, input.operationId);
+        // A concurrent reserve may commit while we wait for the operation lock.
+        // Retry from connection resolution; acquiring it now would invert lock order.
+        if (!resolved && s.operations.has(key(input.namespace, input.operationId)))
+          throw new VersionConflict();
+        if ("receipt" in input) {
+          const canonicalId = (input as { receipt: { canonicalOperationId?: string } }).receipt
+            .canonicalOperationId;
+          if (canonicalId && canonicalId !== input.operationId) {
+            await load(sql, s, input.namespace, canonicalId);
+            const operation = s.operations.get(key(input.namespace, input.operationId));
+            const canonicalKey = key(input.namespace, canonicalId);
+            const canonical = s.operations.get(canonicalKey);
+            // Invalid cross-connection evidence must not expand the budget lock set.
+            if (canonical?.scope.connection !== operation?.scope.connection)
+              s.operations.delete(canonicalKey);
+          }
+        }
         if ("commandId" in input) await loadReplay(sql, s, input as OperationCommand);
         await lockAccounting(sql, s);
+        if (
+          "receipt" in input &&
+          (input as { receipt: { canonicalOperationId?: string } }).receipt.canonicalOperationId !==
+            undefined
+        ) {
+          const [dependent] =
+            await sql.query(SQL.sql`SELECT 1 FROM metering_receipt r JOIN metering_operation o USING(operation_pk)
+            WHERE o.namespace=${input.namespace} AND o.state='settled' AND r.body->>'canonicalOperationId'=${input.operationId}
+            AND NOT EXISTS(SELECT 1 FROM metering_receipt n WHERE n.operation_pk=r.operation_pk AND n.supersedes=r.receipt_id) LIMIT 1`);
+          s.hasCanonicalDependents = () => !!dependent;
+        }
         await projectUsage(sql, s, snapshot(s).operations);
         return execute(sql, s, snapshot(s), () => run(s));
       });
@@ -125,13 +155,13 @@ export function commands(tx: Transactions, clock: Clock, hook?: () => void): Com
     settle: (input) =>
       command(
         input,
-        (s) => reference.settle(s, input),
+        (s) => reference.settle(s, normalizeLegacyMoney(input)),
         (operation) => ({ outcome: "rejected", reason: "version_conflict", operation }),
       ),
     correct: (input) =>
       command(
         input,
-        (s) => reference.settle(s, input, true),
+        (s) => reference.settle(s, normalizeLegacyMoney(input), true),
         (operation) => ({ outcome: "rejected", reason: "version_conflict", operation }),
       ),
     releaseUndispatched: (input) =>

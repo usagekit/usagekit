@@ -6,6 +6,7 @@ import type {
   Receipt,
   ReserveInput,
 } from "@usagekit/core";
+import { moneyScale } from "@usagekit/core";
 import { decode, effective, encode, hash, identity, key, timestamp } from "./codec.js";
 import { lock, SQL, type Sql } from "./sql.js";
 
@@ -100,9 +101,9 @@ export async function appendReceipt(sql: Sql, op: Operation, receipt: Receipt, s
   const pk = key(op.scope.namespace, op.operationId),
     rpk = key(pk, receipt.id);
   await sql.execute(SQL.sql`INSERT INTO metering_receipt
-    (receipt_pk,operation_pk,receipt_id,supersedes,body,occurred_at,recorded_at,cost_units,cost_certainty,sequence)
+    (receipt_pk,operation_pk,receipt_id,supersedes,body,occurred_at,recorded_at,cost_units,cost_certainty,sequence,cost_scale)
     VALUES(${rpk},${pk},${receipt.id},${receipt.supersedes ?? null},${encode(receipt)}::jsonb,
-      ${new Date(receipt.occurredAt)},${new Date(receipt.recordedAt)},${receipt.cost.money?.units ?? null},${receipt.cost.certainty},${sequence})`);
+      ${new Date(receipt.occurredAt)},${new Date(receipt.recordedAt)},${receipt.cost.money?.units ?? null},${receipt.cost.certainty},${sequence},${receipt.cost.money ? moneyScale(receipt.cost.money) : 4})`);
   for (const m of receipt.measurements) {
     await sql.execute(SQL.sql`INSERT INTO metering_measurement(receipt_pk,unit,value,scale,certainty)
       VALUES(${rpk},${m.unit},${m.quantity?.value.toString() ?? null}::numeric,${m.quantity?.scale ?? null},${m.certainty})`);

@@ -6,6 +6,7 @@ import { runStoreConformance } from "@usagekit/store/conformance";
 import type { Budget } from "@usagekit/core";
 import { insertBudget } from "./budgets.js";
 import { encode } from "./serialize.js";
+import { migrate } from "./migrate.js";
 import { createSqliteStore } from "./index.js";
 runStoreConformance(
   async () => {
@@ -36,6 +37,18 @@ runStoreConformance(
       store: wrapped,
       clock,
       budgets,
+      replayMoneyMigration: async () => {
+        store.database.exec(
+          "UPDATE receipts SET receipt_json=json_set(receipt_json,'$.cost.money.scale',cost_scale) WHERE cost_scale<>4; ALTER TABLE receipts DROP COLUMN cost_scale; DELETE FROM migrations WHERE version=7;",
+        );
+        migrate(store.database);
+      },
+      moneyColumns: async () =>
+        (
+          store.database
+            .prepare("SELECT cost_units,cost_scale FROM receipts ORDER BY rowid")
+            .all() as { cost_units: bigint; cost_scale: bigint }[]
+        ).map((r) => ({ cost_units: String(r.cost_units), cost_scale: Number(r.cost_scale) })),
       restart: async () => {
         store.close();
         store = createSqliteStore({ path, clock });

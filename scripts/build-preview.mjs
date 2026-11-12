@@ -104,7 +104,7 @@ async function buildPreview() {
     await writeJson(join(staticRoot, "r/registry.json"), index);
     await writeFile(
       join(staticRoot, "examples/index.html"),
-      examplesHtml(index.items, styles, "0.11.0 source candidate · Publication pending"),
+      examplesHtml(index.items, styles, "0.12.0 source candidate · Publication pending"),
     );
     const directories = ["components", "agents", "docs", "examples", "examples/showcase"];
     await writeJson(join(output, "config.json"), {
@@ -141,7 +141,7 @@ async function buildPreview() {
       ),
       backend: "none",
       examples: "browser-only in-memory fixtures",
-      uiPackages: "0.11.0 source candidate; publication pending",
+      uiPackages: "0.12.0 source candidate; publication pending",
       registryBlocksPerVariant: index.items.length,
       routes: [
         "/",

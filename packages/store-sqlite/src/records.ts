@@ -1,4 +1,5 @@
 import type Database from "better-sqlite3";
+import { moneyScale } from "@usagekit/core";
 import type { Operation, Receipt, OperationRef, ReserveInput } from "@usagekit/core";
 import { encode, decode, integer } from "./serialize.js";
 import { key, effective } from "./util.js";
@@ -34,10 +35,13 @@ export function receipts(db: Database.Database, pk: string): Receipt[] {
   for (const row of rows) {
     let receipt = result.get(row.receipt_pk);
     if (!receipt) {
+      const metadata = decode<
+        Omit<Receipt, "id" | "measurements" | "cost" | "occurredAt" | "recordedAt"> & {
+          cost?: Receipt["cost"];
+        }
+      >(row.receipt_json);
       receipt = {
-        ...decode<Omit<Receipt, "id" | "measurements" | "cost" | "occurredAt" | "recordedAt">>(
-          row.receipt_json,
-        ),
+        ...metadata,
         id: row.receipt_id,
         occurredAt: row.occurred_at,
         recordedAt: row.recorded_at,
@@ -45,7 +49,14 @@ export function receipts(db: Database.Database, pk: string): Receipt[] {
         cost:
           row.cost_certainty === "unknown"
             ? { certainty: "unknown", money: null }
-            : { certainty: row.cost_certainty, money: { units: row.cost_units, currency: "USD" } },
+            : {
+                certainty: row.cost_certainty,
+                money: {
+                  units: row.cost_units,
+                  currency: "USD",
+                  ...(Number(row.cost_scale) === 4 ? {} : { scale: Number(row.cost_scale) }),
+                },
+              },
         ...(row.supersedes ? { supersedes: row.supersedes } : {}),
       };
       result.set(row.receipt_pk, receipt);
@@ -99,7 +110,9 @@ export function appendReceipt(db: Database.Database, op: Operation, r: Receipt):
       recordedAt: ______,
       ...metadata
     } = r;
-  db.prepare("INSERT INTO receipts VALUES(?,?,?,?,?,?,?,?,?,?)").run(
+  db.prepare(
+    "INSERT INTO receipts(receipt_pk,operation_pk,receipt_id,supersedes,receipt_json,occurred_at,recorded_at,cost_units,cost_certainty,sequence,cost_scale) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+  ).run(
     rpk,
     pk,
     r.id,
@@ -110,6 +123,7 @@ export function appendReceipt(db: Database.Database, op: Operation, r: Receipt):
     integer(r.cost.money?.units ?? null),
     r.cost.certainty,
     op.receipts.length - 1,
+    r.cost.money ? moneyScale(r.cost.money) : 4,
   );
   for (const m of r.measurements)
     db.prepare("INSERT INTO measurements VALUES(?,?,?,?,?)").run(

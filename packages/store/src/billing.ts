@@ -6,12 +6,20 @@ import type {
   BillingImportsQuery,
   BillingOperationChange,
   Cost,
+  Money,
   Operation,
   Receipt,
   ReconciliationEntry,
   ValidationFailure,
 } from "@usagekit/core";
-import { normalizeTags } from "@usagekit/core";
+import {
+  normalizeTags,
+  normalizeLegacyMoney,
+  addMoney,
+  subtractMoney,
+  moneyScale,
+} from "@usagekit/core";
+import { settlementState } from "./memory/settlement.js";
 import { canonical, copy, maxMoneyUnits } from "./memory/state.js";
 
 export type StoredBillingImport = { identity: string; record: BillingImportRecord };
@@ -105,7 +113,9 @@ export function validateBillingImportInput(i: BillingImportInput): ValidationFai
       line.cost.currency !== "USD" ||
       typeof line.cost.units !== "bigint" ||
       line.cost.units < 0n ||
-      line.cost.units > maxMoneyUnits
+      line.cost.units > maxMoneyUnits ||
+      (line.cost.scale !== undefined &&
+        (!Number.isInteger(line.cost.scale) || line.cost.scale < 0 || line.cost.scale > 18))
     )
       return invalid(field + ".cost", "exact nonnegative USD within storage capability required");
     if (line.operation !== undefined && !name(line.operation))
@@ -186,8 +196,8 @@ function ledger(
   window: { from: string; to: string },
   operation?: string,
 ): { total: Cost; unknown: bigint } {
-  let units = 0n,
-    unknown = 0n,
+  let money: Money = { units: 0n, currency: "USD" };
+  let unknown = 0n,
     estimated = false;
   for (const op of operations) {
     if (
@@ -197,6 +207,7 @@ function ledger(
     )
       continue;
     const r = observedReceipt(op);
+    if (r?.canonicalOperationId) continue;
     const occurredAt = r?.occurredAt ?? op.createdAt;
     if (
       Date.parse(occurredAt) < Date.parse(window.from) ||
@@ -207,14 +218,14 @@ function ledger(
       unknown++;
       continue;
     }
-    units += r.cost.money.units;
+    money = addMoney(money, r.cost.money);
     if (r.cost.certainty === "estimated") estimated = true;
   }
   return {
     total:
       unknown > 0n
         ? { certainty: "unknown", money: null }
-        : { certainty: estimated ? "estimated" : "measured", money: { units, currency: "USD" } },
+        : { certainty: estimated ? "estimated" : "measured", money },
     unknown,
   };
 }
@@ -225,6 +236,7 @@ export function prepareBillingImport(
   snapshot: BillingSnapshot,
   now: Date,
 ): BillingPreparation {
+  i = normalizeLegacyMoney(i);
   const error = validateBillingImportInput(i);
   if (error) return { result: error, changes: [], familyId: "" };
   const window = normalizedWindow(i.window),
@@ -278,7 +290,7 @@ export function prepareBillingImport(
   const reconciliation = (
     kind: ReconciliationEntry["kind"],
     entryWindow: { from: string; to: string },
-    units: bigint,
+    money: Money,
     suffix: string,
     operation?: string,
   ): ReconciliationEntry => {
@@ -292,8 +304,16 @@ export function prepareBillingImport(
       window: normalizedWindow(entryWindow),
       kind,
       ledgerTotal: total,
-      evidenceTotal: { units, currency: "USD" },
-      differenceUnits: total.money === null ? null : units - total.money.units,
+      evidenceTotal: copy(money),
+      differenceUnits: total.money === null ? null : subtractMoney(money, total.money).units,
+      ...(money.scale !== undefined || total.money?.scale !== undefined
+        ? {
+            differenceScale: Math.max(
+              moneyScale(money),
+              total.money ? moneyScale(total.money) : moneyScale(money),
+            ),
+          }
+        : {}),
       unknownOperations: unknown,
       evidenceRef: id,
     };
@@ -301,22 +321,36 @@ export function prepareBillingImport(
   const reconciliations: ReconciliationEntry[] = [];
   for (const [n, line] of i.lines.entries()) {
     if (line.providerRequestId === undefined) {
+      if (line.cost.scale !== undefined)
+        return {
+          familyId,
+          changes: [],
+          result: invalid(
+            "lines." + n + ".cost",
+            "non-legacy money scale requires a matching settlementPolicy operation",
+          ),
+        };
       reconciliations.push(
-        reconciliation(
-          "aggregate",
-          line.window!,
-          line.cost.units,
-          "aggregate:" + n,
-          line.operation,
-        ),
+        reconciliation("aggregate", line.window!, line.cost, "aggregate:" + n, line.operation),
       );
       continue;
     }
-    const candidates = operations.filter((op) =>
-      op.receipts.some((r) => r.providerRequestId === line.providerRequestId),
+    const candidates = operations.filter(
+      (op) =>
+        !currentReceipt(op)?.canonicalOperationId &&
+        op.receipts.some((r) => r.providerRequestId === line.providerRequestId),
     );
     if (candidates.length > 1) return reject("ambiguous_request", n);
     const before = candidates[0] ?? null;
+    if (line.cost.scale !== undefined && !before?.settlementPolicy)
+      return {
+        familyId,
+        changes: [],
+        result: invalid(
+          "lines." + n + ".cost",
+          "non-legacy money scale requires a matching settlementPolicy operation",
+        ),
+      };
     // Historical receipts may carry different request ids for the same operation.
     // Two lines must never create competing updates from the same version.
     if (before && matched.includes(before.operationId)) return reject("ambiguous_request", n);
@@ -352,7 +386,7 @@ export function prepareBillingImport(
         ? {
             unit: "cents",
             certainty: "measured" as const,
-            quantity: { value: line.cost.units, scale: 4, unit: "cents" },
+            quantity: { value: line.cost.units, scale: moneyScale(line.cost), unit: "cents" },
           }
         : m,
     );
@@ -365,16 +399,10 @@ export function prepareBillingImport(
         {
           unit: "cents",
           certainty: "measured",
-          quantity: { value: line.cost.units, scale: 4, unit: "cents" },
+          quantity: { value: line.cost.units, scale: moneyScale(line.cost), unit: "cents" },
         },
       ];
-    const state =
-      receipt.measurements.some((m) => m.certainty === "unknown") ||
-      before?.estimate.some(
-        (q) => !receipt.measurements.some((m) => m.unit === q.unit && m.quantity !== null),
-      )
-        ? "pending"
-        : "settled";
+    const state = settlementState(before ?? { estimate: [] }, receipt);
     const after: Operation = before
       ? {
           ...copy(before),
@@ -410,7 +438,10 @@ export function prepareBillingImport(
     reconciliation(
       "import_total",
       window,
-      i.lines.reduce((sum, line) => sum + line.cost.units, 0n),
+      i.lines.reduce((sum, line) => addMoney(sum, line.cost), {
+        units: 0n,
+        currency: "USD",
+      } as Money),
       "total",
     ),
   );

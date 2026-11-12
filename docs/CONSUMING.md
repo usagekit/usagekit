@@ -1,8 +1,10 @@
 # Consuming usagekit
 
 Use Node 22.23.4 and pin packages from a release cohort to the same exact version.
-The seven-package 0.10.0 cohort is published. It adds request-metered fetch to
-`@usagekit/providers`, the `credential-input` registry block and the Node 22.23.4 baseline.
+The seven-package 0.11.0 cohort is published. It adds token- and money-settled dispatch
+to `@usagekit/providers`. See [what 0.11.0 adds](#what-0110-adds).
+The preceding 0.10.0 cohort adds request-metered fetch, the `credential-input` registry
+block and the Node 22.23.4 baseline.
 See [what 0.10.0 adds](#what-0100-adds).
 The preceding 0.9.1 cohort adds conservative estimates for historical
 provider requests with explicit date bounds to the 0.9.0 pricing formulas, authorized
@@ -11,14 +13,15 @@ count, including partial months; the actual response determines settlement. Requ
 both bounds remain unknown. See [what 0.9.0 adds](#what-090-adds).
 The preceding 0.9.0, 0.8.0, 0.7.0 and 0.6.0 cohorts and the four-package 0.5.0 runtime cohort
 remain available.
-The 0.11.0 source candidate adds token- and money-settled dispatch to `@usagekit/providers`.
-All seven packages move together. Use reviewed local tarballs for 0.11.0 until separately
-approved and published. See [what 0.11.0 adds](#what-0110-adds).
+The 0.12.0 source candidate adds native usage settlement independent of optional money,
+canonical request links and finer money precision. All seven packages move together.
+Use reviewed local tarballs for 0.12.0 until separately approved and published.
+See [what 0.12.0 adds](#what-0120-adds).
 
 Source: <https://github.com/usagekit/usagekit>. Documentation and registry: <https://usagekit.dev>.
 
 ```sh
-npm install --save-exact @usagekit/core@0.10.0 @usagekit/store@0.10.0 @usagekit/meter@0.10.0 @usagekit/providers@0.10.0
+npm install --save-exact @usagekit/core@0.11.0 @usagekit/store@0.11.0 @usagekit/meter@0.11.0 @usagekit/providers@0.11.0
 ```
 
 The registry is `https://registry.npmjs.org/`. No scope registry mapping is needed.
@@ -71,7 +74,7 @@ Skipped capabilities are not passed guarantees.
 ## Headless views and React components
 
 `@usagekit/views`, `@usagekit/react` and `@usagekit/store-postgres` belong to the
-published seven-package 0.10.0 cohort. The 0.11.0 source candidate uses the same cohort.
+published seven-package 0.11.0 cohort. The 0.12.0 source candidate uses the same cohort.
 In 0.7.0, `@usagekit/react` adds `useProviderEditor(query, options?)`, which keeps a draft base
 separate from current evidence and rebases only after an explicit successful reload; see
 [provider UI](PROVIDER-UI.md). In 0.8.0, `@usagekit/views` adds `ProviderRate.fallback`, the price
@@ -85,21 +88,21 @@ Check availability without credentials:
 
 ```sh
 for package in core store meter providers views react store-postgres; do
-  npm view "@usagekit/$package@0.10.0" version --registry https://registry.npmjs.org/
+  npm view "@usagekit/$package@0.11.0" version --registry https://registry.npmjs.org/
 done
 ```
 
 After all seven versions are available, install the packages your application needs:
 
 ```sh
-npm install --save-exact @usagekit/core@0.10.0 @usagekit/store@0.10.0 @usagekit/meter@0.10.0 @usagekit/providers@0.10.0 @usagekit/views@0.10.0 @usagekit/react@0.10.0
+npm install --save-exact @usagekit/core@0.11.0 @usagekit/store@0.11.0 @usagekit/meter@0.11.0 @usagekit/providers@0.11.0 @usagekit/views@0.11.0 @usagekit/react@0.11.0
 # Optional server-side Postgres storage:
-npm install --save-exact @usagekit/store-postgres@0.10.0
+npm install --save-exact @usagekit/store-postgres@0.11.0
 ```
 
 Registry blocks use exact cohort versions of `@usagekit/react`, `@usagekit/views` and
-`@usagekit/core`. This checkout builds candidate blocks requesting 0.11.0. Use reviewed
-cohort tarballs for those blocks until 0.11.0 is published; do not mix cohorts.
+`@usagekit/core`. This checkout builds candidate blocks requesting 0.12.0. Use reviewed
+cohort tarballs for those blocks until 0.12.0 is published; do not mix cohorts.
 Verify the dependencies of the published blocks before installing:
 
 ```sh
@@ -143,11 +146,20 @@ never translate a missing read into permission to retry. Read-only is the defaul
 customer credit authority remains in the host. See [UI](UI.md) for APIs, all twenty-three blocks,
 shared cache behavior and writer outcomes.
 
+## What 0.12.0 adds
+
+The 0.12.0 source candidate adds a frozen `settlementPolicy`, native usage settlement
+with optional unknown money, canonical request links and exact finer-scale money.
+Pin all seven packages to 0.12.0 together; until publication, use reviewed local
+tarballs as described under [an unpublished candidate](#trying-an-unpublished-candidate).
+See the [native settlement contract](NATIVE-SETTLEMENT.md) and mandatory
+[upgrade order](#upgrade-order-for-0120-native-settlement). Canonical links require
+the same defined `scope.connection` on both operations.
+
 ## What 0.11.0 adds
 
-Metered dispatch ships in 0.11.0. The source candidate awaits exact-source and version
-approval. Pin all seven packages to 0.11.0 together; until publication, use reviewed local
-tarballs as described under [an unpublished candidate](#trying-an-unpublished-candidate).
+The 0.11.0 cohort is published. Pin all seven packages to 0.11.0 together.
+Metered dispatch ships in 0.11.0.
 `core`, `store`, `meter`, `views`, `react` and `store-postgres` have no functional changes:
 the addition composes the existing Meter commands, so no Store migration is needed.
 
@@ -631,3 +643,42 @@ prices for billable credits calls; see [what 0.9.0 adds](#what-090-adds).
 
 Provider execution in this candidate uses the pricing boundary described in the upgrade notes
 above. See the [provider contract](PROVIDERS.md#8-executable-wrapper-and-local-pricing).
+
+### Upgrade order for 0.12.0 native settlement
+
+This release requires a database upgrade for **every PostgreSQL user**, even if no
+operation uses `settlementPolicy`. Stop all writers, take a pre-upgrade database
+snapshot, run `migratePostgresStore` from the upgraded package with the migration
+role, then start the upgraded application and background jobs. PostgreSQL migrations
+remain explicit. Both `createPostgresStore` and `createTransactionBoundStore` verify
+the exact required version before writing any Store metadata and throw
+`PostgresSchemaVersionError` for an older, absent or newer schema. The error exposes
+`actualVersion` and `requiredVersion` and names `migratePostgresStore`; a newer schema
+requires its matching package, not a downgrade migration. See [Postgres](POSTGRES.md).
+
+For SQLite and Cloudflare Durable Object storage, stop writers and take a pre-upgrade
+snapshot before opening storage with the upgraded package: opening automatically
+migrates it. Start only upgraded writers afterward. PostgreSQL schema version 2,
+SQLite version 7 and Cloudflare Durable Object schema version 3 add `cost_scale`
+alongside `cost_units`. Read the pair together; summing raw units across scales is
+invalid. These Stores align money in application code using bigint.
+
+Upgrade every reader and client in a namespace, including background jobs, exported
+SQL reports and rollback images, before enabling a writer to emit non-legacy money
+scales.
+
+Only an operation with a frozen `settlementPolicy` accepts a non-legacy money scale.
+Billing imports with that scale must match such an operation. Explicit scale 4 is
+canonicalized to the legacy two-key Money shape, including replay identity and wire
+output. Namespaces that never opt in keep the legacy shape. A namespace that opts in
+can return scaled aggregates to every reader, not only to the writer that opted in.
+
+Any database migrated to PostgreSQL schema 2, SQLite 7 or Cloudflare Durable Object
+schema 3 requires the upgraded package, even with no finer-scale rows or no receipts
+at all. The 0.11.0 SQLite and Cloudflare open paths reject these newer schema versions;
+the 0.11.0 PostgreSQL migrator rejects the additional migration row. Its old receipt
+writes also lack the new column handling. Reverting the package alone is unsupported.
+To return to 0.11.0, stop writers and restore a **pre-upgrade database snapshot** before
+starting the old package, accounting for any writes since that snapshot under the
+owner's recovery plan. Otherwise keep an upgraded rollback build. This extension
+does not negotiate reader capabilities.

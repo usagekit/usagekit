@@ -10,6 +10,7 @@ import {
   prismaPostgresExecutor,
 } from "./index.js";
 import type { PrismaPostgresClient, PrismaPostgresTransaction } from "./index.js";
+import { createSql, SQL } from "./sql.js";
 import { bound, fixture, request, testDatabaseUrl } from "./test-fixture.js";
 
 interface TestClient extends PrismaPostgresClient, PrismaPostgresTransaction {
@@ -67,6 +68,13 @@ test("real Prisma and pg share migration locks, admission and caller-owned rollb
     expect(
       (await f.client().query(`SELECT count(*) AS n FROM "${f.schema}".host_marker`)).rows[0].n,
     ).toBe("0");
+    await expect(
+      driver.transaction(false, (executor) =>
+        createSql(executor, { statements: 0, changes: 0n, rowsRead: 0 }).query(
+          SQL.sql`SELECT ${"100000000000000000000000000000000000000"}::numeric(38,0)`,
+        ),
+      ),
+    ).rejects.toThrow("InvalidInput: quantity");
     const hostile = "literal $1 ' ); DROP TABLE host_marker; --";
     expect(
       await driver.transaction(true, (sql) =>

@@ -54,7 +54,16 @@ export class TestLedger extends DurableObject {
             this.store.database.prepare(`SELECT * FROM ${table} ORDER BY rowid`).all(),
           ]),
         );
-      } else if (body.method === "$schemaVersions")
+      } else if (body.method === "$replayMoneyMigration") {
+        this.store.database.exec(
+          "UPDATE receipts SET receipt_json=json_set(receipt_json,'$.cost.money.scale',cost_scale) WHERE cost_scale<>4; ALTER TABLE receipts DROP COLUMN cost_scale; DELETE FROM migrations WHERE version=3;",
+        );
+        migrate(this.store.database);
+      } else if (body.method === "$moneyColumns")
+        result = this.store.database
+          .prepare("SELECT cost_units,cost_scale FROM receipts ORDER BY rowid")
+          .all();
+      else if (body.method === "$schemaVersions")
         result = this.store.database
           .prepare("SELECT version FROM migrations ORDER BY version")
           .all();
@@ -62,7 +71,7 @@ export class TestLedger extends DurableObject {
         this.store.database
           .transaction(() => {
             this.store.database.exec(
-              "DROP TABLE billing_imports; DROP TABLE billing_import_families; DROP INDEX operations_billing_scope; DELETE FROM migrations WHERE version=2;",
+              "DROP TABLE billing_imports; DROP TABLE billing_import_families; DROP INDEX operations_billing_scope; ALTER TABLE receipts DROP COLUMN cost_scale; DELETE FROM migrations WHERE version>=2;",
             );
           })
           .immediate();

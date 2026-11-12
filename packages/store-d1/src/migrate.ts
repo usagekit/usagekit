@@ -49,13 +49,13 @@ CREATE TABLE request_counts(namespace TEXT NOT NULL,principal TEXT NOT NULL,grp 
 CREATE INDEX request_counts_window ON request_counts(namespace,day);
 CREATE TABLE request_commands(namespace TEXT NOT NULL,command_id TEXT NOT NULL,identity_hash TEXT NOT NULL,PRIMARY KEY(namespace,command_id));
 `;
-export function migrate(db: Database, target = 2): void {
+export function migrate(db: Database, target = 3): void {
   db.transaction(() => {
     db.exec("CREATE TABLE IF NOT EXISTS migrations(version INTEGER PRIMARY KEY)");
     const versions = db.prepare("SELECT version FROM migrations").all() as { version: number }[];
     if (
-      ![1, 2].includes(target) ||
-      versions.some((v) => v.version > target || ![1, 2].includes(v.version))
+      ![1, 2, 3].includes(target) ||
+      versions.some((v) => v.version > target || ![1, 2, 3].includes(v.version))
     )
       throw new Error("Unsupported Cloudflare schema version");
     if (versions.length === 0) {
@@ -73,6 +73,12 @@ export function migrate(db: Database, target = 2): void {
       CREATE INDEX billing_import_scope ON billing_imports(namespace,principal,connection,window_from,window_to);
       CREATE INDEX operations_billing_scope ON operations(namespace,principal,json_extract(operation_json,'$.scope.connection'),json_extract(operation_json,'$.provider'));
       INSERT INTO migrations VALUES(2);`);
+    }
+    if (target >= 3 && !versions.some((v) => v.version === 3)) {
+      db.exec(`ALTER TABLE receipts ADD COLUMN cost_scale INTEGER NOT NULL DEFAULT 4 CHECK (cost_scale BETWEEN 0 AND 18);
+      UPDATE receipts SET cost_scale=COALESCE(json_extract(receipt_json,'$.cost.money.scale'),4);
+      UPDATE receipts SET receipt_json=json_remove(receipt_json,'$.cost.money.scale') WHERE cost_scale=4;
+      INSERT INTO migrations VALUES(3);`);
     }
   }).immediate();
 }

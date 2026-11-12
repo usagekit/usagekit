@@ -10,6 +10,7 @@ import { createNodePostgresDriver, type PostgresDriver, type PostgresExecutor } 
 import { operationsReader } from "./operations.js";
 import { usageReader } from "./reads.js";
 import { find } from "./records.js";
+import { verifySchemaVersion } from "./schema-version.js";
 import { createSql, SQL, transactions, type Counters } from "./sql.js";
 
 export {
@@ -27,6 +28,7 @@ export type {
 export type { ParameterizedQuery } from "./statement.js";
 export type { Counters as PostgresStoreCounters } from "./sql.js";
 export { migratePostgresStore } from "./migrate.js";
+export { PostgresSchemaVersionError } from "./schema-version.js";
 
 type Storage = { pool: Pool; driver?: never } | { driver: PostgresDriver; pool?: never };
 export type PostgresStoreOptions = Storage & {
@@ -72,6 +74,7 @@ async function compose(
   afterOperationWrite?: () => void,
 ) {
   const secret = await tx.write(async (sql) => {
+    await verifySchemaVersion(sql);
     await sql.execute(SQL.sql`INSERT INTO metering_metadata(key,value)
       VALUES('cursor_key',${randomBytes(32).toString("hex")}) ON CONFLICT(key) DO NOTHING`);
     const [row] = await sql.query<{ value: string }>(

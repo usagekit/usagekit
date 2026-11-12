@@ -15,6 +15,8 @@ import { capabilityTests } from "./capabilities.js";
 import { counterTests } from "./counters.js";
 import { billingTests } from "./billing.js";
 import { settlementTests } from "./settlement.js";
+import { correctionTests } from "./corrections.js";
+import { nativeSettlementTests } from "./native-settlement.js";
 export function runStoreConformance(factory: StoreFactory, capabilities: StoreCapabilities) {
   describe("store conformance", () => {
     reserveTests(factory);
@@ -30,6 +32,8 @@ export function runStoreConformance(factory: StoreFactory, capabilities: StoreCa
     counterTests(factory);
     billingTests(factory, capabilities);
     settlementTests(factory);
+    nativeSettlementTests(factory, capabilities);
+    correctionTests(factory, capabilities);
     propertyTests(factory);
     capabilityTests(factory, capabilities);
     afterAll(() =>

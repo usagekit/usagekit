@@ -50,7 +50,8 @@
                                     "pattern": "^-?\\d+$"
                                   },
                                   "scale": {
-                                    "type": "number",
+                                    "type": "integer",
+                                    "minimum": 0,
                                     "maximum": 18
                                   },
                                   "unit": {
@@ -249,7 +250,8 @@
                                                 "pattern": "^-?\\d+$"
                                               },
                                               "scale": {
-                                                "type": "number",
+                                                "type": "integer",
+                                                "minimum": 0,
                                                 "maximum": 18
                                               },
                                               "unit": {
@@ -350,7 +352,8 @@
                                             "pattern": "^-?\\d+$"
                                           },
                                           "scale": {
-                                            "type": "number",
+                                            "type": "integer",
+                                            "minimum": 0,
                                             "maximum": 18
                                           },
                                           "unit": {
@@ -373,7 +376,7 @@
                                                   "additionalProperties": false,
                                                   "properties": {
                                                     "percent": {
-                                                      "type": "number",
+                                                      "type": "integer",
                                                       "minimum": 1,
                                                       "maximum": 100
                                                     }
@@ -389,7 +392,8 @@
                                                       "pattern": "^-?\\d+$"
                                                     },
                                                     "scale": {
-                                                      "type": "number",
+                                                      "type": "integer",
+                                                      "minimum": 0,
                                                       "maximum": 18
                                                     },
                                                     "unit": {
@@ -457,7 +461,8 @@
                                             "pattern": "^-?\\d+$"
                                           },
                                           "scale": {
-                                            "type": "number",
+                                            "type": "integer",
+                                            "minimum": 0,
                                             "maximum": 18
                                           },
                                           "unit": {
@@ -483,7 +488,8 @@
                                             "pattern": "^-?\\d+$"
                                           },
                                           "scale": {
-                                            "type": "number",
+                                            "type": "integer",
+                                            "minimum": 0,
                                             "maximum": 18
                                           },
                                           "unit": {
@@ -509,7 +515,8 @@
                                             "pattern": "^-?\\d+$"
                                           },
                                           "scale": {
-                                            "type": "number",
+                                            "type": "integer",
+                                            "minimum": 0,
                                             "maximum": 18
                                           },
                                           "unit": {
@@ -601,6 +608,30 @@
               "type": "object",
               "additionalProperties": false,
               "properties": {
+                "settlementPolicy": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "requiredUnits": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "minLength": 1,
+                        "pattern": "^[\\s\\S]*\\S[\\s\\S]*$",
+                        "not": {
+                          "const": "budget_cents"
+                        }
+                      },
+                      "minItems": 1,
+                      "maxItems": 64,
+                      "uniqueItems": true
+                    },
+                    "requireMoney": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": ["requiredUnits", "requireMoney"]
+                },
                 "scope": {
                   "type": "object",
                   "additionalProperties": false,
@@ -703,7 +734,8 @@
                         "pattern": "^-?\\d+$"
                       },
                       "scale": {
-                        "type": "number",
+                        "type": "integer",
+                        "minimum": 0,
                         "maximum": 18
                       },
                       "unit": {
@@ -1011,6 +1043,11 @@
                                               },
                                               "currency": {
                                                 "const": "USD"
+                                              },
+                                              "scale": {
+                                                "type": "integer",
+                                                "minimum": 0,
+                                                "maximum": 18
                                               }
                                             },
                                             "required": ["units", "currency"]
@@ -1030,6 +1067,11 @@
                                       },
                                       "currency": {
                                         "const": "USD"
+                                      },
+                                      "scale": {
+                                        "type": "integer",
+                                        "minimum": 0,
+                                        "maximum": 18
                                       }
                                     },
                                     "required": ["units", "currency"]
@@ -1044,6 +1086,11 @@
                                         "type": "null"
                                       }
                                     ]
+                                  },
+                                  "differenceScale": {
+                                    "type": "integer",
+                                    "minimum": 0,
+                                    "maximum": 18
                                   },
                                   "unknownOperations": {
                                     "type": "string",
@@ -1094,7 +1141,7 @@
                                         "additionalProperties": false,
                                         "properties": {
                                           "percent": {
-                                            "type": "number",
+                                            "type": "integer",
                                             "minimum": 1,
                                             "maximum": 100
                                           }
@@ -1110,7 +1157,8 @@
                                             "pattern": "^-?\\d+$"
                                           },
                                           "scale": {
-                                            "type": "number",
+                                            "type": "integer",
+                                            "minimum": 0,
                                             "maximum": 18
                                           },
                                           "unit": {
@@ -1131,7 +1179,8 @@
                                         "pattern": "^-?\\d+$"
                                       },
                                       "scale": {
-                                        "type": "number",
+                                        "type": "integer",
+                                        "minimum": 0,
                                         "maximum": 18
                                       },
                                       "unit": {
@@ -1150,7 +1199,8 @@
                                         "pattern": "^-?\\d+$"
                                       },
                                       "scale": {
-                                        "type": "number",
+                                        "type": "integer",
+                                        "minimum": 0,
                                         "maximum": 18
                                       },
                                       "unit": {
@@ -1433,6 +1483,11 @@
                             },
                             "currency": {
                               "const": "USD"
+                            },
+                            "scale": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 18
                             }
                           },
                           "required": ["units", "currency"]
@@ -1745,6 +1800,11 @@
                                                     },
                                                     "currency": {
                                                       "const": "USD"
+                                                    },
+                                                    "scale": {
+                                                      "type": "integer",
+                                                      "minimum": 0,
+                                                      "maximum": 18
                                                     }
                                                   },
                                                   "required": ["units", "currency"]
@@ -1764,6 +1824,11 @@
                                             },
                                             "currency": {
                                               "const": "USD"
+                                            },
+                                            "scale": {
+                                              "type": "integer",
+                                              "minimum": 0,
+                                              "maximum": 18
                                             }
                                           },
                                           "required": ["units", "currency"]
@@ -1778,6 +1843,11 @@
                                               "type": "null"
                                             }
                                           ]
+                                        },
+                                        "differenceScale": {
+                                          "type": "integer",
+                                          "minimum": 0,
+                                          "maximum": 18
                                         },
                                         "unknownOperations": {
                                           "type": "string",
@@ -1828,7 +1898,7 @@
                                               "additionalProperties": false,
                                               "properties": {
                                                 "percent": {
-                                                  "type": "number",
+                                                  "type": "integer",
                                                   "minimum": 1,
                                                   "maximum": 100
                                                 }
@@ -1844,7 +1914,8 @@
                                                   "pattern": "^-?\\d+$"
                                                 },
                                                 "scale": {
-                                                  "type": "number",
+                                                  "type": "integer",
+                                                  "minimum": 0,
                                                   "maximum": 18
                                                 },
                                                 "unit": {
@@ -1865,7 +1936,8 @@
                                               "pattern": "^-?\\d+$"
                                             },
                                             "scale": {
-                                              "type": "number",
+                                              "type": "integer",
+                                              "minimum": 0,
                                               "maximum": 18
                                             },
                                             "unit": {
@@ -1884,7 +1956,8 @@
                                               "pattern": "^-?\\d+$"
                                             },
                                             "scale": {
-                                              "type": "number",
+                                              "type": "integer",
+                                              "minimum": 0,
                                               "maximum": 18
                                             },
                                             "unit": {
@@ -2026,7 +2099,7 @@
                   "type": "boolean"
                 },
                 "limit": {
-                  "type": "number",
+                  "type": "integer",
                   "minimum": 1,
                   "maximum": 1000
                 }
@@ -2125,7 +2198,7 @@
                     "minLength": 1
                   },
                   "limit": {
-                    "type": "number",
+                    "type": "integer",
                     "minimum": 1,
                     "maximum": 1000
                   }
@@ -2166,12 +2239,36 @@
                           "type": "object",
                           "additionalProperties": false,
                           "properties": {
+                            "settlementPolicy": {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "properties": {
+                                "requiredUnits": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "pattern": "^[\\s\\S]*\\S[\\s\\S]*$",
+                                    "not": {
+                                      "const": "budget_cents"
+                                    }
+                                  },
+                                  "minItems": 1,
+                                  "maxItems": 64,
+                                  "uniqueItems": true
+                                },
+                                "requireMoney": {
+                                  "type": "boolean"
+                                }
+                              },
+                              "required": ["requiredUnits", "requireMoney"]
+                            },
                             "operationId": {
                               "type": "string",
                               "minLength": 1
                             },
                             "reservationTtlMs": {
-                              "type": "number",
+                              "type": "integer",
                               "minimum": 1,
                               "maximum": 86400000
                             },
@@ -2286,7 +2383,8 @@
                                     "pattern": "^-?\\d+$"
                                   },
                                   "scale": {
-                                    "type": "number",
+                                    "type": "integer",
+                                    "minimum": 0,
                                     "maximum": 18
                                   },
                                   "unit": {
@@ -2443,7 +2541,8 @@
                                                   "pattern": "^-?\\d+$"
                                                 },
                                                 "scale": {
-                                                  "type": "number",
+                                                  "type": "integer",
+                                                  "minimum": 0,
                                                   "maximum": 18
                                                 },
                                                 "unit": {
@@ -2491,6 +2590,11 @@
                                               },
                                               "currency": {
                                                 "const": "USD"
+                                              },
+                                              "scale": {
+                                                "type": "integer",
+                                                "minimum": 0,
+                                                "maximum": 18
                                               }
                                             },
                                             "required": ["units", "currency"]
@@ -2501,6 +2605,10 @@
                                     ]
                                   },
                                   "providerRequestId": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "canonicalOperationId": {
                                     "type": "string",
                                     "minLength": 1
                                   },
@@ -2760,7 +2868,8 @@
                                             "pattern": "^-?\\d+$"
                                           },
                                           "scale": {
-                                            "type": "number",
+                                            "type": "integer",
+                                            "minimum": 0,
                                             "maximum": 18
                                           },
                                           "unit": {
@@ -2861,7 +2970,8 @@
                                         "pattern": "^-?\\d+$"
                                       },
                                       "scale": {
-                                        "type": "number",
+                                        "type": "integer",
+                                        "minimum": 0,
                                         "maximum": 18
                                       },
                                       "unit": {
@@ -2884,7 +2994,7 @@
                                               "additionalProperties": false,
                                               "properties": {
                                                 "percent": {
-                                                  "type": "number",
+                                                  "type": "integer",
                                                   "minimum": 1,
                                                   "maximum": 100
                                                 }
@@ -2900,7 +3010,8 @@
                                                   "pattern": "^-?\\d+$"
                                                 },
                                                 "scale": {
-                                                  "type": "number",
+                                                  "type": "integer",
+                                                  "minimum": 0,
                                                   "maximum": 18
                                                 },
                                                 "unit": {
@@ -2941,7 +3052,8 @@
                                     "pattern": "^-?\\d+$"
                                   },
                                   "scale": {
-                                    "type": "number",
+                                    "type": "integer",
+                                    "minimum": 0,
                                     "maximum": 18
                                   },
                                   "unit": {
@@ -2960,7 +3072,8 @@
                                     "pattern": "^-?\\d+$"
                                   },
                                   "scale": {
-                                    "type": "number",
+                                    "type": "integer",
+                                    "minimum": 0,
                                     "maximum": 18
                                   },
                                   "unit": {
@@ -3018,7 +3131,7 @@
                                     "additionalProperties": false,
                                     "properties": {
                                       "percent": {
-                                        "type": "number",
+                                        "type": "integer",
                                         "minimum": 1,
                                         "maximum": 100
                                       }
@@ -3034,7 +3147,8 @@
                                         "pattern": "^-?\\d+$"
                                       },
                                       "scale": {
-                                        "type": "number",
+                                        "type": "integer",
+                                        "minimum": 0,
                                         "maximum": 18
                                       },
                                       "unit": {
@@ -3055,7 +3169,8 @@
                                     "pattern": "^-?\\d+$"
                                   },
                                   "scale": {
-                                    "type": "number",
+                                    "type": "integer",
+                                    "minimum": 0,
                                     "maximum": 18
                                   },
                                   "unit": {
@@ -3074,7 +3189,8 @@
                                     "pattern": "^-?\\d+$"
                                   },
                                   "scale": {
-                                    "type": "number",
+                                    "type": "integer",
+                                    "minimum": 0,
                                     "maximum": 18
                                   },
                                   "unit": {
@@ -3276,7 +3392,8 @@
                                           "pattern": "^-?\\d+$"
                                         },
                                         "scale": {
-                                          "type": "number",
+                                          "type": "integer",
+                                          "minimum": 0,
                                           "maximum": 18
                                         },
                                         "unit": {
@@ -3377,7 +3494,8 @@
                                       "pattern": "^-?\\d+$"
                                     },
                                     "scale": {
-                                      "type": "number",
+                                      "type": "integer",
+                                      "minimum": 0,
                                       "maximum": 18
                                     },
                                     "unit": {
@@ -3400,7 +3518,7 @@
                                             "additionalProperties": false,
                                             "properties": {
                                               "percent": {
-                                                "type": "number",
+                                                "type": "integer",
                                                 "minimum": 1,
                                                 "maximum": 100
                                               }
@@ -3416,7 +3534,8 @@
                                                 "pattern": "^-?\\d+$"
                                               },
                                               "scale": {
-                                                "type": "number",
+                                                "type": "integer",
+                                                "minimum": 0,
                                                 "maximum": 18
                                               },
                                               "unit": {
@@ -3457,7 +3576,8 @@
                                   "pattern": "^-?\\d+$"
                                 },
                                 "scale": {
-                                  "type": "number",
+                                  "type": "integer",
+                                  "minimum": 0,
                                   "maximum": 18
                                 },
                                 "unit": {
@@ -3476,7 +3596,8 @@
                                   "pattern": "^-?\\d+$"
                                 },
                                 "scale": {
-                                  "type": "number",
+                                  "type": "integer",
+                                  "minimum": 0,
                                   "maximum": 18
                                 },
                                 "unit": {
@@ -3537,12 +3658,36 @@
                           "type": "object",
                           "additionalProperties": false,
                           "properties": {
+                            "settlementPolicy": {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "properties": {
+                                "requiredUnits": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "pattern": "^[\\s\\S]*\\S[\\s\\S]*$",
+                                    "not": {
+                                      "const": "budget_cents"
+                                    }
+                                  },
+                                  "minItems": 1,
+                                  "maxItems": 64,
+                                  "uniqueItems": true
+                                },
+                                "requireMoney": {
+                                  "type": "boolean"
+                                }
+                              },
+                              "required": ["requiredUnits", "requireMoney"]
+                            },
                             "operationId": {
                               "type": "string",
                               "minLength": 1
                             },
                             "reservationTtlMs": {
-                              "type": "number",
+                              "type": "integer",
                               "minimum": 1,
                               "maximum": 86400000
                             },
@@ -3657,7 +3802,8 @@
                                     "pattern": "^-?\\d+$"
                                   },
                                   "scale": {
-                                    "type": "number",
+                                    "type": "integer",
+                                    "minimum": 0,
                                     "maximum": 18
                                   },
                                   "unit": {
@@ -3814,7 +3960,8 @@
                                                   "pattern": "^-?\\d+$"
                                                 },
                                                 "scale": {
-                                                  "type": "number",
+                                                  "type": "integer",
+                                                  "minimum": 0,
                                                   "maximum": 18
                                                 },
                                                 "unit": {
@@ -3862,6 +4009,11 @@
                                               },
                                               "currency": {
                                                 "const": "USD"
+                                              },
+                                              "scale": {
+                                                "type": "integer",
+                                                "minimum": 0,
+                                                "maximum": 18
                                               }
                                             },
                                             "required": ["units", "currency"]
@@ -3872,6 +4024,10 @@
                                     ]
                                   },
                                   "providerRequestId": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "canonicalOperationId": {
                                     "type": "string",
                                     "minLength": 1
                                   },
@@ -4028,12 +4184,36 @@
                 "type": "object",
                 "additionalProperties": false,
                 "properties": {
+                  "settlementPolicy": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "requiredUnits": {
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "minLength": 1,
+                          "pattern": "^[\\s\\S]*\\S[\\s\\S]*$",
+                          "not": {
+                            "const": "budget_cents"
+                          }
+                        },
+                        "minItems": 1,
+                        "maxItems": 64,
+                        "uniqueItems": true
+                      },
+                      "requireMoney": {
+                        "type": "boolean"
+                      }
+                    },
+                    "required": ["requiredUnits", "requireMoney"]
+                  },
                   "operationId": {
                     "type": "string",
                     "minLength": 1
                   },
                   "reservationTtlMs": {
-                    "type": "number",
+                    "type": "integer",
                     "minimum": 1,
                     "maximum": 86400000
                   },
@@ -4139,7 +4319,8 @@
                           "pattern": "^-?\\d+$"
                         },
                         "scale": {
-                          "type": "number",
+                          "type": "integer",
+                          "minimum": 0,
                           "maximum": 18
                         },
                         "unit": {
@@ -4219,12 +4400,36 @@
                           "type": "object",
                           "additionalProperties": false,
                           "properties": {
+                            "settlementPolicy": {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "properties": {
+                                "requiredUnits": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "pattern": "^[\\s\\S]*\\S[\\s\\S]*$",
+                                    "not": {
+                                      "const": "budget_cents"
+                                    }
+                                  },
+                                  "minItems": 1,
+                                  "maxItems": 64,
+                                  "uniqueItems": true
+                                },
+                                "requireMoney": {
+                                  "type": "boolean"
+                                }
+                              },
+                              "required": ["requiredUnits", "requireMoney"]
+                            },
                             "operationId": {
                               "type": "string",
                               "minLength": 1
                             },
                             "reservationTtlMs": {
-                              "type": "number",
+                              "type": "integer",
                               "minimum": 1,
                               "maximum": 86400000
                             },
@@ -4339,7 +4544,8 @@
                                     "pattern": "^-?\\d+$"
                                   },
                                   "scale": {
-                                    "type": "number",
+                                    "type": "integer",
+                                    "minimum": 0,
                                     "maximum": 18
                                   },
                                   "unit": {
@@ -4496,7 +4702,8 @@
                                                   "pattern": "^-?\\d+$"
                                                 },
                                                 "scale": {
-                                                  "type": "number",
+                                                  "type": "integer",
+                                                  "minimum": 0,
                                                   "maximum": 18
                                                 },
                                                 "unit": {
@@ -4544,6 +4751,11 @@
                                               },
                                               "currency": {
                                                 "const": "USD"
+                                              },
+                                              "scale": {
+                                                "type": "integer",
+                                                "minimum": 0,
+                                                "maximum": 18
                                               }
                                             },
                                             "required": ["units", "currency"]
@@ -4554,6 +4766,10 @@
                                     ]
                                   },
                                   "providerRequestId": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "canonicalOperationId": {
                                     "type": "string",
                                     "minLength": 1
                                   },
@@ -4676,12 +4892,36 @@
                               "type": "object",
                               "additionalProperties": false,
                               "properties": {
+                                "settlementPolicy": {
+                                  "type": "object",
+                                  "additionalProperties": false,
+                                  "properties": {
+                                    "requiredUnits": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "string",
+                                        "minLength": 1,
+                                        "pattern": "^[\\s\\S]*\\S[\\s\\S]*$",
+                                        "not": {
+                                          "const": "budget_cents"
+                                        }
+                                      },
+                                      "minItems": 1,
+                                      "maxItems": 64,
+                                      "uniqueItems": true
+                                    },
+                                    "requireMoney": {
+                                      "type": "boolean"
+                                    }
+                                  },
+                                  "required": ["requiredUnits", "requireMoney"]
+                                },
                                 "operationId": {
                                   "type": "string",
                                   "minLength": 1
                                 },
                                 "reservationTtlMs": {
-                                  "type": "number",
+                                  "type": "integer",
                                   "minimum": 1,
                                   "maximum": 86400000
                                 },
@@ -4796,7 +5036,8 @@
                                         "pattern": "^-?\\d+$"
                                       },
                                       "scale": {
-                                        "type": "number",
+                                        "type": "integer",
+                                        "minimum": 0,
                                         "maximum": 18
                                       },
                                       "unit": {
@@ -4953,7 +5194,8 @@
                                                       "pattern": "^-?\\d+$"
                                                     },
                                                     "scale": {
-                                                      "type": "number",
+                                                      "type": "integer",
+                                                      "minimum": 0,
                                                       "maximum": 18
                                                     },
                                                     "unit": {
@@ -5001,6 +5243,11 @@
                                                   },
                                                   "currency": {
                                                     "const": "USD"
+                                                  },
+                                                  "scale": {
+                                                    "type": "integer",
+                                                    "minimum": 0,
+                                                    "maximum": 18
                                                   }
                                                 },
                                                 "required": ["units", "currency"]
@@ -5011,6 +5258,10 @@
                                         ]
                                       },
                                       "providerRequestId": {
+                                        "type": "string",
+                                        "minLength": 1
+                                      },
+                                      "canonicalOperationId": {
                                         "type": "string",
                                         "minLength": 1
                                       },
@@ -5186,7 +5437,7 @@
                     "minLength": 1
                   },
                   "leaseTtlMs": {
-                    "type": "number",
+                    "type": "integer",
                     "minimum": 1,
                     "maximum": 86400000
                   }
@@ -5332,7 +5583,7 @@
                     "minLength": 1
                   },
                   "leaseTtlMs": {
-                    "type": "number",
+                    "type": "integer",
                     "minimum": 1,
                     "maximum": 86400000
                   }
@@ -5377,12 +5628,36 @@
                           "type": "object",
                           "additionalProperties": false,
                           "properties": {
+                            "settlementPolicy": {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "properties": {
+                                "requiredUnits": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "pattern": "^[\\s\\S]*\\S[\\s\\S]*$",
+                                    "not": {
+                                      "const": "budget_cents"
+                                    }
+                                  },
+                                  "minItems": 1,
+                                  "maxItems": 64,
+                                  "uniqueItems": true
+                                },
+                                "requireMoney": {
+                                  "type": "boolean"
+                                }
+                              },
+                              "required": ["requiredUnits", "requireMoney"]
+                            },
                             "operationId": {
                               "type": "string",
                               "minLength": 1
                             },
                             "reservationTtlMs": {
-                              "type": "number",
+                              "type": "integer",
                               "minimum": 1,
                               "maximum": 86400000
                             },
@@ -5497,7 +5772,8 @@
                                     "pattern": "^-?\\d+$"
                                   },
                                   "scale": {
-                                    "type": "number",
+                                    "type": "integer",
+                                    "minimum": 0,
                                     "maximum": 18
                                   },
                                   "unit": {
@@ -5654,7 +5930,8 @@
                                                   "pattern": "^-?\\d+$"
                                                 },
                                                 "scale": {
-                                                  "type": "number",
+                                                  "type": "integer",
+                                                  "minimum": 0,
                                                   "maximum": 18
                                                 },
                                                 "unit": {
@@ -5702,6 +5979,11 @@
                                               },
                                               "currency": {
                                                 "const": "USD"
+                                              },
+                                              "scale": {
+                                                "type": "integer",
+                                                "minimum": 0,
+                                                "maximum": 18
                                               }
                                             },
                                             "required": ["units", "currency"]
@@ -5712,6 +5994,10 @@
                                     ]
                                   },
                                   "providerRequestId": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "canonicalOperationId": {
                                     "type": "string",
                                     "minLength": 1
                                   },
@@ -5834,12 +6120,36 @@
                               "type": "object",
                               "additionalProperties": false,
                               "properties": {
+                                "settlementPolicy": {
+                                  "type": "object",
+                                  "additionalProperties": false,
+                                  "properties": {
+                                    "requiredUnits": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "string",
+                                        "minLength": 1,
+                                        "pattern": "^[\\s\\S]*\\S[\\s\\S]*$",
+                                        "not": {
+                                          "const": "budget_cents"
+                                        }
+                                      },
+                                      "minItems": 1,
+                                      "maxItems": 64,
+                                      "uniqueItems": true
+                                    },
+                                    "requireMoney": {
+                                      "type": "boolean"
+                                    }
+                                  },
+                                  "required": ["requiredUnits", "requireMoney"]
+                                },
                                 "operationId": {
                                   "type": "string",
                                   "minLength": 1
                                 },
                                 "reservationTtlMs": {
-                                  "type": "number",
+                                  "type": "integer",
                                   "minimum": 1,
                                   "maximum": 86400000
                                 },
@@ -5954,7 +6264,8 @@
                                         "pattern": "^-?\\d+$"
                                       },
                                       "scale": {
-                                        "type": "number",
+                                        "type": "integer",
+                                        "minimum": 0,
                                         "maximum": 18
                                       },
                                       "unit": {
@@ -6111,7 +6422,8 @@
                                                       "pattern": "^-?\\d+$"
                                                     },
                                                     "scale": {
-                                                      "type": "number",
+                                                      "type": "integer",
+                                                      "minimum": 0,
                                                       "maximum": 18
                                                     },
                                                     "unit": {
@@ -6159,6 +6471,11 @@
                                                   },
                                                   "currency": {
                                                     "const": "USD"
+                                                  },
+                                                  "scale": {
+                                                    "type": "integer",
+                                                    "minimum": 0,
+                                                    "maximum": 18
                                                   }
                                                 },
                                                 "required": ["units", "currency"]
@@ -6169,6 +6486,10 @@
                                         ]
                                       },
                                       "providerRequestId": {
+                                        "type": "string",
+                                        "minLength": 1
+                                      },
+                                      "canonicalOperationId": {
                                         "type": "string",
                                         "minLength": 1
                                       },
@@ -6334,7 +6655,7 @@
                     "minLength": 1
                   },
                   "leaseTtlMs": {
-                    "type": "number",
+                    "type": "integer",
                     "minimum": 1,
                     "maximum": 86400000
                   }
@@ -6382,12 +6703,36 @@
                           "type": "object",
                           "additionalProperties": false,
                           "properties": {
+                            "settlementPolicy": {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "properties": {
+                                "requiredUnits": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "pattern": "^[\\s\\S]*\\S[\\s\\S]*$",
+                                    "not": {
+                                      "const": "budget_cents"
+                                    }
+                                  },
+                                  "minItems": 1,
+                                  "maxItems": 64,
+                                  "uniqueItems": true
+                                },
+                                "requireMoney": {
+                                  "type": "boolean"
+                                }
+                              },
+                              "required": ["requiredUnits", "requireMoney"]
+                            },
                             "operationId": {
                               "type": "string",
                               "minLength": 1
                             },
                             "reservationTtlMs": {
-                              "type": "number",
+                              "type": "integer",
                               "minimum": 1,
                               "maximum": 86400000
                             },
@@ -6502,7 +6847,8 @@
                                     "pattern": "^-?\\d+$"
                                   },
                                   "scale": {
-                                    "type": "number",
+                                    "type": "integer",
+                                    "minimum": 0,
                                     "maximum": 18
                                   },
                                   "unit": {
@@ -6659,7 +7005,8 @@
                                                   "pattern": "^-?\\d+$"
                                                 },
                                                 "scale": {
-                                                  "type": "number",
+                                                  "type": "integer",
+                                                  "minimum": 0,
                                                   "maximum": 18
                                                 },
                                                 "unit": {
@@ -6707,6 +7054,11 @@
                                               },
                                               "currency": {
                                                 "const": "USD"
+                                              },
+                                              "scale": {
+                                                "type": "integer",
+                                                "minimum": 0,
+                                                "maximum": 18
                                               }
                                             },
                                             "required": ["units", "currency"]
@@ -6717,6 +7069,10 @@
                                     ]
                                   },
                                   "providerRequestId": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "canonicalOperationId": {
                                     "type": "string",
                                     "minLength": 1
                                   },
@@ -6828,7 +7184,7 @@
                                     "additionalProperties": false,
                                     "properties": {
                                       "percent": {
-                                        "type": "number",
+                                        "type": "integer",
                                         "minimum": 1,
                                         "maximum": 100
                                       }
@@ -6844,7 +7200,8 @@
                                         "pattern": "^-?\\d+$"
                                       },
                                       "scale": {
-                                        "type": "number",
+                                        "type": "integer",
+                                        "minimum": 0,
                                         "maximum": 18
                                       },
                                       "unit": {
@@ -6865,7 +7222,8 @@
                                     "pattern": "^-?\\d+$"
                                   },
                                   "scale": {
-                                    "type": "number",
+                                    "type": "integer",
+                                    "minimum": 0,
                                     "maximum": 18
                                   },
                                   "unit": {
@@ -6884,7 +7242,8 @@
                                     "pattern": "^-?\\d+$"
                                   },
                                   "scale": {
-                                    "type": "number",
+                                    "type": "integer",
+                                    "minimum": 0,
                                     "maximum": 18
                                   },
                                   "unit": {
@@ -6930,12 +7289,36 @@
                               "type": "object",
                               "additionalProperties": false,
                               "properties": {
+                                "settlementPolicy": {
+                                  "type": "object",
+                                  "additionalProperties": false,
+                                  "properties": {
+                                    "requiredUnits": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "string",
+                                        "minLength": 1,
+                                        "pattern": "^[\\s\\S]*\\S[\\s\\S]*$",
+                                        "not": {
+                                          "const": "budget_cents"
+                                        }
+                                      },
+                                      "minItems": 1,
+                                      "maxItems": 64,
+                                      "uniqueItems": true
+                                    },
+                                    "requireMoney": {
+                                      "type": "boolean"
+                                    }
+                                  },
+                                  "required": ["requiredUnits", "requireMoney"]
+                                },
                                 "operationId": {
                                   "type": "string",
                                   "minLength": 1
                                 },
                                 "reservationTtlMs": {
-                                  "type": "number",
+                                  "type": "integer",
                                   "minimum": 1,
                                   "maximum": 86400000
                                 },
@@ -7050,7 +7433,8 @@
                                         "pattern": "^-?\\d+$"
                                       },
                                       "scale": {
-                                        "type": "number",
+                                        "type": "integer",
+                                        "minimum": 0,
                                         "maximum": 18
                                       },
                                       "unit": {
@@ -7207,7 +7591,8 @@
                                                       "pattern": "^-?\\d+$"
                                                     },
                                                     "scale": {
-                                                      "type": "number",
+                                                      "type": "integer",
+                                                      "minimum": 0,
                                                       "maximum": 18
                                                     },
                                                     "unit": {
@@ -7255,6 +7640,11 @@
                                                   },
                                                   "currency": {
                                                     "const": "USD"
+                                                  },
+                                                  "scale": {
+                                                    "type": "integer",
+                                                    "minimum": 0,
+                                                    "maximum": 18
                                                   }
                                                 },
                                                 "required": ["units", "currency"]
@@ -7265,6 +7655,10 @@
                                         ]
                                       },
                                       "providerRequestId": {
+                                        "type": "string",
+                                        "minLength": 1
+                                      },
+                                      "canonicalOperationId": {
                                         "type": "string",
                                         "minLength": 1
                                       },
@@ -7528,7 +7922,8 @@
                                       "pattern": "^-?\\d+$"
                                     },
                                     "scale": {
-                                      "type": "number",
+                                      "type": "integer",
+                                      "minimum": 0,
                                       "maximum": 18
                                     },
                                     "unit": {
@@ -7576,6 +7971,11 @@
                                   },
                                   "currency": {
                                     "const": "USD"
+                                  },
+                                  "scale": {
+                                    "type": "integer",
+                                    "minimum": 0,
+                                    "maximum": 18
                                   }
                                 },
                                 "required": ["units", "currency"]
@@ -7586,6 +7986,10 @@
                         ]
                       },
                       "providerRequestId": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "canonicalOperationId": {
                         "type": "string",
                         "minLength": 1
                       },
@@ -7668,12 +8072,36 @@
                           "type": "object",
                           "additionalProperties": false,
                           "properties": {
+                            "settlementPolicy": {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "properties": {
+                                "requiredUnits": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "pattern": "^[\\s\\S]*\\S[\\s\\S]*$",
+                                    "not": {
+                                      "const": "budget_cents"
+                                    }
+                                  },
+                                  "minItems": 1,
+                                  "maxItems": 64,
+                                  "uniqueItems": true
+                                },
+                                "requireMoney": {
+                                  "type": "boolean"
+                                }
+                              },
+                              "required": ["requiredUnits", "requireMoney"]
+                            },
                             "operationId": {
                               "type": "string",
                               "minLength": 1
                             },
                             "reservationTtlMs": {
-                              "type": "number",
+                              "type": "integer",
                               "minimum": 1,
                               "maximum": 86400000
                             },
@@ -7788,7 +8216,8 @@
                                     "pattern": "^-?\\d+$"
                                   },
                                   "scale": {
-                                    "type": "number",
+                                    "type": "integer",
+                                    "minimum": 0,
                                     "maximum": 18
                                   },
                                   "unit": {
@@ -7945,7 +8374,8 @@
                                                   "pattern": "^-?\\d+$"
                                                 },
                                                 "scale": {
-                                                  "type": "number",
+                                                  "type": "integer",
+                                                  "minimum": 0,
                                                   "maximum": 18
                                                 },
                                                 "unit": {
@@ -7993,6 +8423,11 @@
                                               },
                                               "currency": {
                                                 "const": "USD"
+                                              },
+                                              "scale": {
+                                                "type": "integer",
+                                                "minimum": 0,
+                                                "maximum": 18
                                               }
                                             },
                                             "required": ["units", "currency"]
@@ -8003,6 +8438,10 @@
                                     ]
                                   },
                                   "providerRequestId": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "canonicalOperationId": {
                                     "type": "string",
                                     "minLength": 1
                                   },
@@ -8114,7 +8553,7 @@
                                     "additionalProperties": false,
                                     "properties": {
                                       "percent": {
-                                        "type": "number",
+                                        "type": "integer",
                                         "minimum": 1,
                                         "maximum": 100
                                       }
@@ -8130,7 +8569,8 @@
                                         "pattern": "^-?\\d+$"
                                       },
                                       "scale": {
-                                        "type": "number",
+                                        "type": "integer",
+                                        "minimum": 0,
                                         "maximum": 18
                                       },
                                       "unit": {
@@ -8151,7 +8591,8 @@
                                     "pattern": "^-?\\d+$"
                                   },
                                   "scale": {
-                                    "type": "number",
+                                    "type": "integer",
+                                    "minimum": 0,
                                     "maximum": 18
                                   },
                                   "unit": {
@@ -8170,7 +8611,8 @@
                                     "pattern": "^-?\\d+$"
                                   },
                                   "scale": {
-                                    "type": "number",
+                                    "type": "integer",
+                                    "minimum": 0,
                                     "maximum": 18
                                   },
                                   "unit": {
@@ -8216,12 +8658,36 @@
                               "type": "object",
                               "additionalProperties": false,
                               "properties": {
+                                "settlementPolicy": {
+                                  "type": "object",
+                                  "additionalProperties": false,
+                                  "properties": {
+                                    "requiredUnits": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "string",
+                                        "minLength": 1,
+                                        "pattern": "^[\\s\\S]*\\S[\\s\\S]*$",
+                                        "not": {
+                                          "const": "budget_cents"
+                                        }
+                                      },
+                                      "minItems": 1,
+                                      "maxItems": 64,
+                                      "uniqueItems": true
+                                    },
+                                    "requireMoney": {
+                                      "type": "boolean"
+                                    }
+                                  },
+                                  "required": ["requiredUnits", "requireMoney"]
+                                },
                                 "operationId": {
                                   "type": "string",
                                   "minLength": 1
                                 },
                                 "reservationTtlMs": {
-                                  "type": "number",
+                                  "type": "integer",
                                   "minimum": 1,
                                   "maximum": 86400000
                                 },
@@ -8336,7 +8802,8 @@
                                         "pattern": "^-?\\d+$"
                                       },
                                       "scale": {
-                                        "type": "number",
+                                        "type": "integer",
+                                        "minimum": 0,
                                         "maximum": 18
                                       },
                                       "unit": {
@@ -8493,7 +8960,8 @@
                                                       "pattern": "^-?\\d+$"
                                                     },
                                                     "scale": {
-                                                      "type": "number",
+                                                      "type": "integer",
+                                                      "minimum": 0,
                                                       "maximum": 18
                                                     },
                                                     "unit": {
@@ -8541,6 +9009,11 @@
                                                   },
                                                   "currency": {
                                                     "const": "USD"
+                                                  },
+                                                  "scale": {
+                                                    "type": "integer",
+                                                    "minimum": 0,
+                                                    "maximum": 18
                                                   }
                                                 },
                                                 "required": ["units", "currency"]
@@ -8551,6 +9024,10 @@
                                         ]
                                       },
                                       "providerRequestId": {
+                                        "type": "string",
+                                        "minLength": 1
+                                      },
+                                      "canonicalOperationId": {
                                         "type": "string",
                                         "minLength": 1
                                       },
@@ -8814,7 +9291,8 @@
                                       "pattern": "^-?\\d+$"
                                     },
                                     "scale": {
-                                      "type": "number",
+                                      "type": "integer",
+                                      "minimum": 0,
                                       "maximum": 18
                                     },
                                     "unit": {
@@ -8862,6 +9340,11 @@
                                   },
                                   "currency": {
                                     "const": "USD"
+                                  },
+                                  "scale": {
+                                    "type": "integer",
+                                    "minimum": 0,
+                                    "maximum": 18
                                   }
                                 },
                                 "required": ["units", "currency"]
@@ -8872,6 +9355,10 @@
                         ]
                       },
                       "providerRequestId": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "canonicalOperationId": {
                         "type": "string",
                         "minLength": 1
                       },
@@ -8964,12 +9451,36 @@
                           "type": "object",
                           "additionalProperties": false,
                           "properties": {
+                            "settlementPolicy": {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "properties": {
+                                "requiredUnits": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "pattern": "^[\\s\\S]*\\S[\\s\\S]*$",
+                                    "not": {
+                                      "const": "budget_cents"
+                                    }
+                                  },
+                                  "minItems": 1,
+                                  "maxItems": 64,
+                                  "uniqueItems": true
+                                },
+                                "requireMoney": {
+                                  "type": "boolean"
+                                }
+                              },
+                              "required": ["requiredUnits", "requireMoney"]
+                            },
                             "operationId": {
                               "type": "string",
                               "minLength": 1
                             },
                             "reservationTtlMs": {
-                              "type": "number",
+                              "type": "integer",
                               "minimum": 1,
                               "maximum": 86400000
                             },
@@ -9084,7 +9595,8 @@
                                     "pattern": "^-?\\d+$"
                                   },
                                   "scale": {
-                                    "type": "number",
+                                    "type": "integer",
+                                    "minimum": 0,
                                     "maximum": 18
                                   },
                                   "unit": {
@@ -9241,7 +9753,8 @@
                                                   "pattern": "^-?\\d+$"
                                                 },
                                                 "scale": {
-                                                  "type": "number",
+                                                  "type": "integer",
+                                                  "minimum": 0,
                                                   "maximum": 18
                                                 },
                                                 "unit": {
@@ -9289,6 +9802,11 @@
                                               },
                                               "currency": {
                                                 "const": "USD"
+                                              },
+                                              "scale": {
+                                                "type": "integer",
+                                                "minimum": 0,
+                                                "maximum": 18
                                               }
                                             },
                                             "required": ["units", "currency"]
@@ -9299,6 +9817,10 @@
                                     ]
                                   },
                                   "providerRequestId": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "canonicalOperationId": {
                                     "type": "string",
                                     "minLength": 1
                                   },
@@ -9404,12 +9926,36 @@
                               "type": "object",
                               "additionalProperties": false,
                               "properties": {
+                                "settlementPolicy": {
+                                  "type": "object",
+                                  "additionalProperties": false,
+                                  "properties": {
+                                    "requiredUnits": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "string",
+                                        "minLength": 1,
+                                        "pattern": "^[\\s\\S]*\\S[\\s\\S]*$",
+                                        "not": {
+                                          "const": "budget_cents"
+                                        }
+                                      },
+                                      "minItems": 1,
+                                      "maxItems": 64,
+                                      "uniqueItems": true
+                                    },
+                                    "requireMoney": {
+                                      "type": "boolean"
+                                    }
+                                  },
+                                  "required": ["requiredUnits", "requireMoney"]
+                                },
                                 "operationId": {
                                   "type": "string",
                                   "minLength": 1
                                 },
                                 "reservationTtlMs": {
-                                  "type": "number",
+                                  "type": "integer",
                                   "minimum": 1,
                                   "maximum": 86400000
                                 },
@@ -9524,7 +10070,8 @@
                                         "pattern": "^-?\\d+$"
                                       },
                                       "scale": {
-                                        "type": "number",
+                                        "type": "integer",
+                                        "minimum": 0,
                                         "maximum": 18
                                       },
                                       "unit": {
@@ -9681,7 +10228,8 @@
                                                       "pattern": "^-?\\d+$"
                                                     },
                                                     "scale": {
-                                                      "type": "number",
+                                                      "type": "integer",
+                                                      "minimum": 0,
                                                       "maximum": 18
                                                     },
                                                     "unit": {
@@ -9729,6 +10277,11 @@
                                                   },
                                                   "currency": {
                                                     "const": "USD"
+                                                  },
+                                                  "scale": {
+                                                    "type": "integer",
+                                                    "minimum": 0,
+                                                    "maximum": 18
                                                   }
                                                 },
                                                 "required": ["units", "currency"]
@@ -9739,6 +10292,10 @@
                                         ]
                                       },
                                       "providerRequestId": {
+                                        "type": "string",
+                                        "minLength": 1
+                                      },
+                                      "canonicalOperationId": {
                                         "type": "string",
                                         "minLength": 1
                                       },
@@ -10133,12 +10690,36 @@
                               "type": "object",
                               "additionalProperties": false,
                               "properties": {
+                                "settlementPolicy": {
+                                  "type": "object",
+                                  "additionalProperties": false,
+                                  "properties": {
+                                    "requiredUnits": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "string",
+                                        "minLength": 1,
+                                        "pattern": "^[\\s\\S]*\\S[\\s\\S]*$",
+                                        "not": {
+                                          "const": "budget_cents"
+                                        }
+                                      },
+                                      "minItems": 1,
+                                      "maxItems": 64,
+                                      "uniqueItems": true
+                                    },
+                                    "requireMoney": {
+                                      "type": "boolean"
+                                    }
+                                  },
+                                  "required": ["requiredUnits", "requireMoney"]
+                                },
                                 "operationId": {
                                   "type": "string",
                                   "minLength": 1
                                 },
                                 "reservationTtlMs": {
-                                  "type": "number",
+                                  "type": "integer",
                                   "minimum": 1,
                                   "maximum": 86400000
                                 },
@@ -10253,7 +10834,8 @@
                                         "pattern": "^-?\\d+$"
                                       },
                                       "scale": {
-                                        "type": "number",
+                                        "type": "integer",
+                                        "minimum": 0,
                                         "maximum": 18
                                       },
                                       "unit": {
@@ -10410,7 +10992,8 @@
                                                       "pattern": "^-?\\d+$"
                                                     },
                                                     "scale": {
-                                                      "type": "number",
+                                                      "type": "integer",
+                                                      "minimum": 0,
                                                       "maximum": 18
                                                     },
                                                     "unit": {
@@ -10458,6 +11041,11 @@
                                                   },
                                                   "currency": {
                                                     "const": "USD"
+                                                  },
+                                                  "scale": {
+                                                    "type": "integer",
+                                                    "minimum": 0,
+                                                    "maximum": 18
                                                   }
                                                 },
                                                 "required": ["units", "currency"]
@@ -10468,6 +11056,10 @@
                                         ]
                                       },
                                       "providerRequestId": {
+                                        "type": "string",
+                                        "minLength": 1
+                                      },
+                                      "canonicalOperationId": {
                                         "type": "string",
                                         "minLength": 1
                                       },
@@ -10726,7 +11318,8 @@
                                                   "pattern": "^-?\\d+$"
                                                 },
                                                 "scale": {
-                                                  "type": "number",
+                                                  "type": "integer",
+                                                  "minimum": 0,
                                                   "maximum": 18
                                                 },
                                                 "unit": {
@@ -10774,6 +11367,11 @@
                                               },
                                               "currency": {
                                                 "const": "USD"
+                                              },
+                                              "scale": {
+                                                "type": "integer",
+                                                "minimum": 0,
+                                                "maximum": 18
                                               }
                                             },
                                             "required": ["units", "currency"]
@@ -10999,7 +11597,7 @@
                   "minLength": 1
                 },
                 "limit": {
-                  "type": "number",
+                  "type": "integer",
                   "minimum": 1,
                   "maximum": 1000
                 }
@@ -11088,7 +11686,8 @@
                                                   "pattern": "^-?\\d+$"
                                                 },
                                                 "scale": {
-                                                  "type": "number",
+                                                  "type": "integer",
+                                                  "minimum": 0,
                                                   "maximum": 18
                                                 },
                                                 "unit": {
@@ -11136,6 +11735,11 @@
                                               },
                                               "currency": {
                                                 "const": "USD"
+                                              },
+                                              "scale": {
+                                                "type": "integer",
+                                                "minimum": 0,
+                                                "maximum": 18
                                               }
                                             },
                                             "required": ["units", "currency"]
@@ -11357,7 +11961,7 @@
                     "minLength": 1
                   },
                   "limit": {
-                    "type": "number",
+                    "type": "integer",
                     "minimum": 1,
                     "maximum": 1000
                   }
@@ -11400,12 +12004,36 @@
                                 "type": "object",
                                 "additionalProperties": false,
                                 "properties": {
+                                  "settlementPolicy": {
+                                    "type": "object",
+                                    "additionalProperties": false,
+                                    "properties": {
+                                      "requiredUnits": {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "string",
+                                          "minLength": 1,
+                                          "pattern": "^[\\s\\S]*\\S[\\s\\S]*$",
+                                          "not": {
+                                            "const": "budget_cents"
+                                          }
+                                        },
+                                        "minItems": 1,
+                                        "maxItems": 64,
+                                        "uniqueItems": true
+                                      },
+                                      "requireMoney": {
+                                        "type": "boolean"
+                                      }
+                                    },
+                                    "required": ["requiredUnits", "requireMoney"]
+                                  },
                                   "operationId": {
                                     "type": "string",
                                     "minLength": 1
                                   },
                                   "reservationTtlMs": {
-                                    "type": "number",
+                                    "type": "integer",
                                     "minimum": 1,
                                     "maximum": 86400000
                                   },
@@ -11520,7 +12148,8 @@
                                           "pattern": "^-?\\d+$"
                                         },
                                         "scale": {
-                                          "type": "number",
+                                          "type": "integer",
+                                          "minimum": 0,
                                           "maximum": 18
                                         },
                                         "unit": {
@@ -11677,7 +12306,8 @@
                                                         "pattern": "^-?\\d+$"
                                                       },
                                                       "scale": {
-                                                        "type": "number",
+                                                        "type": "integer",
+                                                        "minimum": 0,
                                                         "maximum": 18
                                                       },
                                                       "unit": {
@@ -11725,6 +12355,11 @@
                                                     },
                                                     "currency": {
                                                       "const": "USD"
+                                                    },
+                                                    "scale": {
+                                                      "type": "integer",
+                                                      "minimum": 0,
+                                                      "maximum": 18
                                                     }
                                                   },
                                                   "required": ["units", "currency"]
@@ -11735,6 +12370,10 @@
                                           ]
                                         },
                                         "providerRequestId": {
+                                          "type": "string",
+                                          "minLength": 1
+                                        },
+                                        "canonicalOperationId": {
                                           "type": "string",
                                           "minLength": 1
                                         },
@@ -11998,7 +12637,7 @@
                   "minLength": 1
                 },
                 "limit": {
-                  "type": "number",
+                  "type": "integer",
                   "minimum": 1,
                   "maximum": 1000
                 }
@@ -12196,7 +12835,8 @@
                                         "pattern": "^-?\\d+$"
                                       },
                                       "scale": {
-                                        "type": "number",
+                                        "type": "integer",
+                                        "minimum": 0,
                                         "maximum": 18
                                       },
                                       "unit": {
@@ -12297,7 +12937,8 @@
                                     "pattern": "^-?\\d+$"
                                   },
                                   "scale": {
-                                    "type": "number",
+                                    "type": "integer",
+                                    "minimum": 0,
                                     "maximum": 18
                                   },
                                   "unit": {
@@ -12320,7 +12961,7 @@
                                           "additionalProperties": false,
                                           "properties": {
                                             "percent": {
-                                              "type": "number",
+                                              "type": "integer",
                                               "minimum": 1,
                                               "maximum": 100
                                             }
@@ -12336,7 +12977,8 @@
                                               "pattern": "^-?\\d+$"
                                             },
                                             "scale": {
-                                              "type": "number",
+                                              "type": "integer",
+                                              "minimum": 0,
                                               "maximum": 18
                                             },
                                             "unit": {
@@ -12772,7 +13414,7 @@
                   }
                 },
                 "limit": {
-                  "type": "number",
+                  "type": "integer",
                   "minimum": 1,
                   "maximum": 1000
                 }
@@ -12974,7 +13616,8 @@
                                             "pattern": "^-?\\d+$"
                                           },
                                           "scale": {
-                                            "type": "number",
+                                            "type": "integer",
+                                            "minimum": 0,
                                             "maximum": 18
                                           },
                                           "unit": {
@@ -13075,7 +13718,8 @@
                                         "pattern": "^-?\\d+$"
                                       },
                                       "scale": {
-                                        "type": "number",
+                                        "type": "integer",
+                                        "minimum": 0,
                                         "maximum": 18
                                       },
                                       "unit": {
@@ -13098,7 +13742,7 @@
                                               "additionalProperties": false,
                                               "properties": {
                                                 "percent": {
-                                                  "type": "number",
+                                                  "type": "integer",
                                                   "minimum": 1,
                                                   "maximum": 100
                                                 }
@@ -13114,7 +13758,8 @@
                                                   "pattern": "^-?\\d+$"
                                                 },
                                                 "scale": {
-                                                  "type": "number",
+                                                  "type": "integer",
+                                                  "minimum": 0,
                                                   "maximum": 18
                                                 },
                                                 "unit": {
@@ -13182,7 +13827,8 @@
                                         "pattern": "^-?\\d+$"
                                       },
                                       "scale": {
-                                        "type": "number",
+                                        "type": "integer",
+                                        "minimum": 0,
                                         "maximum": 18
                                       },
                                       "unit": {
@@ -13208,7 +13854,8 @@
                                         "pattern": "^-?\\d+$"
                                       },
                                       "scale": {
-                                        "type": "number",
+                                        "type": "integer",
+                                        "minimum": 0,
                                         "maximum": 18
                                       },
                                       "unit": {
@@ -13234,7 +13881,8 @@
                                         "pattern": "^-?\\d+$"
                                       },
                                       "scale": {
-                                        "type": "number",
+                                        "type": "integer",
+                                        "minimum": 0,
                                         "maximum": 18
                                       },
                                       "unit": {

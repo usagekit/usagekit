@@ -146,6 +146,14 @@ async function fixture(
         await call("$readOnly", [false]);
       }
     },
+    replayMoneyMigration: async () => {
+      await call("$replayMoneyMigration");
+    },
+    moneyColumns: async () =>
+      ((await call("$moneyColumns")) as { cost_units: bigint; cost_scale: number }[]).map((r) => ({
+        cost_units: String(r.cost_units),
+        cost_scale: r.cost_scale,
+      })),
     restart: async () => {
       await mf!.dispose();
       mf = undefined;
@@ -333,7 +341,7 @@ test("Cloudflare v1 storage upgrades idempotently and import replay survives obj
   const reserved = await f.store.reserve(input({ operationId: "before-upgrade" }));
   if (reserved.outcome !== "reserved") throw new Error("fixture");
   await f.call("$upgradeVersionOne");
-  expect(await f.call("$schemaVersions")).toEqual([{ version: 1 }, { version: 2 }]);
+  expect(await f.call("$schemaVersions")).toEqual([{ version: 1 }, { version: 2 }, { version: 3 }]);
   expect(await f.store.getOperation(ref(reserved.operation))).toEqual(reserved.operation);
   await expect(f.call("$unsupportedSchema")).rejects.toThrow("Unsupported Cloudflare schema");
   const first = await f.store.importBilling(billingInput());

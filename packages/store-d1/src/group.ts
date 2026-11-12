@@ -1,3 +1,4 @@
+import { addMoney } from "@usagekit/core";
 import type { Cost, Measurement, Operation, UsageQuery, UsageRow } from "@usagekit/core";
 import { plus, effective, canonical } from "./util.js";
 function combineCost(a: Cost, b: Cost): Cost {
@@ -6,7 +7,7 @@ function combineCost(a: Cost, b: Cost): Cost {
   return {
     certainty:
       a.certainty === "estimated" || b.certainty === "estimated" ? "estimated" : "measured",
-    money: { currency: "USD", units: a.money.units + b.money.units },
+    money: addMoney(a.money, b.money),
   };
 }
 function combineMeasurements(a: readonly Measurement[], b: readonly Measurement[]): Measurement[] {
@@ -38,7 +39,7 @@ export function rows(operations: Iterable<Operation>, q: UsageQuery): UsageRow[]
   for (const op of operations) {
     if (!["pending", "settled"].includes(op.state)) continue;
     const receipt = effective(op);
-    if (!receipt) continue;
+    if (!receipt || receipt.canonicalOperationId) continue;
     const occurred = Date.parse(receipt.occurredAt);
     if (occurred < Date.parse(q.from) || occurred >= Date.parse(q.to)) continue;
     const pools = q.groupBy.includes("platform_pool")

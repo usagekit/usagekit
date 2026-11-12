@@ -1,7 +1,7 @@
 # Postgres Store
 
-`@usagekit/store-postgres` is published at 0.8.0 in the seven-package cohort and moves to 0.9.0
-in lockstep, without functional changes from 0.6.0. It implements
+`@usagekit/store-postgres` belongs to the published seven-package 0.11.0 cohort.
+The 0.12.0 source candidate adds native settlement and requires schema version 2. It implements
 the complete Store contract, including billing imports, using normalized Postgres tables.
 Install the published exact version anonymously, or use the reviewed candidate tarballs
 when validating an unreleased checkout. See [consuming packages](CONSUMING.md) for the
@@ -25,6 +25,31 @@ calls are harmless. A modified or unsupported version fails configuration. Schem
 are validated before any SQL executes. The runtime role needs access to the migrated
 tables and sequences; grant DDL only to the migration role.
 
+The 0.12.0 native settlement extension requires schema version 2 for every user,
+including operations without a settlement policy. Stop writers, save a pre-upgrade
+snapshot, run `migratePostgresStore` with the upgraded package, then start upgraded
+writers. `createPostgresStore` and `createTransactionBoundStore` check the exact schema
+version before any Store write, including cursor metadata initialization. An absent,
+older or newer version throws the exported `PostgresSchemaVersionError`, with numeric
+`actualVersion` (0 when absent) and `requiredVersion` properties. Its message names
+`migratePostgresStore`. A newer schema needs its matching package; the migrator cannot
+downgrade it. Returning to 0.11.0 requires restoring the pre-upgrade snapshot, even if
+no finer-scale rows have been written. A migrated database cannot be used by 0.11.0.
+SQLite and D1 migrate on open. Finer money scales require an operation with a frozen
+`settlementPolicy`; canonical links require the same defined `scope.connection` on
+both operations. See the [upgrade order](CONSUMING.md#upgrade-order-for-0120-native-settlement).
+
+The schema check costs two queries: `to_regclass` and a scan of the small version
+table. It runs once per `createPostgresStore` instance (including the pooled
+constructor), and once per host transaction when using `createTransactionBoundStore`.
+These are additional to cursor metadata initialization. Results are not cached
+across host transactions.
+
+A non-contiguous migration history is an unsupported database state, reported as
+`PostgresSchemaVersionError` with `reason: "unsupported"`. Inspect and repair that
+history before proceeding; do not run the migrator blindly. Contiguous older and
+newer histories report `reason: "older"` and `reason: "newer"`, respectively.
+
 ## Prisma and existing host transactions
 
 ```ts
@@ -41,7 +66,8 @@ The Prisma integration uses its raw-query methods with separately bound position
 values. Date parameters retain their UTC offset even when a host connection uses a non-UTC
 TimeZone. It needs no generated host types or Prisma runtime in the published adapter. Hosts can
 manage equivalent tables through their existing migration system instead of invoking
-the standalone migrator. No private application tables or schema mappings are shipped.
+the standalone migrator, including the `metering_schema_version` migration records.
+No private application tables or schema mappings are shipped.
 
 For accounting that must commit with a host ledger, call `createTransactionBoundStore`
 with `prismaPostgresExecutor(transaction)` or `nodePostgresExecutor(client)`. The caller
@@ -55,6 +81,11 @@ Writes atomically recheck operation versions, command identities, leases and all
 budget bounds. Shared bounds serialize across connections and processes. Receipts, budget
 projections, alerts, retained command results and billing imports commit together. Unknown
 charges retain exposure. Accounting replay never grants another provider dispatch.
+
+If an operation becomes visible only after a command waits for its lock, the command
+returns a retryable `version_conflict` without writing. Retry from the start so the
+connection lock is acquired first; a transaction-bound caller must retry in a new
+host transaction.
 
 Standalone reads run in repeatable-read, read-only transactions. Cursor signatures and
 watermarks survive process restarts; journal events serialize through commit to preserve
