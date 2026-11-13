@@ -5,9 +5,9 @@ costs and application credits. Both BYOK and platform-funded keys are in scope.
 Host A uses Postgres and Prisma. Host B adds team-owned connections.
 Host C targets Cloudflare D1. A local server shares the embedded Meter contract.
 
-**Release 0.11.0 is published. The 0.12.0 source candidate adds native usage settlement independent of optional money, canonical request links and finer money precision; the seven packages move in lockstep. See [what 0.12.0 adds](docs/CONSUMING.md#what-0120-adds).**
-Licensed under Apache-2.0. `@usagekit/core`, `store`, `meter`, `providers`, `views`, `react` and `store-postgres` 0.11.0 are published on registry.npmjs.org.
-The 0.12.0 release allow-list contains these seven packages. Other workspaces remain private. Candidate publication needs separate exact-source and version owner approval.
+**Release 0.12.0 is published. The 0.12.1 source candidate fixes exact PostgreSQL numeric parsing through pg and Prisma; the seven packages move in lockstep. See [what 0.12.1 fixes](docs/CONSUMING.md#what-0121-fixes).**
+Licensed under Apache-2.0. `@usagekit/core`, `store`, `meter`, `providers`, `views`, `react` and `store-postgres` 0.12.0 are published on registry.npmjs.org.
+The 0.12.1 release allow-list contains these seven packages. Other workspaces remain private. Candidate publication needs separate exact-source and version owner approval.
 `createMeteredDispatch` ships in 0.11.0: it admits a streaming model call against request, token and money budgets and settles it with actual usage, with an AI SDK 7 adapter at `@usagekit/providers/ai-sdk`. See [metered dispatch](docs/METERED-DISPATCH.md).
 
 [Project website](https://usagekit.dev) · [Source](https://github.com/usagekit/usagekit) · [Issues](https://github.com/usagekit/usagekit/issues) · [Roadmap](docs/ROADMAP.md)

@@ -1,7 +1,8 @@
 # Native usage settlement
 
-This additive contract is part of the 0.12.0 source candidate. The seven packages
-move in lockstep; use reviewed local tarballs until the release is published.
+This additive contract shipped in 0.12.0. The 0.12.1 source candidate fixes PostgreSQL
+numeric parsing without changing the contract or schema. The seven packages move in
+lockstep; use reviewed local tarballs for 0.12.1 until it is published.
 
 ## Freeze what must be known
 

@@ -1,7 +1,8 @@
 # Postgres Store
 
-`@usagekit/store-postgres` belongs to the published seven-package 0.11.0 cohort.
-The 0.12.0 source candidate adds native settlement and requires schema version 2. It implements
+`@usagekit/store-postgres` belongs to the published seven-package 0.12.0 cohort.
+The 0.12.1 source candidate fixes exact numeric parsing through pg and Prisma and keeps
+schema version 2, introduced with native settlement in 0.12.0. It implements
 the complete Store contract, including billing imports, using normalized Postgres tables.
 Install the published exact version anonymously, or use the reviewed candidate tarballs
 when validating an unreleased checkout. See [consuming packages](CONSUMING.md) for the
