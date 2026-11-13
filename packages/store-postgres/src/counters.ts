@@ -7,6 +7,7 @@ import {
   validateRequestCountsQuery,
 } from "@usagekit/store";
 import { canonical, encode, hash, key } from "./codec.js";
+import { integerValue, type IntegerValue } from "./numeric.js";
 import { lock, SQL, type transactions } from "./sql.js";
 
 export function requestCounters(
@@ -71,14 +72,19 @@ export function requestCounters(
         const rows = await sql.query<{
           dimensions: Record<string, string>;
           state: RequestState;
-          count: string;
-        }>(SQL.sql`
+          count: IntegerValue;
+        }>(
+          SQL.sql`
           SELECT dimensions,state,count FROM (
             SELECT ${dimensionsSql} AS dimensions,body->>'state' AS state,sum(count)::text AS count
             FROM metering_request_count WHERE ${SQL.join(clauses, " AND ")} GROUP BY 1,2
-          ) grouped ORDER BY ${SQL.join(order)} LIMIT ${limit + 1}`);
+          ) grouped ORDER BY ${SQL.join(order)} LIMIT ${limit + 1}`,
+          ["count"],
+        );
         return {
-          rows: rows.slice(0, limit).map((row) => ({ ...row, count: BigInt(row.count) })),
+          rows: rows
+            .slice(0, limit)
+            .map((row) => ({ ...row, count: integerValue(row.count, "count") })),
           asOf: clock.now().toISOString(),
           truncated: rows.length > limit,
         };

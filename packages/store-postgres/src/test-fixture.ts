@@ -1,10 +1,19 @@
 import { randomUUID } from "node:crypto";
+import { resolve } from "node:path";
+import { pathToFileURL } from "node:url";
+import { PrismaPg } from "@prisma/adapter-pg";
 import { Pool } from "pg";
 import type { Budget, Operation, Receipt, ReserveInput } from "@usagekit/core";
 import { createManualClock } from "@usagekit/store";
 import { saveBudget } from "./budgets.js";
 import { encode } from "./codec.js";
-import { createNodePostgresDriver, createPostgresStore, migratePostgresStore } from "./index.js";
+import {
+  createNodePostgresDriver,
+  createPrismaPostgresDriver,
+  createPostgresStore,
+  migratePostgresStore,
+} from "./index.js";
+import type { PrismaPostgresClient, PrismaPostgresTransaction } from "./index.js";
 import { transactions } from "./sql.js";
 
 export function testDatabaseUrl() {
@@ -18,21 +27,41 @@ export function testDatabaseUrl() {
     throw new Error("Postgres tests require the isolated local/CI usagekit_store_fixture database");
   return value;
 }
-export async function fixture() {
+interface TestClient extends PrismaPostgresClient, PrismaPostgresTransaction {
+  $disconnect(): Promise<void>;
+}
+export async function prismaClient(): Promise<TestClient> {
+  const generated = await import(
+    pathToFileURL(resolve("node_modules/.cache/usagekit-prisma-fixture/client/client.ts")).href
+  );
+  return new generated.PrismaClient({
+    // Prisma's timestamp decoder assumes UTC on reads; keep this numeric suite in UTC.
+    adapter: new PrismaPg({
+      connectionString: testDatabaseUrl(),
+      max: 5,
+      options: "-c TimeZone=UTC",
+    }),
+  });
+}
+export async function fixture(mode: "pg" | "prisma" = "pg") {
   const schema = `uk_test_${randomUUID().replaceAll("-", "")}`;
   const connect = () =>
     new Pool({ connectionString: testDatabaseUrl(), max: 5, connectionTimeoutMillis: 5000 });
   let pool = connect();
+  let prisma = mode === "prisma" ? await prismaClient() : undefined;
+  const driver = () =>
+    prisma ? createPrismaPostgresDriver(prisma) : createNodePostgresDriver(pool);
   try {
-    await migratePostgresStore({ pool, schema, createSchema: true });
+    await migratePostgresStore({ driver: driver(), schema, createSchema: true });
   } catch (error) {
+    await prisma?.$disconnect();
     await pool.end();
     throw error;
   }
   const clock = createManualClock(),
     budgets: Budget[] = [],
     counters = { statements: 0, changes: 0n, rowsRead: 0 };
-  let current = await createPostgresStore({ pool, clock, schema, counters });
+  let current = await createPostgresStore({ driver: driver(), clock, schema, counters });
   const seen = new Map<string, string>();
   let syncing = Promise.resolve();
   const sync = () =>
@@ -41,7 +70,7 @@ export async function fixture() {
         const key = `${budget.scope.namespace}:${budget.id}:${budget.version}`,
           body = encode(budget);
         if (seen.get(key) === body) continue;
-        await transactions(createNodePostgresDriver(pool), schema, counters).write((sql) =>
+        await transactions(driver(), schema, counters).write((sql) =>
           saveBudget(sql, budget, true),
         );
         seen.set(key, body);
@@ -59,6 +88,7 @@ export async function fixture() {
   });
   return {
     store,
+    driver,
     clock,
     budgets,
     schema,
@@ -69,25 +99,30 @@ export async function fixture() {
       await pool.query(
         `ALTER TABLE "${schema}".metering_receipt DROP COLUMN cost_scale; DELETE FROM "${schema}".metering_schema_version WHERE version=2`,
       );
-      await migratePostgresStore({ pool, schema });
+      await migratePostgresStore({ driver: driver(), schema });
     },
     async moneyColumns() {
-      return (
-        await pool.query(
-          `SELECT cost_units::text,cost_scale FROM "${schema}".metering_receipt ORDER BY recorded_at,receipt_pk`,
-        )
-      ).rows.sort((a, b) => a.cost_scale - b.cost_scale);
+      const rows = await driver().transaction(true, (sql) =>
+        sql.query<{ cost_units: string; cost_scale: number }>({
+          text: `SELECT cost_units,cost_scale FROM "${schema}".metering_receipt ORDER BY recorded_at,receipt_pk`,
+          values: [],
+        }),
+      );
+      return rows.sort((a, b) => a.cost_scale - b.cost_scale);
     },
     async restart() {
+      await prisma?.$disconnect();
       await pool.end();
       pool = connect();
-      current = await createPostgresStore({ pool, clock, schema, counters });
+      prisma = mode === "prisma" ? await prismaClient() : undefined;
+      current = await createPostgresStore({ driver: driver(), clock, schema, counters });
       return store;
     },
     async close() {
       try {
         await pool.query(`DROP SCHEMA "${schema}" CASCADE`);
       } finally {
+        await prisma?.$disconnect();
         await pool.end();
       }
     },
