@@ -5,6 +5,7 @@ import { InvalidInput } from "@usagekit/store";
 import { aggregate as groupUsage } from "@usagekit/store/reference";
 import { canonical, decode } from "./codec.js";
 import { newState } from "./command-state.js";
+import { integerText, integerValue, type IntegerValue } from "./numeric.js";
 import { SQL, type Sql } from "./sql.js";
 
 type Cursor = { query: string; watermark: string; offset: number; asOf: string; expiresAt: number };
@@ -13,11 +14,11 @@ type Row = {
   input: unknown;
   state: Operation["state"];
   body: unknown;
-  cost_units: bigint | string | null;
+  cost_units: IntegerValue | null;
   cost_scale: number;
   cost_certainty: Receipt["cost"]["certainty"];
   unit: string | null;
-  value: { toString(): string } | null;
+  value: IntegerValue | null;
   scale: number | null;
   certainty: "measured" | "estimated" | "unknown";
 };
@@ -42,12 +43,13 @@ export function usageReader(clock: Clock, secret: string) {
         throw new InvalidInput("cursor", "unknown cursor or query mismatch");
       }
     } else {
-      const [row] = await sql.query<{ n: bigint }>(
+      const [row] = await sql.query<{ n: IntegerValue }>(
         SQL.sql`SELECT COALESCE(MAX(event_id),0) AS n FROM metering_event`,
+        ["n"],
       );
       snapshot = {
         query: identity,
-        watermark: String(row?.n ?? 0n),
+        watermark: integerText(row?.n ?? "0", "n"),
         offset: 0,
         asOf: clock.now().toISOString(),
         expiresAt: clock.now().getTime() + 300000,
@@ -66,11 +68,13 @@ export function usageReader(clock: Clock, secret: string) {
     if (q.scope.kind === "platform_pool")
       clauses.push(SQL.sql`o.input->'platformPools' @> ${JSON.stringify([q.scope.poolId])}::jsonb`);
     if (q.connection) clauses.push(SQL.sql`o.input->'scope'->>'connection'=${q.connection}`);
-    const records =
-      await sql.query<Row>(SQL.sql`SELECT o.operation_pk,o.input,e.state,r.body,r.cost_units,r.cost_scale,r.cost_certainty,m.unit,m.value,m.scale,m.certainty
+    const records = await sql.query<Row>(
+      SQL.sql`SELECT o.operation_pk,o.input,e.state,r.body,r.cost_units,r.cost_scale,r.cost_certainty,m.unit,m.value,m.scale,m.certainty
       FROM metering_event e JOIN metering_operation o USING(operation_pk)
       JOIN metering_receipt r ON r.receipt_pk=e.receipt_pk LEFT JOIN metering_measurement m ON m.receipt_pk=r.receipt_pk
-      WHERE ${SQL.join(clauses, " AND ")} ORDER BY e.event_id,m.unit`);
+      WHERE ${SQL.join(clauses, " AND ")} ORDER BY e.event_id,m.unit`,
+      ["cost_units", "value"],
+    );
     const state = newState(clock);
     for (const row of records) {
       let op = state.operations.get(row.operation_pk);
@@ -86,7 +90,7 @@ export function usageReader(clock: Clock, secret: string) {
                 certainty: row.cost_certainty,
                 money: {
                   currency: "USD",
-                  units: BigInt(row.cost_units ?? 0n),
+                  units: integerValue(row.cost_units ?? "0", "cost_units"),
                   ...(row.cost_scale === 4 ? {} : { scale: row.cost_scale }),
                 },
               };
@@ -117,7 +121,7 @@ export function usageReader(clock: Clock, secret: string) {
                 certainty: row.certainty,
                 quantity: {
                   unit: row.unit,
-                  value: BigInt(row.value?.toString() ?? "0"),
+                  value: integerValue(row.value ?? "0", "value"),
                   scale: row.scale ?? 0,
                 },
               },

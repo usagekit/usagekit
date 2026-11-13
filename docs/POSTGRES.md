@@ -1,7 +1,8 @@
 # Postgres Store
 
-`@usagekit/store-postgres` belongs to the published seven-package 0.11.0 cohort.
-The 0.12.0 source candidate adds native settlement and requires schema version 2. It implements
+`@usagekit/store-postgres` belongs to the published seven-package 0.12.0 cohort.
+The 0.12.1 source candidate fixes exact numeric parsing through pg and Prisma and keeps
+schema version 2, introduced with native settlement in 0.12.0. It implements
 the complete Store contract, including billing imports, using normalized Postgres tables.
 Install the published exact version anonymously, or use the reviewed candidate tarballs
 when validating an unreleased checkout. See [consuming packages](CONSUMING.md) for the
@@ -68,6 +69,24 @@ TimeZone. It needs no generated host types or Prisma runtime in the published ad
 manage equivalent tables through their existing migration system instead of invoking
 the standalone migrator, including the `metering_schema_version` migration records.
 No private application tables or schema mappings are shipped.
+
+Both built-in executors return PostgreSQL `numeric` and `int8` fields as exact,
+exponent-free strings, including fractional numeric results. Trailing fractional zeros
+are removed and negative zero becomes `"0"`, so both drivers return identical numeric text.
+The Prisma executor uses
+Decimal's `toFixed()` without a precision argument, preserving every digit without rounding.
+Queries explicitly identify the fields consumed as integers through `integerColumns`;
+fractions and non-finite values in those fields throw the exported `PostgresIntegrityError`,
+whose `column` identifies the field. This signals stored-data corruption rather than invalid
+caller input. int2/int4 metadata, dates, nulls and JSON bodies keep their types. Custom
+`PostgresExecutor` implementations may return strings, bigint or Decimal-like values for
+integral fields; the shared read conversion uses the exact fixed-point form as well.
+Global `pg.types.setTypeParser` overrides must preserve exact strings, bigint or Decimal-like
+values. Safe integer numbers are accepted, but unsafe or fractional JavaScript numbers cannot
+prove the original value: they throw a `TypeError` naming the parser configuration and column,
+not `PostgresIntegrityError`. Restore an exact parser before retrying the transaction.
+Library-owned transactions roll back on either error. Transaction-bound callers must
+roll back the entire host transaction on either error, which can occur after writes.
 
 For accounting that must commit with a host ledger, call `createTransactionBoundStore`
 with `prismaPostgresExecutor(transaction)` or `nodePostgresExecutor(client)`. The caller

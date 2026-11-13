@@ -21,9 +21,11 @@ function storageError(error: unknown): never {
 }
 export function createSql(executor: PostgresExecutor, counters: Counters) {
   return {
-    async query<T>(query: Statement): Promise<T[]> {
+    async query<T>(query: Statement, integerColumns: readonly string[] = []): Promise<T[]> {
       counters.statements++;
-      const result = await executor.query<T>(query.compile()).catch(storageError);
+      const result = await executor
+        .query<T>({ ...query.compile(), integerColumns })
+        .catch(storageError);
       counters.rowsRead += result.length;
       return result;
     },

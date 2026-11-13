@@ -28,6 +28,7 @@ export type {
 export type { ParameterizedQuery } from "./statement.js";
 export type { Counters as PostgresStoreCounters } from "./sql.js";
 export { migratePostgresStore } from "./migrate.js";
+export { PostgresIntegrityError } from "./integrity.js";
 export { PostgresSchemaVersionError } from "./schema-version.js";
 
 type Storage = { pool: Pool; driver?: never } | { driver: PostgresDriver; pool?: never };

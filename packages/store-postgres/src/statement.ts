@@ -3,7 +3,12 @@ class Parameter {
   constructor(readonly value: unknown) {}
 }
 type Part = string | Parameter;
-export type ParameterizedQuery = { text: string; values: unknown[] };
+export type ParameterizedQuery = {
+  text: string;
+  values: unknown[];
+  /** Result fields consumed as integers; other numeric fields may contain fractions. */
+  integerColumns?: readonly string[];
+};
 export class Statement {
   constructor(readonly parts: readonly Part[]) {}
   compile(): ParameterizedQuery {

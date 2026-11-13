@@ -2,6 +2,7 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import type { OperationsPage, OperationsQuery } from "@usagekit/core";
 import { type Clock, InvalidInput } from "@usagekit/store";
 import { canonical } from "./codec.js";
+import { integerText, type IntegerValue } from "./numeric.js";
 import { hydrate, type OperationRow } from "./records.js";
 import { SQL, type Sql } from "./sql.js";
 
@@ -31,14 +32,15 @@ export function operationsReader(clock: Clock, secret: string) {
       identity = canonical(query);
     const [watermark] = cursor
       ? []
-      : await sql.query<{ n: bigint }>(
+      : await sql.query<{ n: IntegerValue }>(
           SQL.sql`SELECT COALESCE(MAX(event_id),0) AS n FROM metering_event`,
+          ["n"],
         );
     const snapshot: Cursor = cursor
       ? open(cursor, identity)
       : {
           query: identity,
-          watermark: String(watermark?.n ?? 0n),
+          watermark: integerText(watermark?.n ?? "0", "n"),
           offset: 0,
           asOf: clock.now().toISOString(),
           expiresAt: clock.now().getTime() + 300000,

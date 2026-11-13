@@ -9,6 +9,7 @@ import type {
 import { resolveWindow, sourcesOf } from "@usagekit/core";
 import { settledQuantity, validateBudget } from "@usagekit/store";
 import { canonical, decode, effective, encode, plus } from "./codec.js";
+import { integerValue, type IntegerValue } from "./numeric.js";
 import { lock, SQL, type Sql } from "./sql.js";
 
 export function matchingScopes(
@@ -72,17 +73,23 @@ export async function historicalBudget(sql: Sql, namespace: string, id: string, 
 }
 export async function usage(sql: Sql, budget: Budget, epoch: string) {
   const [row] = await sql.query<{
-    settled_value: { toString(): string };
-    outstanding_value: { toString(): string };
+    settled_value: IntegerValue;
+    outstanding_value: IntegerValue;
     scale: number;
-  }>(SQL.sql`
-    SELECT settled_value,outstanding_value,scale FROM metering_budget_usage WHERE namespace=${budget.scope.namespace} AND budget_id=${budget.id} AND epoch=${epoch}`);
+  }>(
+    SQL.sql`
+    SELECT settled_value,outstanding_value,scale FROM metering_budget_usage WHERE namespace=${budget.scope.namespace} AND budget_id=${budget.id} AND epoch=${epoch}`,
+    ["settled_value", "outstanding_value"],
+  );
   const used = {
-    value: BigInt(row?.settled_value.toString() ?? "0"),
+    value: integerValue(row?.settled_value ?? "0", "settled_value"),
     scale: row?.scale ?? 0,
     unit: budget.unit,
   };
-  return { used, reserved: { ...used, value: BigInt(row?.outstanding_value.toString() ?? "0") } };
+  return {
+    used,
+    reserved: { ...used, value: integerValue(row?.outstanding_value ?? "0", "outstanding_value") },
+  };
 }
 export async function status(sql: Sql, budget: Budget, now: Date): Promise<BudgetStatus> {
   const epoch = resolveWindow(budget.window, now),

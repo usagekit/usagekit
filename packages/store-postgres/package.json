@@ -1,6 +1,6 @@
 {
   "name": "@usagekit/store-postgres",
-  "version": "0.12.0",
+  "version": "0.12.1",
   "type": "module",
   "license": "Apache-2.0",
   "exports": {
@@ -22,8 +22,8 @@
     "prepack": "node ../../scripts/package-license.mjs"
   },
   "dependencies": {
-    "@usagekit/core": "0.12.0",
-    "@usagekit/store": "0.12.0",
+    "@usagekit/core": "0.12.1",
+    "@usagekit/store": "0.12.1",
     "pg": "8.23.1",
     "@types/pg": "8.23.1"
   },
@@ -41,5 +41,9 @@
   "homepage": "https://usagekit.dev",
   "bugs": {
     "url": "https://github.com/usagekit/usagekit/issues"
+  },
+  "devDependencies": {
+    "@prisma/adapter-pg": "7.9.1",
+    "@prisma/client": "7.9.1"
   }
 }
